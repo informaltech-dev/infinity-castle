@@ -1,0 +1,289 @@
+/* Trailer overlays. Sizes in vmin/vh so the cards scale with the capture resolution. */
+#trailer-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  overflow: hidden;
+  --ink: #0d0b0c;
+  --washi: #efe6d2;
+  --verm: #c8322b;
+  --gold: #c9a45c;
+  --water: #4fb3e8;
+  --flame: #ff7a2a;
+  --akaza: #f07aa0;
+  --ice: #6fe3ff;
+  --f-title: 'Noto Serif TC', 'Songti TC', serif;
+  --f-body: 'LXGW WenKai TC', 'Kaiti TC', serif;
+  font-family: var(--f-title);
+  color: var(--washi);
+}
+#trailer-root i {
+  font-style: normal;
+  display: inline-block;
+}
+#trailer-root .tr-sp {
+  width: 0.5em;
+}
+
+/* HUD modes */
+body.tr-hud-none #ui-root,
+body.tr-hud-none #lock-hint {
+  display: none;
+}
+body.tr-hud-cine .ic-hud .hd-main,
+body.tr-hud-cine .ic-hud .hd-lock,
+body.tr-hud-cine .ic-hud .hd-ebars,
+body.tr-hud-cine .ic-hud .hd-dmg,
+body.tr-hud-cine .ic-hud .hd-danger,
+body.tr-hud-cine .ic-hud .hd-toasts,
+body.tr-hud-cine #lock-hint {
+  display: none !important;
+}
+#lock-hint {
+  display: none !important;
+}
+
+/* ---------------------------------------------------------------- fades */
+.tr-black {
+  position: absolute;
+  inset: 0;
+  background: #000;
+}
+.tr-flash {
+  position: absolute;
+  inset: 0;
+}
+.tr-bars .tr-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: calc(12.2vh * var(--k, 0));
+  background: #000;
+}
+.tr-bar-t { top: 0; }
+.tr-bar-b { bottom: 0; }
+
+/* ---------------------------------------------------------------- narration */
+.tr-line {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  white-space: nowrap;
+  font-family: var(--f-body);
+  font-weight: 700;
+  font-size: 4.4vmin;
+  letter-spacing: 0.32em;
+  text-indent: 0.32em;
+  color: var(--washi);
+  text-shadow: 0 0 0.5em rgba(0, 0, 0, 0.9), 0 0 0.12em rgba(0, 0, 0, 0.9);
+}
+.tr-line.is-small { font-size: 3.4vmin; }
+.tr-line.tr-at-low { top: 80%; }
+.tr-line.tr-at-high { top: 22%; }
+.tr-line-sub {
+  font-family: var(--f-title);
+  font-size: 0.5em;
+  letter-spacing: 0.6em;
+  margin-top: 1em;
+  color: var(--gold);
+}
+
+/* ---------------------------------------------------------------- title card */
+.tr-title {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  white-space: nowrap;
+}
+.tr-title-band {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 150%;
+  height: 26vmin;
+  transform: translate(-50%, -52%) rotate(-3deg);
+  background: var(--c);
+  -webkit-mask: var(--tex-stroke) center / 100% 100% no-repeat;
+  mask: var(--tex-stroke) center / 100% 100% no-repeat;
+  opacity: 0.94;
+}
+.tr-title-kicker {
+  position: relative;
+  font-size: 2.6vmin;
+  font-weight: 700;
+  letter-spacing: 0.7em;
+  text-indent: 0.7em;
+  color: var(--gold);
+  margin-bottom: 0.6em;
+  text-shadow: 0 0 0.4em #000;
+}
+.tr-title-main {
+  position: relative;
+  font-weight: 900;
+  font-size: 15vmin;
+  line-height: 1.05;
+  letter-spacing: 0.1em;
+  text-indent: 0.1em;
+  color: #f7f0e3;
+  text-shadow: 0.03em 0.04em 0 #0d0b0c, 0 0 0.25em rgba(0, 0, 0, 0.6);
+}
+.tr-title.is-small .tr-title-main { font-size: 10vmin; }
+.tr-title.is-small .tr-title-band { height: 18vmin; }
+.tr-title-sub {
+  position: relative;
+  font-family: var(--f-body);
+  font-weight: 700;
+  font-size: 3.2vmin;
+  letter-spacing: 0.5em;
+  text-indent: 0.5em;
+  margin-top: 0.7em;
+  text-shadow: 0 0 0.4em #000, 0 0 0.1em #000;
+}
+
+/* ---------------------------------------------------------------- character name card */
+.tr-name {
+  position: absolute;
+  top: 50%;
+  height: 76vh;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2.2vmin;
+}
+.tr-name.is-right { right: 8vw; flex-direction: row-reverse; }
+.tr-name.is-left { left: 8vw; }
+.tr-name-stroke {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 70vh;
+  height: 20vmin;
+  transform: translate(-50%, -50%) rotate(90deg);
+  background: var(--c);
+  opacity: 0.9;
+  -webkit-mask: var(--tex-stroke) center / 100% 100% no-repeat;
+  mask: var(--tex-stroke) center / 100% 100% no-repeat;
+}
+.tr-name-col {
+  position: relative;
+  writing-mode: vertical-rl;
+  display: flex;
+  align-items: center;
+  gap: 1.4vmin;
+}
+.tr-name-label {
+  font-size: 2.5vmin;
+  font-weight: 700;
+  letter-spacing: 0.5em;
+  color: var(--washi);
+  text-shadow: 0 0 0.4em #000;
+}
+.tr-name-main {
+  font-weight: 900;
+  font-size: 10.5vmin;
+  letter-spacing: 0.06em;
+  color: #f7f0e3;
+  text-shadow: 0.04em 0.03em 0 #0d0b0c, 0 0 0.3em rgba(0, 0, 0, 0.55);
+}
+.tr-name-school {
+  position: relative;
+  writing-mode: vertical-rl;
+  font-family: var(--f-body);
+  font-weight: 700;
+  font-size: 3vmin;
+  letter-spacing: 0.4em;
+  color: var(--c);
+  text-shadow: 0 0 0.35em #000, 0 0 0.08em #000;
+  filter: brightness(1.25);
+}
+
+/* ---------------------------------------------------------------- end card */
+.tr-logo {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  white-space: nowrap;
+}
+.tr-logo-kicker {
+  position: relative;
+  font-size: 2.7vmin;
+  font-weight: 700;
+  letter-spacing: 0.8em;
+  text-indent: 0.8em;
+  color: var(--gold);
+  margin-bottom: 1.2vmin;
+  text-shadow: 0 0 0.4em #000;
+}
+.tr-logo-band {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: 118%;
+  height: 30vmin;
+  transform: translate(-50%, -50%) rotate(-2.5deg);
+  background: var(--verm);
+  -webkit-mask: var(--tex-stroke) center / 100% 100% no-repeat;
+  mask: var(--tex-stroke) center / 100% 100% no-repeat;
+}
+.tr-logo-main {
+  position: relative;
+  font-weight: 900;
+  font-size: 19vmin;
+  line-height: 1.1;
+  letter-spacing: 0.12em;
+  text-indent: 0.12em;
+  color: #f7f0e3;
+  text-shadow: 0.03em 0.04em 0 #0d0b0c, 0 0 0.3em rgba(0, 0, 0, 0.55);
+}
+.tr-logo-seal {
+  position: absolute;
+  right: -4vmin;
+  top: 5vmin;
+  width: 9vmin;
+  height: 9vmin;
+  display: grid;
+  place-items: center;
+  writing-mode: vertical-rl;
+  font-size: 3.2vmin;
+  font-weight: 900;
+  line-height: 1;
+  color: #f7ecd8;
+  background: var(--verm);
+  -webkit-mask: var(--tex-seal) center / 100% 100% no-repeat;
+  mask: var(--tex-seal) center / 100% 100% no-repeat;
+}
+.tr-logo-sub {
+  position: relative;
+  font-family: var(--f-body);
+  font-weight: 700;
+  font-size: 3.6vmin;
+  letter-spacing: 0.6em;
+  text-indent: 0.6em;
+  margin-top: 3.4vmin;
+  text-shadow: 0 0 0.4em #000;
+}
+.tr-logo-url {
+  position: relative;
+  font-family: var(--f-body);
+  font-weight: 700;
+  font-size: 2.9vmin;
+  letter-spacing: 0.06em;
+  margin-top: 2vmin;
+  color: var(--gold);
+  text-shadow: 0 0 0.4em #000;
+}
+.tr-logo-note {
+  position: relative;
+  font-size: 1.8vmin;
+  letter-spacing: 0.4em;
+  text-indent: 0.4em;
+  margin-top: 1.6vmin;
+  color: rgba(239, 230, 210, 0.66);
+}

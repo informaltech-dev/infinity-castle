@@ -1,0 +1,7 @@
+// Cloudflare Workers static-asset hosting for the built game.
+// Deploy: pnpm build && wrangler deploy
+{
+  "name": "infinity-castle",
+  "compatibility_date": "2025-12-01",
+  "assets": { "directory": "./dist" }
+}

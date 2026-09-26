@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Texture Library Test</title>
+    <style>
+      :root {
+        --bg: #16131a;
+        --panel: #221d27;
+        --ink: #eae3d6;
+        --dim: #9b8f86;
+        --accent: #e0a64a;
+        --bad: #ff6b5a;
+        --good: #7fd49a;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, sans-serif; }
+      header { position: sticky; top: 0; z-index: 5; background: rgba(22, 19, 26, 0.94); border-bottom: 1px solid #3a3140; padding: 10px 18px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+      header h1 { font-size: 15px; margin: 0; letter-spacing: 0.04em; }
+      #bar { width: 260px; height: 8px; background: #3a3140; border-radius: 4px; overflow: hidden; }
+      #bar > div { height: 100%; width: 0; background: var(--accent); transition: width 0.08s; }
+      #status { color: var(--dim); min-width: 200px; }
+      #timing b { color: var(--accent); }
+      nav a { color: var(--dim); text-decoration: none; margin-right: 10px; }
+      nav a:hover { color: var(--ink); }
+      main { padding: 12px 18px 60px; }
+      h2 { font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin: 26px 0 10px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+      .card { background: var(--panel); border-radius: 8px; padding: 8px; cursor: zoom-in; border: 1px solid transparent; }
+      .card:hover { border-color: #5a4a60; }
+      .card .view { display: flex; align-items: center; justify-content: center; height: 240px; border-radius: 4px; overflow: hidden; background: #0d0b0f; }
+      .view.checker { background-image: conic-gradient(#bdbdbd 25%, #f2f2f2 0 50%, #bdbdbd 0 75%, #f2f2f2 0); background-size: 16px 16px; }
+      .view.black { background: #000; }
+      .card canvas { max-width: 100%; max-height: 100%; image-rendering: auto; display: block; }
+      .card .name { font-weight: 600; margin-top: 6px; }
+      .card .meta { color: var(--dim); font-size: 11.5px; }
+      .tag { display: inline-block; padding: 0 5px; border-radius: 3px; background: #332b38; margin: 2px 3px 0 0; font-size: 11px; }
+      .seam-ok { color: var(--good); }
+      .seam-bad { color: var(--bad); }
+      .lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); z-index: 20; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 8px; cursor: zoom-out; }
+      .lightbox.open { display: flex; }
+      .lightbox .view { max-width: 96vw; max-height: 88vh; overflow: auto; }
+      .lightbox canvas { display: block; max-width: 96vw; max-height: 86vh; }
+      .lightbox .cap { color: var(--ink); }
+      #faces { background: var(--panel); border-radius: 8px; padding: 12px; }
+      #faces .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+      #faceButtons button { background: #332b38; color: var(--ink); border: 1px solid #4a3f50; border-radius: 4px; padding: 4px 8px; margin: 0 4px 4px 0; cursor: pointer; font: inherit; }
+      #faceButtons button.on { background: var(--accent); color: #1a1410; border-color: var(--accent); }
+      #faces label { color: var(--dim); margin-right: 12px; }
+      canvas.gl { border-radius: 6px; background: #3a3440; display: block; }
+      .note { color: var(--dim); max-width: 900px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Infinity Castle: procedural texture library</h1>
+      <div id="bar"><div></div></div>
+      <div id="status">starting</div>
+      <div id="timing"></div>
+      <nav>
+        <a href="#sec-faces3d">faces 3D</a><a href="#sec-data">data</a><a href="#sec-env">environment</a><a href="#sec-char">characters</a><a href="#sec-face">face decals</a><a href="#sec-fx">effects</a>
+      </nav>
+    </header>
+    <main>
+      <h2 id="sec-faces3d">Face decals on the deformed head</h2>
+      <div id="faces">
+        <div id="faceButtons"></div>
+        <div style="margin: 6px 0 10px">
+          <label><input type="checkbox" id="optHair" checked /> bangs (hair shell, hides f &lt; 0.40)</label>
+          <label>yaw <input type="range" id="optYaw" min="-80" max="80" value="40" /> <span id="yawVal">40</span> deg</label>
+          <label>light <input type="range" id="optLight" min="-80" max="80" value="25" /></label>
+        </div>
+        <div class="row">
+          <canvas class="gl" id="bigView" width="840" height="420"></canvas>
+          <p class="note">
+            Left: front camera. Right: 3/4 camera (drag on it to orbit). Head = MeshLambertMaterial skin sphere, face patch =
+            SphereGeometry(R*1.015, 32, 20, PI/2-1.05, 2.1, 0.55, 1.5), both passed through deformHead, face material
+            transparent + alphaTest 0.4.
+          </p>
+        </div>
+        <h3 style="margin: 16px 0 6px; font-size: 13px; color: var(--dim)">All faces: front and 3/4</h3>
+        <canvas class="gl" id="allView" width="900" height="720" style="max-width:100%"></canvas>
+        <h3 style="margin: 16px 0 6px; font-size: 13px; color: var(--dim)">Wrap check: lantern on a lathe (height about 1.5x diameter), roof tiles, pillar</h3>
+        <canvas class="gl" id="propView" width="840" height="300"></canvas>
+      </div>
+      <div id="sections"></div>
+    </main>
+    <div class="lightbox" id="lightbox"><div class="view" id="lbView"></div><div class="cap" id="lbCap"></div></div>
+    <script type="module" src="./textures-test.js"></script>
+  </body>
+</html>

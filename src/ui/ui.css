@@ -1,0 +1,614 @@
+/* ==========================================================================
+   無限城 UI — base tokens, shared components, transitions
+   ========================================================================== */
+
+.ic-ui {
+  --ink: #0d0b0c;
+  --ink-2: #1a1416;
+  --washi: #efe6d2;
+  --washi-2: #e2d4b6;
+  --verm: #c8322b;
+  --verm-hi: #e2483d;
+  --gold: #c9a45c;
+  --gold-hi: #ecd594;
+  --indigo: #1d2a4a;
+  --water: #4fb3e8;
+  --flame: #ff7a2a;
+  --demon: #e0294a;
+  --akaza: #f07aa0;
+  --ice: #6fe3ff;
+  --f-title: 'Noto Serif TC', 'Songti TC', 'Hiragino Mincho ProN', serif;
+  --f-body: 'LXGW WenKai TC', 'Kaiti TC', 'BiauKai', 'STKaiti', serif;
+  --u: clamp(6px, 1vmin, 16px);
+  --ease-brush: cubic-bezier(0.77, 0, 0.18, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-snap: cubic-bezier(0.2, 1.4, 0.4, 1);
+
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  font-family: var(--f-body);
+  font-size: calc(var(--u) * 1.8);
+  line-height: 1.5;
+  color: var(--washi);
+  letter-spacing: 0.02em;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
+}
+.ic-ui *,
+.ic-ui *::before,
+.ic-ui *::after {
+  box-sizing: border-box;
+}
+.ic-ui [hidden] {
+  display: none !important;
+}
+.ic-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.ic-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ic-layer--hud {
+  z-index: 1;
+  transition: opacity 0.4s ease, filter 0.4s ease;
+}
+.ic-layer--screens {
+  z-index: 10;
+}
+.ic-layer--top {
+  z-index: 30;
+}
+.ic-ui.is-result .ic-layer--hud {
+  opacity: 0;
+}
+.ic-ui.is-paused .ic-layer--hud {
+  filter: saturate(0.4) brightness(0.7);
+}
+
+/* --------------------------------------------------------------------------
+   Screens & transitions
+   -------------------------------------------------------------------------- */
+.ic-screen {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  overflow: hidden;
+}
+.ic-screen.is-in {
+  animation: ic-fade-in 0.45s var(--ease-out) both;
+}
+.ic-screen.is-out {
+  animation: ic-fade-out 0.3s ease both;
+  pointer-events: none !important;
+}
+.ic-screen.is-out * {
+  pointer-events: none !important;
+}
+
+/* brush-wipe reveal (left → right, ragged bristle edge) */
+.ic-wipe {
+  -webkit-mask-image: var(--tex-wipe);
+  mask-image: var(--tex-wipe);
+  -webkit-mask-size: 300% 100%;
+  mask-size: 300% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: 0% 0;
+  mask-position: 0% 0;
+}
+.is-in .ic-wipe {
+  animation: ic-wipe 0.7s var(--ease-brush) both;
+  animation-delay: var(--d, 0s);
+}
+
+@keyframes ic-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ic-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes ic-wipe {
+  from { -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+  to { -webkit-mask-position: 0% 0; mask-position: 0% 0; }
+}
+@keyframes ic-brush-down {
+  from { clip-path: inset(0 0 100% 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes ic-brush-right {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes ic-rise {
+  from { opacity: 0; transform: translateY(calc(var(--u) * 1.6)); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ic-slide-l {
+  from { opacity: 0; transform: translateX(calc(var(--u) * -4)); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ic-slide-r {
+  from { opacity: 0; transform: translateX(calc(var(--u) * 4)); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ic-stamp {
+  0% { opacity: 0; transform: scale(2.4) rotate(-14deg); }
+  55% { opacity: 1; transform: scale(0.92) rotate(3deg); }
+  75% { transform: scale(1.04) rotate(-1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(-4deg); }
+}
+@keyframes ic-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+@keyframes ic-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes ic-drift {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  12% { opacity: var(--o, 0.6); }
+  88% { opacity: var(--o, 0.6); }
+  100% { transform: translate3d(var(--dx, 2vw), -32vh, 0); opacity: 0; }
+}
+@keyframes ic-grain {
+  0% { background-position: 0 0; }
+  25% { background-position: -37px 21px; }
+  50% { background-position: 53px -13px; }
+  75% { background-position: -11px -47px; }
+  100% { background-position: 29px 41px; }
+}
+
+/* --------------------------------------------------------------------------
+   Typography helpers
+   -------------------------------------------------------------------------- */
+.ic-cal {
+  font-family: var(--f-title);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+}
+.ic-vert {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+}
+.ic-rough {
+  filter: url(#ic-rough);
+}
+.ic-rough-lg {
+  filter: url(#ic-rough-lg);
+}
+
+/* --------------------------------------------------------------------------
+   Glyphs: key caps, mouse, gamepad
+   -------------------------------------------------------------------------- */
+.ic-key {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  height: calc(var(--u) * 3);
+  width: calc(var(--u) * 3 * var(--kw, 1));
+  color: var(--washi);
+  vertical-align: middle;
+}
+.ic-key .k-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.ic-key .k-fill {
+  fill: rgba(239, 230, 210, 0.07);
+}
+.ic-key .k-edge {
+  fill: currentColor;
+}
+.ic-key .k-l {
+  position: relative;
+  font-family: var(--f-title);
+  font-weight: 900;
+  font-size: calc(var(--u) * 1.35);
+  line-height: 1;
+  transform: translateY(-5%);
+  white-space: nowrap;
+}
+.ic-key .k-l.is-long {
+  font-size: calc(var(--u) * 1.15);
+  letter-spacing: 0.02em;
+}
+.ic-key .k-arrow {
+  position: relative;
+  width: 46%;
+  height: 46%;
+  fill: currentColor;
+  transform-origin: 50% 50%;
+}
+.ic-key.is-pad .k-fill {
+  fill: rgba(239, 230, 210, 0.14);
+}
+
+.ic-mouse {
+  height: calc(var(--u) * 3.4);
+  width: auto;
+  flex: none;
+  vertical-align: middle;
+  overflow: visible;
+  color: var(--washi);
+}
+.ic-mouse .m-body {
+  fill: rgba(239, 230, 210, 0.06);
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.ic-mouse .m-div {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+.ic-mouse .m-l,
+.ic-mouse .m-r {
+  fill: transparent;
+}
+.ic-mouse.is-left .m-l,
+.ic-mouse.is-right .m-r {
+  fill: var(--verm);
+}
+.ic-mouse .m-w {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+}
+.ic-mouse.is-middle .m-w {
+  fill: var(--verm);
+  stroke: var(--verm);
+}
+.ic-mouse .m-arr {
+  fill: var(--verm);
+}
+
+.ic-pad {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: calc(var(--u) * 3.2);
+  height: calc(var(--u) * 3.2);
+  color: var(--washi);
+  vertical-align: middle;
+}
+.ic-pad .p-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+.ic-pad b {
+  position: relative;
+  font-family: var(--f-title);
+  font-weight: 900;
+  font-size: calc(var(--u) * 1.4);
+  line-height: 1;
+}
+.ic-pad.is-X b { color: #5aa9ef; }
+.ic-pad.is-Y b { color: #e9c24e; }
+.ic-pad.is-A b { color: #5fc77f; }
+.ic-pad.is-B b { color: #e8574c; }
+.ic-pad .p-sym {
+  position: relative;
+  width: 70%;
+  height: 70%;
+  fill: none;
+  stroke: #e58fc0;
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ic-pad.is-triangle .p-sym { stroke: #4fc8a0; }
+.ic-pad.is-cross .p-sym { stroke: #7ab4f0; }
+.ic-pad.is-circle .p-sym { stroke: #e86a5c; }
+.ic-pad.is-stick {
+  width: calc(var(--u) * 3.5);
+  height: calc(var(--u) * 3.5);
+}
+.ic-pad.is-stick svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.ic-pad .p-ring2 { fill: currentColor; }
+.ic-pad .p-cap {
+  fill: rgba(239, 230, 210, 0.1);
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+.ic-pad .p-arr { fill: var(--verm); }
+.ic-pad text {
+  font-family: var(--f-title);
+  font-weight: 900;
+  font-size: 12px;
+  fill: currentColor;
+}
+.ic-pad.is-press .p-cap { fill: var(--verm); stroke: var(--verm); }
+.ic-pad.is-press text { fill: #fff3e6; }
+
+.ic-i {
+  width: 1em;
+  height: 1em;
+  fill: currentColor;
+  flex: none;
+  vertical-align: -0.12em;
+}
+
+/* --------------------------------------------------------------------------
+   Seal (hanko)
+   -------------------------------------------------------------------------- */
+.ic-seal {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: calc(var(--u) * 4.6);
+  aspect-ratio: 1;
+  background: var(--verm);
+  color: #fdf0e2;
+  font-family: var(--f-title);
+  font-weight: 900;
+  line-height: 1;
+  -webkit-mask: var(--tex-seal) center / 100% 100% no-repeat;
+  mask: var(--tex-seal) center / 100% 100% no-repeat;
+}
+.ic-seal > span {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  font-size: calc(var(--u) * 1.7);
+  letter-spacing: -0.04em;
+}
+
+/* --------------------------------------------------------------------------
+   Hint bar (bottom key legends — also clickable)
+   -------------------------------------------------------------------------- */
+.ic-hints {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 0.6) calc(var(--u) * 2.6);
+  font-size: calc(var(--u) * 1.45);
+  color: rgba(239, 230, 210, 0.78);
+  pointer-events: auto;
+}
+.ic-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.55);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.ic-hint:hover {
+  color: var(--washi);
+}
+.ic-hint .ic-key {
+  height: calc(var(--u) * 2.6);
+  width: calc(var(--u) * 2.6 * var(--kw, 1));
+}
+.ic-hint .ic-key .k-l {
+  font-size: calc(var(--u) * 1.15);
+}
+.ic-hint .ic-key .k-l.is-long {
+  font-size: calc(var(--u) * 1.05);
+}
+.ic-hint-sep {
+  display: inline-flex;
+  gap: calc(var(--u) * 0.25);
+}
+
+/* --------------------------------------------------------------------------
+   Brush button
+   -------------------------------------------------------------------------- */
+.ic-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  padding: calc(var(--u) * 1.1) calc(var(--u) * 3.4);
+  font-family: var(--f-title);
+  font-weight: 900;
+  font-size: calc(var(--u) * 2.1);
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  line-height: 1.2;
+  color: var(--washi);
+  cursor: pointer;
+  isolation: isolate;
+  transition: color 0.2s, transform 0.25s var(--ease-out);
+}
+.ic-btn::before {
+  content: '';
+  position: absolute;
+  inset: -12% -8%;
+  z-index: -1;
+  background: rgba(13, 11, 12, 0.88);
+  -webkit-mask: var(--tex-stroke) center / 100% 100% no-repeat;
+  mask: var(--tex-stroke) center / 100% 100% no-repeat;
+  transition: background-color 0.2s, transform 0.35s var(--ease-out);
+}
+.ic-btn::after {
+  content: '';
+  position: absolute;
+  inset: -12% -8%;
+  z-index: -1;
+  background: linear-gradient(100deg, var(--verm) 0%, var(--verm-hi) 55%, #8f1d18 100%);
+  -webkit-mask: var(--tex-stroke) center / 100% 100% no-repeat;
+  mask: var(--tex-stroke) center / 100% 100% no-repeat;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.32s var(--ease-brush);
+}
+.ic-btn.is-focus {
+  color: #fff6ec;
+  transform: translateY(calc(var(--u) * -0.15));
+}
+.ic-btn.is-focus::after {
+  clip-path: inset(0 0 0 0);
+}
+.ic-btn.is-focus::before {
+  transform: scale(1.03, 1.1);
+}
+.ic-btn.is-primary {
+  font-size: calc(var(--u) * 2.6);
+}
+
+/* --------------------------------------------------------------------------
+   Washi paper panel
+   -------------------------------------------------------------------------- */
+.ic-washi {
+  position: relative;
+  color: var(--ink);
+  background-color: #ebe0c7;
+  background-image: var(--tex-washi),
+    radial-gradient(140% 110% at 28% 18%, #f7f0de 0%, #ece1c8 48%, #d8c7a2 100%);
+  -webkit-mask-box-image: var(--tex-deckle) 40 / calc(var(--u) * 2.4) stretch;
+}
+.ic-washi::after {
+  content: '';
+  position: absolute;
+  inset: calc(var(--u) * 1.3);
+  border: 1px solid rgba(150, 110, 50, 0.38);
+  pointer-events: none;
+}
+.ic-shadow {
+  filter: drop-shadow(0 calc(var(--u) * 1.2) calc(var(--u) * 2.6) rgba(0, 0, 0, 0.6));
+}
+.is-light .ic-key,
+.is-light .ic-mouse,
+.is-light .ic-pad {
+  color: var(--ink);
+}
+.is-light .ic-key .k-fill {
+  fill: rgba(13, 11, 12, 0.05);
+}
+.is-light .ic-mouse .m-body {
+  fill: rgba(13, 11, 12, 0.04);
+}
+.is-light .ic-pad .p-cap {
+  fill: rgba(13, 11, 12, 0.06);
+}
+
+/* --------------------------------------------------------------------------
+   Atmosphere: grain, drifting motes, gold frame
+   -------------------------------------------------------------------------- */
+.ic-grain {
+  position: absolute;
+  inset: -60px;
+  background-image: var(--tex-washi);
+  opacity: 0.12;
+  animation: ic-grain 1.2s steps(1) infinite;
+  pointer-events: none;
+}
+.ic-motes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.ic-mote {
+  position: absolute;
+  width: var(--s, 4px);
+  height: var(--s, 4px);
+  border-radius: 50%;
+  background: var(--c, rgba(239, 230, 210, 0.7));
+  box-shadow: 0 0 6px var(--c, rgba(239, 230, 210, 0.5));
+  animation: ic-drift var(--t, 9s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  will-change: transform, opacity;
+}
+.ic-frame {
+  position: absolute;
+  inset: calc(var(--u) * 2.2);
+  border: 1px solid rgba(201, 164, 92, 0.32);
+  pointer-events: none;
+}
+.ic-frame::before,
+.ic-frame::after {
+  content: '';
+  position: absolute;
+  width: calc(var(--u) * 4);
+  height: calc(var(--u) * 4);
+  border: 2px solid rgba(201, 164, 92, 0.8);
+}
+.ic-frame::before {
+  left: calc(var(--u) * -0.6);
+  top: calc(var(--u) * -0.6);
+  border-right: 0;
+  border-bottom: 0;
+}
+.ic-frame::after {
+  right: calc(var(--u) * -0.6);
+  bottom: calc(var(--u) * -0.6);
+  border-left: 0;
+  border-top: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Confirm dialog
+   -------------------------------------------------------------------------- */
+.ic-confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  background: rgba(6, 4, 5, 0.6);
+  pointer-events: auto;
+  animation: ic-fade-in 0.2s ease both;
+}
+.ic-confirm-box {
+  width: min(70vw, calc(var(--u) * 64));
+  padding: calc(var(--u) * 4.4) calc(var(--u) * 5) calc(var(--u) * 3.6);
+  text-align: center;
+  animation: ic-rise 0.35s var(--ease-out) both;
+}
+.ic-confirm-title {
+  font-family: var(--f-title);
+  font-weight: 900;
+  font-size: calc(var(--u) * 3);
+  letter-spacing: 0.2em;
+  margin-bottom: calc(var(--u) * 1.2);
+}
+.ic-confirm-msg {
+  font-size: calc(var(--u) * 1.8);
+  color: #3b2f27;
+  margin-bottom: calc(var(--u) * 3);
+}
+.ic-confirm-btns {
+  display: flex;
+  justify-content: center;
+  gap: calc(var(--u) * 4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ic-ui *,
+  .ic-ui *::before,
+  .ic-ui *::after {
+    animation-duration: 0.01s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01s !important;
+  }
+}

@@ -1,0 +1,300 @@
+import * as THREE from 'three';
+import { createAnimator } from './animsets.js';
+import { setFlash, setDissolve } from '../render/materials.js';
+import { LAYER_MAIN_ONLY } from '../render/pipeline.js';
+import { angleDiff, clamp, ease as EASE, DEG } from '../core/math.js';
+
+const _v = new THREE.Vector3();
+const _v2 = new THREE.Vector3();
+const _flashCol = new THREE.Color();
+
+/**
+ * Runs a move definition on an actor: plays the clip, fires timed hits/fx/sfx, applies root motion.
+ * def: { clip, speed, dur, cancel, motion: [[t0,t1,dist,(ease)]], turn: [t0,t1,rate], hits: [...], multi: [...],
+ *        iframes: [t0,t1], armor: [t0,t1], events: [{t, fn}], sfx: [{t,name,opts}], mask, fade }
+ */
+export class ActionRunner {
+  constructor(actor, def, opts = {}) {
+    this.actor = actor;
+    this.def = def;
+    this.t = 0;
+    this.speed = def.speed ?? 1;
+    const clip = def.clip ? actor.clips[def.clip] : null;
+    this.clip = clip;
+    this.dur = def.dur ?? (clip ? clip.dur / this.speed : 0.5);
+    this.fired = new Set();
+    this.hitSets = new Map(); // hit index -> Set(targets)
+    this.multiNext = new Map();
+    this.done = false;
+    this.motionScale = opts.motionScale ?? 1;
+    this.target = opts.target ?? null;
+    this.data = {};
+    if (clip) actor.anim.play(clip, { fade: def.fade ?? 0.04, speed: this.speed, mask: def.mask, fadeOut: def.fadeOut ?? 0.14, hold: def.hold });
+    def.onStart?.(actor, this);
+  }
+
+  inWindow(w) {
+    return w && this.t >= w[0] && this.t <= w[1];
+  }
+
+  update(dt) {
+    if (this.done) return;
+    const a = this.actor;
+    const prev = this.t;
+    this.t += dt;
+    const d = this.def;
+    // turning / auto-aim
+    if (d.turn && this.t >= d.turn[0] && this.t <= d.turn[1]) {
+      const tgt = this.target || a.aimTarget?.();
+      if (tgt) a.turnTowards(tgt.pos, d.turn[2] ?? 10, dt);
+    }
+    // root motion
+    if (d.motion) {
+      for (const m of d.motion) {
+        const [t0, t1, dist] = m;
+        if (this.t <= t0 || prev >= t1) continue;
+        const e = EASE[m[3] || 'out'] || EASE.out;
+        const f0 = e(clamp((prev - t0) / (t1 - t0)));
+        const f1 = e(clamp((this.t - t0) / (t1 - t0)));
+        let step = (f1 - f0) * dist * this.motionScale;
+        const dir = m[4] ?? 0; // local direction angle
+        a.moveLocal(step, dir);
+      }
+    }
+    // timed events
+    if (d.events) {
+      for (let i = 0; i < d.events.length; i++) {
+        const ev = d.events[i];
+        if (ev.t <= this.t && !this.fired.has('e' + i)) {
+          this.fired.add('e' + i);
+          ev.fn(a, this);
+        }
+      }
+    }
+    if (d.sfx) {
+      for (let i = 0; i < d.sfx.length; i++) {
+        const s = d.sfx[i];
+        if (s.t <= this.t && !this.fired.has('s' + i)) {
+          this.fired.add('s' + i);
+          a.game.audio?.play(s.name, { ...(s.opts || {}), pos: a.pos });
+        }
+      }
+    }
+    if (d.hits) {
+      for (let i = 0; i < d.hits.length; i++) {
+        const h = d.hits[i];
+        if (h.t <= this.t && !this.fired.has('h' + i)) {
+          this.fired.add('h' + i);
+          a.game.combat.sweep(a, h, this, 'h' + i);
+        }
+      }
+    }
+    if (d.multi) {
+      for (let i = 0; i < d.multi.length; i++) {
+        const h = d.multi[i];
+        if (this.t < h.t0 || prev > h.t1) continue;
+        let next = this.multiNext.get(i) ?? h.t0;
+        while (next <= this.t && next <= h.t1) {
+          const tick = Math.round((next - h.t0) / h.every);
+          const hh = h.grow ? { ...h, dmg: h.dmg * (1 + tick * 0.22), power: Math.min(1, (h.power ?? 0.5) + tick * 0.05) } : h;
+          a.game.combat.sweep(a, hh, this, 'm' + i + ':' + tick);
+          next += h.every;
+        }
+        this.multiNext.set(i, next);
+      }
+    }
+    d.onUpdate?.(a, this, dt);
+    if (this.t >= this.dur) {
+      this.done = true;
+      d.onEnd?.(a, this);
+    }
+  }
+
+  get canCancel() {
+    return this.t >= (this.def.cancel ?? this.dur);
+  }
+}
+
+/**
+ * Base class for everything that fights: player, demons, Akaza.
+ */
+export class Actor {
+  constructor(game, model, opts = {}) {
+    this.game = game;
+    this.model = model;
+    this.rig = model.rig;
+    this.root = model.root;
+    const { anim, clips } = createAnimator(model);
+    this.anim = anim;
+    this.clips = clips;
+    this.pos = new THREE.Vector3();
+    this.vel = new THREE.Vector3();
+    this.knock = new THREE.Vector3();
+    this.yaw = 0;
+    this.radius = opts.radius ?? 0.45;
+    this.height = opts.height ?? 1.8;
+    this.mass = opts.mass ?? 1;
+    this.team = opts.team ?? 'demon';
+    this.maxHp = this.hp = opts.hp ?? 100;
+    this.maxPoise = this.poise = opts.poise ?? 30;
+    this.poiseRegen = opts.poiseRegen ?? 10;
+    this.alive = true;
+    this.hitstop = 0;
+    this.flashT = 0;
+    this.flashColor = new THREE.Color(1, 1, 1);
+    this.state = 'idle';
+    this.stateT = 0;
+    this.action = null;
+    this.invuln = 0;
+    this.armor = false;
+    this.lastHitT = -99;
+    this.timeScale = 1;
+    this.visible = true;
+    this.dissolve = 0;
+    this.materials = model.materials;
+    this.id = Actor.nextId++;
+    this.chestObj = this.rig.j('chest');
+    this.headObj = this.rig.j('head');
+    this.shadow = null;
+    this.onGround = true;
+    this.yVel = 0;
+    this.posY = 0;
+  }
+
+  get chestPos() {
+    return this.chestObj.getWorldPosition(new THREE.Vector3());
+  }
+  chest(out) {
+    return this.chestObj.getWorldPosition(out);
+  }
+  head(out) {
+    return this.headObj.getWorldPosition(out);
+  }
+
+  setState(s) {
+    this.state = s;
+    this.stateT = 0;
+  }
+
+  run(def, opts) {
+    this.action = new ActionRunner(this, def, opts);
+    return this.action;
+  }
+
+  forward(out = new THREE.Vector3()) {
+    return out.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
+  }
+  right(out = new THREE.Vector3()) {
+    return out.set(-Math.cos(this.yaw), 0, Math.sin(this.yaw));
+  }
+
+  moveLocal(dist, angle = 0) {
+    const y = this.yaw + angle;
+    this.pos.x += Math.sin(y) * dist;
+    this.pos.z += Math.cos(y) * dist;
+  }
+
+  turnTowards(p, rate, dt) {
+    const want = Math.atan2(p.x - this.pos.x, p.z - this.pos.z);
+    const d = angleDiff(this.yaw, want);
+    const step = rate * dt;
+    this.yaw += Math.abs(d) < step ? d : Math.sign(d) * step;
+  }
+
+  faceInstant(p) {
+    this.yaw = Math.atan2(p.x - this.pos.x, p.z - this.pos.z);
+  }
+
+  distTo(o) {
+    return Math.hypot(o.pos.x - this.pos.x, o.pos.z - this.pos.z);
+  }
+
+  angleTo(o) {
+    const want = Math.atan2(o.pos.x - this.pos.x, o.pos.z - this.pos.z);
+    return angleDiff(this.yaw, want);
+  }
+
+  flash(color = 0xffffff, t = 0.08) {
+    this.flashColor.set(color);
+    this.flashT = t;
+  }
+
+  /** Common per-frame bookkeeping: hitstop, knockback, flashes, model sync, animation. */
+  tick(dt, realDt) {
+    this.timeScale = 1;
+    if (this.hitstop > 0) {
+      this.hitstop -= realDt;
+      dt = 0;
+    }
+    this.localDt = dt;
+    this.stateT += dt;
+    if (this.invuln > 0) this.invuln -= dt;
+    if (this.flashT > 0) this.flashT -= realDt;
+    // knockback slide
+    if (this.knock.lengthSq() > 1e-4) {
+      this.pos.addScaledVector(this.knock, dt);
+      this.knock.multiplyScalar(Math.exp(-dt * 6));
+    }
+    // vertical (launch/jumps)
+    if (!this.onGround) {
+      this.yVel -= 22 * dt;
+      this.posY += this.yVel * dt;
+      if (this.posY <= 0) {
+        this.posY = 0;
+        this.yVel = 0;
+        this.onGround = true;
+        this.onLand?.();
+      }
+    }
+    if (this.poise < this.maxPoise && this.game.time - this.lastHitT > 1.5) this.poise = Math.min(this.maxPoise, this.poise + this.poiseRegen * dt);
+    return dt;
+  }
+
+  /** Called after behaviour: writes transform, animates the rig, updates effects. */
+  present(dt, sampleCb) {
+    this.root.position.set(this.pos.x, this.pos.y + this.posY, this.pos.z);
+    this.root.rotation.y = this.yaw;
+    this.anim.update(dt);
+    this.anim.apply(sampleCb);
+    this.rig.updateSprings(dt);
+    const fl = this.flashT > 0 ? Math.min(1, this.flashT / 0.06) * 0.85 : 0;
+    if (fl !== this._lastFlash) {
+      setFlash(this.materials, fl, this.flashColor);
+      this._lastFlash = fl;
+    }
+    if (this.shadow) {
+      this.shadow.position.set(this.pos.x, 0.025, this.pos.z);
+      const s = this.radius * 2.6 * (1 - Math.min(0.5, this.posY * 0.15));
+      this.shadow.scale.set(s, s, 1);
+    }
+  }
+
+  setDissolve(v) {
+    if (v > 0 && !this._dissolving) {
+      this._dissolving = true;
+      // excluded from outline prepass while crumbling
+      this.root.traverse((o) => o.layers.set(LAYER_MAIN_ONLY));
+    }
+    this.dissolve = v;
+    setDissolve(this.materials, v, _v.set(this.pos.x, 0, this.pos.z));
+  }
+
+  launch(v) {
+    this.onGround = false;
+    this.yVel = v;
+  }
+
+  dispose() {
+    this.game.scene.remove(this.root);
+    if (this.shadow) this.game.scene.remove(this.shadow);
+    if (this.headPhys) this.game.scene.remove(this.headPhys.obj);
+    if (this.compass) {
+      this.compass.life = 0;
+      this.compass = null;
+    }
+  }
+}
+Actor.nextId = 1;
+void DEG;
+void _v2;
+void _flashCol;

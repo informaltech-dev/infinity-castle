@@ -1,0 +1,198 @@
+/* ==========================================================================
+   Compact screens (phones in landscape: roughly 320–430 px tall)
+   The desktop layout is designed for ~100u of height; here the unit follows the height so every
+   screen fits in ~62u, and secondary content is trimmed or scrolls. Touch screens only: a short desktop
+   window (devtools open) keeps the desktop layout it always had.
+   ========================================================================== */
+@media (max-height: 540px) and (pointer: coarse) {
+  .ic-ui {
+    --u: clamp(5.2px, 1.6vmin, 16px);
+  }
+
+  /* ---------------------------------------------------------------- title */
+  .tt-main {
+    font-size: calc(var(--u) * 11);
+  }
+  .tt-side {
+    padding-top: calc(var(--u) * 1.6);
+    gap: calc(var(--u) * 1.4);
+  }
+  .tt-press {
+    bottom: 11vh;
+  }
+  .tt-foot {
+    bottom: 2.4vh;
+  }
+
+  /* ---------------------------------------------------------------- main menu */
+  .mn-logo {
+    top: 6vh;
+  }
+  .mn-logo-t {
+    font-size: calc(var(--u) * 6);
+  }
+  .mn-list {
+    top: 29vh;
+    left: max(8.5vw, calc(env(safe-area-inset-left, 0px) + 20px));
+    gap: calc(var(--u) * 0.5);
+  }
+  .mn-list .mi-sub {
+    display: none;
+  }
+  .mn-hints {
+    bottom: 4vh;
+  }
+
+  /* ---------------------------------------------------------------- pause */
+  .ps-head {
+    top: 10vh;
+  }
+  .ps-title {
+    font-size: calc(var(--u) * 8);
+  }
+  .ps-list {
+    top: 16vh;
+  }
+
+  /* ---------------------------------------------------------------- result */
+  .rs-right {
+    gap: calc(var(--u) * 2);
+  }
+  .rs-panel {
+    padding: calc(var(--u) * 2.8) calc(var(--u) * 4) calc(var(--u) * 2.6);
+  }
+  .rs-row {
+    padding: calc(var(--u) * 0.55) calc(var(--u) * 0.4);
+  }
+  .rs-title {
+    font-size: calc(var(--u) * 13);
+  }
+
+  /* ---------------------------------------------------------------- character select */
+  .sl-head {
+    top: 4vh;
+  }
+  .sl-title {
+    font-size: calc(var(--u) * 4);
+  }
+  .sl-cards {
+    top: 16vh;
+    left: max(4vw, calc(env(safe-area-inset-left, 0px) + 12px));
+  }
+  /* the page runs under the notch (viewport-fit=cover): side-anchored pieces keep clear of it */
+  .sl-head,
+  .sl-hints {
+    left: max(4vw, calc(env(safe-area-inset-left, 0px) + 12px));
+  }
+  .sl-go-wrap {
+    right: max(3.5vw, calc(env(safe-area-inset-right, 0px) + 12px));
+  }
+  .mn-side {
+    right: max(3.2vw, calc(env(safe-area-inset-right, 0px) + 8px));
+  }
+  .ps-info {
+    right: max(5vw, calc(env(safe-area-inset-right, 0px) + 12px));
+  }
+  .sl-card {
+    width: calc(var(--u) * 12);
+    height: 66vh;
+  }
+  .sl-card-name {
+    top: 38%;
+    font-size: calc(var(--u) * 3.6);
+  }
+  /* the detail sheet keeps its header and scrolls the rest */
+  .sl-detail {
+    top: 3vh;
+    bottom: calc(3vh + var(--u) * 7.4);
+    right: max(3.5vw, calc(env(safe-area-inset-right, 0px) + 12px));
+    display: flex;
+    flex-direction: column;
+    padding: calc(var(--u) * 2.4) calc(var(--u) * 3) calc(var(--u) * 2);
+    width: min(40vw, calc(var(--u) * 60));
+  }
+  .sl-detail .sd-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    scrollbar-width: none;
+  }
+  .sl-detail .sd-body::-webkit-scrollbar {
+    display: none;
+  }
+  .sd-name {
+    font-size: calc(var(--u) * 4);
+  }
+  .sl-go-wrap {
+    bottom: 3vh;
+    width: min(40vw, calc(var(--u) * 60));
+  }
+  .sl-go {
+    font-size: calc(var(--u) * 2.6);
+    padding: calc(var(--u) * 0.9) calc(var(--u) * 4.6);
+  }
+
+  /* ---------------------------------------------------------------- controls / settings sheet */
+  .op-panel {
+    max-width: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 24px);
+    max-height: 94vh;
+    padding: calc(var(--u) * 2.6) calc(var(--u) * 4) calc(var(--u) * 2.2);
+  }
+  .op-head {
+    margin-bottom: calc(var(--u) * 1.2);
+  }
+  .op-head h2 {
+    font-size: calc(var(--u) * 3.4);
+  }
+  .op-foot {
+    margin-top: calc(var(--u) * 1.2);
+  }
+  .ct-cols,
+  .st-cols {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+  .st-desc {
+    margin-top: calc(var(--u) * 1.2);
+    min-height: calc(var(--u) * 3.6);
+  }
+
+  /* ---------------------------------------------------------------- HUD with a keyboard / gamepad
+     A phone driven by keys keeps the skill bar (bottom-left, with the ultimate): the boss bar moves to the
+     top-right and subtitles to the bottom-right so neither runs into it. */
+  .ic-ui:not(.is-touch) .hd-boss {
+    left: auto;
+    right: calc(env(safe-area-inset-right, 0px) + var(--u) * 3);
+    top: calc(env(safe-area-inset-top, 0px) + var(--u) * 2.2);
+    bottom: auto;
+    width: min(42vw, calc(var(--u) * 70));
+    transform: translate(0, calc(var(--u) * -2));
+  }
+  .ic-ui:not(.is-touch) .hd-boss.is-on {
+    transform: none;
+  }
+  /* (centred on the right part of the screen: its entrance animation keeps translate(-50%)) */
+  .ic-ui:not(.is-touch) .ic-hud:not(.is-cine) .hd-sub {
+    left: calc(72vw - env(safe-area-inset-right, 0px));
+    width: max-content;
+    max-width: 52vw;
+  }
+}
+
+/* controls page: the touch column replaces the keyboard one on a touch screen */
+.ic-ui:not(.is-touch) .ct-col.is-touch,
+.ic-ui.is-touch .ct-col.is-kb {
+  display: none;
+}
+/* (tablets: the touch legend can outgrow the panel; the desktop page never scrolls) */
+.ic-ui.is-touch .ct-cols {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(90, 60, 30, 0.4) transparent;
+}

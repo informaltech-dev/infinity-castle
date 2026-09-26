@@ -1,0 +1,508 @@
+/* ==========================================================================
+   Touch controls (phones / tablets) — floating stick, camera drag, action arcs
+   ========================================================================== */
+.ic-layer--touch {
+  --tc-scale: 1;
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  /* button diameters: attack, arc buttons, small (lock / pause) */
+  --tc-a: calc(clamp(62px, 20vmin, 96px) * var(--tc-scale));
+  --tc-b: calc(clamp(42px, 13vmin, 64px) * var(--tc-scale));
+  --tc-s: calc(clamp(34px, 10vmin, 50px) * var(--tc-scale));
+  --tc-gap: calc(clamp(6px, 2vmin, 12px) * var(--tc-scale));
+  --tc-r1: calc(var(--tc-a) / 2 + var(--tc-b) / 2 + var(--tc-gap));
+  --tc-r2: calc(var(--tc-r1) + var(--tc-b) + var(--tc-gap));
+  --tc-stick: calc(clamp(100px, 32vmin, 160px) * var(--tc-scale));
+
+  z-index: 2;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.ic-layer--touch * {
+  -webkit-touch-callout: none;
+}
+.tc-safe {
+  position: absolute;
+  left: var(--sal);
+  top: calc(100% - var(--sab));
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* zones: left = move stick, right = camera drag (the buttons sit on top of it) */
+.tc-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  touch-action: none;
+}
+.tc-zone--move {
+  left: 0;
+  width: 44%;
+}
+.tc-zone--look {
+  left: 44%;
+  right: 0;
+}
+
+/* ---------------------------------------------------------------- stick */
+.tc-stick {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--tc-stick);
+  height: var(--tc-stick);
+  margin: calc(var(--tc-stick) / -2) 0 0 calc(var(--tc-stick) / -2);
+  pointer-events: none;
+  opacity: 0.42;
+  transition: opacity 0.25s ease;
+  will-change: transform;
+}
+.tc-stick.is-on {
+  opacity: 0.95;
+  transition-duration: 0.05s;
+}
+.tc-stick-base {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(8, 5, 7, 0.1) 30%, rgba(8, 5, 7, 0.52) 70%, rgba(8, 5, 7, 0.1) 100%);
+}
+.tc-stick-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: rgba(239, 230, 210, 0.7);
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.9));
+  transition: fill 0.2s, filter 0.2s;
+}
+.tc-stick.is-sprint .tc-stick-ring {
+  fill: #ffd2c4;
+  filter: drop-shadow(0 0 6px rgba(226, 72, 61, 0.95));
+}
+/* a short vermilion arc on the rim, pointing where the thumb pushes */
+.tc-stick-dir {
+  position: absolute;
+  inset: -3%;
+  border-radius: 50%;
+  background: conic-gradient(from calc(var(--dir, 0rad) + 90deg - 32deg), rgba(226, 72, 61, 0.95) 0 64deg, transparent 0);
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 64%, #000 69%, transparent 71%);
+  mask: radial-gradient(circle, transparent 62%, #000 64%, #000 69%, transparent 71%);
+  opacity: clamp(0, calc(var(--push, 0) * 1.6 - 0.25), 1);
+}
+.tc-stick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44%;
+  height: 44%;
+  margin: -22% 0 0 -22%;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, rgba(70, 60, 58, 0.95), rgba(14, 10, 12, 0.96) 72%);
+  box-shadow: 0 0 0 1.5px rgba(239, 230, 210, 0.55), 0 4px 12px rgba(0, 0, 0, 0.6);
+  will-change: transform;
+}
+.tc-stick-knob span {
+  font-size: calc(var(--tc-stick) * 0.17);
+  color: rgba(247, 241, 228, 0.82);
+  text-shadow: 0 0 4px #000;
+}
+.tc-stick.is-sprint .tc-stick-knob {
+  box-shadow: 0 0 0 1.5px #ffb09e, 0 0 14px rgba(226, 72, 61, 0.8);
+}
+
+/* ---------------------------------------------------------------- button cluster */
+.tc-cluster {
+  position: absolute;
+  right: calc(var(--sar) + 16px + var(--tc-a) / 2);
+  bottom: calc(var(--sab) + 12px + var(--tc-a) / 2);
+  width: 0;
+  height: 0;
+}
+.tc-btn {
+  --d: var(--tc-b);
+  --r: 0px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--d);
+  height: var(--d);
+  margin: calc(var(--d) / -2) 0 0 calc(var(--d) / -2);
+  transform: translate(calc(var(--x, 0) * var(--r)), calc(var(--y, 0) * var(--r)));
+  border-radius: 50%;
+  touch-action: none;
+  transition: opacity 0.25s ease, scale 0.08s ease, filter 0.12s ease;
+}
+.tc-btn.is-ring0 {
+  --d: var(--tc-a);
+}
+.tc-btn.is-ring1 {
+  --r: var(--tc-r1);
+}
+.tc-btn.is-ring2 {
+  --r: var(--tc-r2);
+}
+.tc-btn.is-down {
+  scale: 0.9;
+  filter: brightness(1.45);
+}
+/* enlarge the hit area a little beyond the drawn disc */
+.tc-btn::before {
+  content: '';
+  position: absolute;
+  inset: -12%;
+  border-radius: 50%;
+}
+
+.tc-disc {
+  position: absolute;
+  inset: 0;
+}
+.tc-bg {
+  position: absolute;
+  inset: 11%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, rgba(84, 74, 70, 0.9), rgba(14, 10, 12, 0.93) 72%);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 3px 10px rgba(0, 0, 0, 0.55);
+}
+.tc-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: rgba(239, 230, 210, 0.82);
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.9));
+}
+.tc-g {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--d) * 0.4);
+  line-height: 1;
+  color: #f7f1e4;
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.95);
+}
+
+.tc-btn.is-atk .tc-bg {
+  background: radial-gradient(circle at 38% 32%, rgba(190, 44, 38, 0.95), rgba(40, 6, 8, 0.96) 72%);
+}
+.tc-btn.is-atk .tc-ring {
+  fill: #ffe2d6;
+  filter: drop-shadow(0 0 5px rgba(226, 72, 61, 0.85));
+}
+.tc-btn.is-atk .tc-g {
+  font-size: calc(var(--d) * 0.44);
+}
+.tc-btn.is-heavy .tc-bg {
+  background: radial-gradient(circle at 38% 32%, rgba(128, 30, 34, 0.92), rgba(26, 6, 8, 0.95) 72%);
+}
+.tc-btn.is-block .tc-bg {
+  background: radial-gradient(circle at 38% 32%, rgba(62, 78, 110, 0.92), rgba(10, 12, 22, 0.95) 72%);
+}
+.tc-btn.is-dodge .tc-bg {
+  background: radial-gradient(circle at 38% 32%, rgba(96, 102, 114, 0.9), rgba(14, 14, 18, 0.94) 72%);
+}
+
+/* skills reuse the HUD slot look (.hd-sk …) at touch size */
+.tc-btn.tc-sk {
+  display: block;
+}
+.tc-sk .sk-disc {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.tc-sk .sk-g {
+  font-size: calc(var(--d) * 0.42);
+}
+.tc-sk .sk-g.is-2 {
+  font-size: calc(var(--d) * 0.3);
+}
+.tc-sk .sk-cost {
+  right: -12%;
+  top: auto;
+  bottom: -8%;
+  font-size: max(9px, calc(var(--d) * 0.2));
+}
+
+/* ultimate reuses the HUD ult look */
+.tc-btn.tc-ult {
+  display: block;
+  --d: calc(var(--tc-b) * 1.12);
+}
+.tc-ult .ul-disc {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.tc-ult .ul-g {
+  font-size: calc(var(--d) * 0.42);
+}
+.tc-ult:not(.is-ready) {
+  filter: saturate(0.5) brightness(0.8);
+}
+
+/* small round buttons: lock-on (right edge) and pause (top-right corner) */
+.tc-small {
+  --d: var(--tc-s);
+  left: auto;
+  top: auto;
+  margin: 0;
+  transform: none;
+}
+.tc-small .tc-bg {
+  inset: 0;
+  background: rgba(10, 7, 8, 0.72);
+  box-shadow: 0 0 0 1.5px rgba(239, 230, 210, 0.42), 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+.tc-small .tc-g {
+  font-size: calc(var(--d) * 0.44);
+}
+.tc-lock {
+  right: calc(var(--sar) + 16px + var(--tc-a) / 2 - var(--tc-s) / 2);
+  bottom: calc(var(--sab) + 12px + var(--tc-a) / 2 + var(--tc-r2) + var(--tc-b) * 0.56 + var(--tc-gap) * 1.6);
+}
+.tc-lock.is-on .tc-bg {
+  background: radial-gradient(circle, rgba(200, 50, 43, 0.95), rgba(60, 8, 10, 0.95));
+  box-shadow: 0 0 0 1.5px #ffcfbf, 0 0 12px rgba(226, 72, 61, 0.85);
+}
+.tc-pause {
+  right: calc(var(--sar) + 12px);
+  top: calc(var(--sat) + 10px);
+}
+.tc-pause-i {
+  position: absolute;
+  inset: 26%;
+  width: 48%;
+  height: 48%;
+  fill: #efe6d2;
+  filter: drop-shadow(0 0 2px #000);
+}
+
+/* ---------------------------------------------------------------- states */
+.ic-layer--touch.no-control .tc-cluster,
+.ic-layer--touch.no-control .tc-lock {
+  opacity: 0.38;
+}
+.ic-layer--touch.is-cine .tc-cluster,
+.ic-layer--touch.is-cine .tc-lock,
+.ic-layer--touch.is-cine .tc-stick {
+  opacity: 0;
+  pointer-events: none;
+}
+/* the finishing blow waits for the attack button */
+.ic-layer--touch.is-cue .tc-cluster {
+  opacity: 1;
+}
+.ic-layer--touch.is-cue .tc-btn:not(.is-atk) {
+  opacity: 0.25;
+}
+.ic-layer--touch.is-cue .tc-btn.is-atk {
+  animation: tc-cue 0.9s ease-in-out infinite;
+}
+@keyframes tc-cue {
+  0%, 100% { scale: 1; filter: brightness(1) drop-shadow(0 0 0 rgba(226, 72, 61, 0)); }
+  50% { scale: 1.12; filter: brightness(1.35) drop-shadow(0 0 16px rgba(226, 72, 61, 0.95)); }
+}
+
+/* ---------------------------------------------------------------- portrait warning */
+.ic-rotate {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: none;
+  place-items: center;
+  background: radial-gradient(circle at 50% 42%, #1c1216, #07050a 70%);
+  pointer-events: auto;
+  touch-action: none;
+}
+:root.is-touch .ic-rotate.is-on {
+  display: grid;
+}
+.rt-box {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+}
+.rt-i {
+  width: 112px;
+  height: 112px;
+  animation: rt-turn 2.4s var(--ease-brush) infinite;
+}
+.rt-phone {
+  fill: rgba(239, 230, 210, 0.06);
+  stroke: #efe6d2;
+  stroke-width: 3.2;
+}
+.rt-arrow {
+  fill: none;
+  stroke: var(--verm-hi);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@keyframes rt-turn {
+  0%, 20% { transform: rotate(0deg); }
+  55%, 100% { transform: rotate(-90deg); }
+}
+.rt-t {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 0.24em;
+  color: #fbf3e2;
+}
+.rt-s {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: rgba(239, 230, 210, 0.66);
+}
+.rt-h {
+  margin: 10px 0 0;
+  max-width: 24em;
+  font-size: 12px;
+  line-height: 1.7;
+  letter-spacing: 0.08em;
+  color: rgba(239, 230, 210, 0.5);
+}
+
+/* finishing-blow prompt: points at the on-screen 斬 button */
+.hd-prompt.is-touch .pr-key .ic-pad {
+  width: calc(var(--u) * 4.4);
+  height: calc(var(--u) * 4.4);
+  color: var(--verm-hi);
+}
+.hd-prompt.is-touch .pr-key .ic-pad b {
+  font-size: calc(var(--u) * 2.1);
+  color: #fff6ec;
+}
+
+/* settings sliders keep the finger even inside a scrolling panel */
+.st-slider {
+  touch-action: none;
+}
+
+/* touch glyphs in legends (controls page, select sheet, HUD prompt) */
+.ic-pad.is-touch b {
+  font-size: calc(var(--u) * 1.5);
+}
+.ic-pad .p-sym.is-pause {
+  width: 56%;
+  height: 56%;
+  fill: currentColor;
+  stroke: none;
+}
+
+/* ==========================================================================
+   Touch mode: HUD and menus
+   ========================================================================== */
+/* the skill bar (keyboard legends, attack stance) is replaced by the touch buttons */
+.ic-ui.is-touch .hd-skills {
+  display: none;
+}
+/* keep the right side clear for the buttons: combo counter moves under the objective */
+.ic-ui.is-touch .hd-combo {
+  right: auto;
+  left: calc(env(safe-area-inset-left, 0px) + var(--u) * 5);
+  top: calc(var(--u) * 21);
+}
+/* boss bar: top-right, clear of the stick and the buttons */
+.ic-ui.is-touch .hd-boss {
+  left: auto;
+  right: calc(env(safe-area-inset-right, 0px) + var(--u) * 3 + 56px);
+  top: calc(env(safe-area-inset-top, 0px) + var(--u) * 2.2);
+  bottom: auto;
+  width: min(42vw, calc(var(--u) * 70));
+  transform: translate(0, calc(var(--u) * -2));
+}
+.ic-ui.is-touch .hd-boss.is-on {
+  transform: none;
+}
+/* subtitles sit between the thumbs, below the finishing-blow prompt (63vh) */
+.ic-ui.is-touch .hd-sub {
+  bottom: auto;
+  top: 73%;
+  max-width: 50vw;
+}
+.ic-ui.is-touch .ic-hud.is-cine .hd-sub {
+  top: auto;
+  bottom: 3.2vh;
+  max-width: 72vw;
+}
+.ic-ui.is-touch .hd-player,
+.ic-ui.is-touch .hd-obj {
+  margin-left: env(safe-area-inset-left, 0px);
+}
+
+/* menu hint bars: no key caps on a touch screen; only the tappable legends stay, as buttons.
+   Screens that already show real buttons (select, pause, controls, settings) drop the bar entirely;
+   the main menu keeps its "返回" (back to the title), the only way back there without a key. */
+.ic-ui.is-touch .ic-hint:not(.is-act),
+.ic-ui.is-touch .sl-hints,
+.ic-ui.is-touch .ps-hints,
+.ic-ui.is-touch .mn-hints .ic-hint:not(:last-child) {
+  display: none;
+}
+/* (hidden but still taking its room: the panel keeps its height when the input mode flips) */
+.ic-ui.is-touch .op-foot .ic-hints {
+  visibility: hidden;
+}
+.ic-ui.is-touch .ic-hint .ic-hint-sep {
+  display: none;
+}
+.ic-ui.is-touch .ic-hint.is-act {
+  position: relative;
+  padding: 0.6em 1.4em;
+  border-radius: 99px;
+  background: rgba(13, 11, 12, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(239, 230, 210, 0.3);
+  color: var(--washi);
+}
+.ic-ui.is-touch .ic-hint.is-act:active {
+  background: rgba(200, 50, 43, 0.8);
+}
+
+/* fingertip-sized targets on any touch screen (in both input modes, so a mode flip never moves a menu):
+   taller settings rows, invisible hit areas around the small arrows and toggles (their drawn size stays),
+   roomier text buttons */
+:root.has-touch .st-row {
+  min-height: max(calc(var(--u) * 4.4), 30px);
+}
+:root.has-touch .st-arrow,
+:root.has-touch .st-opt {
+  position: relative;
+}
+:root.has-touch .st-arrow::after,
+:root.has-touch .st-opt::after,
+.ic-ui.is-touch .ic-hint.is-act::after {
+  content: '';
+  position: absolute;
+}
+:root.has-touch .st-arrow::after {
+  inset: -8px -12px;
+}
+:root.has-touch .st-opt::after {
+  inset: -8px 0;
+}
+.ic-ui.is-touch .ic-hint.is-act::after {
+  inset: -10px;
+}
+:root.has-touch .op-btns .ic-btn.is-mini,
+:root.has-touch .sl-back {
+  padding-top: max(calc(var(--u) * 1.1), 9px);
+  padding-bottom: max(calc(var(--u) * 1.1), 9px);
+}

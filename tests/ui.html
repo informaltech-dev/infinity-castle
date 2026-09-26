@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>介面測試台 · 無限城</title>
+    <script>
+      // ?nohmr — keep this harness from being full-reloaded whenever other modules of the project
+      // change (Vite broadcasts full reloads to every page). The HMR socket simply never opens.
+      if (/[?&]nohmr\b/.test(location.search)) {
+        (function () {
+          var Native = window.WebSocket;
+          function Guarded(url, protocols) {
+            if (String(protocols || '').indexOf('vite-') === 0) {
+              return { readyState: 0, addEventListener: function () {}, removeEventListener: function () {}, send: function () {}, close: function () {} };
+            }
+            return protocols === undefined ? new Native(url) : new Native(url, protocols);
+          }
+          Guarded.prototype = Native.prototype;
+          Guarded.CONNECTING = 0;
+          Guarded.OPEN = 1;
+          Guarded.CLOSING = 2;
+          Guarded.CLOSED = 3;
+          window.WebSocket = Guarded;
+        })();
+      }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Serif+TC:wght@500;700;900&display=swap"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #07050a;
+      }
+      #app {
+        position: fixed;
+        inset: 0;
+      }
+      #game-canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      #ui-root {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      #harness {
+        position: fixed;
+        right: 10px;
+        top: 10px;
+        z-index: 1000;
+        width: 232px;
+        max-height: calc(100vh - 20px);
+        overflow: auto;
+        padding: 10px;
+        border-radius: 8px;
+        background: rgba(10, 10, 14, 0.86);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #ddd;
+        font: 12px/1.4 'LXGW WenKai TC', 'Kaiti TC', serif;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+      }
+      #harness.is-min > :not(.hz-top) {
+        display: none;
+      }
+      #harness h4 {
+        margin: 8px 0 4px;
+        font-size: 12px;
+        color: #c9a45c;
+        font-weight: 700;
+      }
+      #harness .hz-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-weight: 700;
+        color: #efe6d2;
+      }
+      #harness .hz-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+      }
+      #harness button {
+        padding: 4px 6px;
+        font: inherit;
+        color: #efe6d2;
+        background: #2a2226;
+        border: 1px solid #4a3a3e;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      #harness button:hover {
+        background: #3a2c30;
+      }
+      #harness button.on {
+        background: #c8322b;
+        border-color: #e2483d;
+      }
+      #harness #hz-log {
+        height: 88px;
+        overflow: auto;
+        margin-top: 6px;
+        padding: 4px;
+        background: rgba(0, 0, 0, 0.4);
+        border-radius: 4px;
+        font: 11px/1.35 ui-monospace, Menlo, monospace;
+        color: #9fb;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+      <div id="ui-root"></div>
+    </div>
+    <div id="harness">
+      <div class="hz-top"><span>介面測試台</span><button id="hz-min" type="button">收合</button></div>
+      <h4>畫面</h4>
+      <div class="hz-grid">
+        <button data-a="loading" type="button">載入畫面</button>
+        <button data-a="title" type="button">標題</button>
+        <button data-a="menu" type="button">主選單</button>
+        <button data-a="select-story" type="button">選角・全程</button>
+        <button data-a="select-boss" type="button">選角・猗窩座</button>
+        <button data-a="hud-tanjiro" type="button">戰鬥・炭治郎</button>
+        <button data-a="hud-giyu" type="button">戰鬥・義勇</button>
+        <button data-a="pause" type="button">暫停</button>
+        <button data-a="win" type="button">勝利結算</button>
+        <button data-a="lose" type="button">敗北結算</button>
+        <button data-a="hide" type="button">全部隱藏</button>
+        <button data-a="sim" type="button" id="hz-sim">模擬戰鬥</button>
+      </div>
+      <h4>戰鬥事件</h4>
+      <div class="hz-grid">
+        <button data-a="intro" type="button">猗窩座登場</button>
+        <button data-a="banner" type="button">橫幅</button>
+        <button data-a="danger-banner" type="button">危險橫幅</button>
+        <button data-a="callout" type="button">招式名</button>
+        <button data-a="toast" type="button">提示字</button>
+        <button data-a="sub" type="button">對白</button>
+        <button data-a="prompt" type="button">斬首提示</button>
+        <button data-a="letterbox" type="button">電影黑邊</button>
+        <button data-a="hurt" type="button">受傷</button>
+        <button data-a="ult" type="button">奧義蓄滿</button>
+      </div>
+      <div id="hz-log"></div>
+    </div>
+    <script type="module" src="./ui-test.js"></script>
+  </body>
+</html>
