@@ -10,6 +10,7 @@ import './compact.css';
 import { h } from './dom.js';
 import { device } from '../core/device.js';
 import { TouchControls } from './touch.js';
+import { SafariBars } from './safari-bars.js';
 import { installTextures } from './textures.js';
 import { SVG_DEFS } from './icons.js';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, sanitizeSettings } from './settings.js';
@@ -81,7 +82,7 @@ function mapAction(key, code) {
 export class UI {
   /**
    * @param {HTMLElement} root  #ui-root
-   * @param {object} callbacks  { onStart, onResume, onRestart, onQuitToTitle, onSettingsChange, onUiSound, onSelectPreview, onScreenChange }
+   * @param {object} callbacks  { onStart, onResume, onRestart, onQuitToTitle, onSettingsChange, onUiSound, onSelectPreview, onScreenChange, onBlockingOverlay }
    */
   constructor(root, callbacks = {}) {
     this.root = root || document.body;
@@ -104,6 +105,8 @@ export class UI {
     this.touch = new TouchControls(this, this.touchLayer);
     this.touch.setSize(this.settings.touchButtonSize);
     this.topLayer.append(this.touch.rotateEl);
+    // iPhone Safari: a swipe tucks the browser bars away (the game pauses a fight under the prompt)
+    this.bars = new SafariBars(() => this._call('onBlockingOverlay'));
     const portrait = typeof matchMedia === 'function' ? matchMedia('(orientation: portrait)') : null;
     const syncPortrait = () => this.touch.rotateEl.classList.toggle('is-on', !!portrait?.matches);
     portrait?.addEventListener?.('change', syncPortrait);

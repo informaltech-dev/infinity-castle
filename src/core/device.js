@@ -8,6 +8,9 @@
 const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
 const forced = params.get('touch'); // '1' | '0' | null
 const mq = (q) => typeof matchMedia === 'function' && matchMedia(q).matches;
+const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+// opened from the home screen (manifest display: fullscreen), not in a browser tab
+const installed = (typeof navigator !== 'undefined' && navigator.standalone === true) || mq('(display-mode: standalone)') || mq('(display-mode: fullscreen)');
 
 const listeners = new Set();
 
@@ -19,6 +22,8 @@ export const device = {
     forced === '1' || (forced !== '0' && ((typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) || mq('(any-pointer: coarse)'))),
   /** A mouse or trackpad is present (pointer lock is possible; a phone with a keyboard has none). */
   hasMouse: typeof matchMedia !== 'function' || matchMedia('(any-pointer: fine)').matches,
+  /** An iPhone browser tab: no fullscreen API, but its bars tuck away when the page scrolls (see ui/safari-bars.js). */
+  iosBrowser: /iPhone|iPod/.test(ua) && !installed,
   /** The first touch of the session happened (used to decide defaults such as auto resolution). */
   touchSeen: false,
 

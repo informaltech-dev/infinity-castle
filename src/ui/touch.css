@@ -506,3 +506,103 @@
   padding-top: max(calc(var(--u) * 1.1), 9px);
   padding-bottom: max(calc(var(--u) * 1.1), 9px);
 }
+
+/* ==========================================================================
+   iPhone Safari: no fullscreen API; one swipe up tucks the tab bar and address bar away
+   ========================================================================== */
+/* the page itself scrolls (under the fixed game, which never does): that scroll is what hides the bars */
+html.ios-scroll,
+html.ios-scroll body {
+  height: auto;
+  overflow: visible;
+}
+html.ios-scroll body::after {
+  content: '';
+  display: block;
+  height: calc(100vh + 480px);
+}
+.ic-swipe {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 45%, rgba(28, 18, 22, 0.95), rgba(7, 5, 10, 0.97) 70%);
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.ic-swipe[hidden] {
+  display: none;
+}
+.sw-box {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  max-width: min(80vw, 560px);
+  padding: 16px 20px;
+  text-align: center;
+  color: #efe6d2;
+  font-family: 'LXGW WenKai TC', 'Kaiti TC', 'BiauKai', serif;
+}
+.sw-i {
+  width: 40px;
+  height: 60px;
+  overflow: visible;
+}
+.sw-trail {
+  fill: none;
+  stroke: rgba(239, 230, 210, 0.28);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.sw-head {
+  fill: none;
+  stroke: #e2483d;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.sw-head,
+.sw-dot {
+  animation: sw-up 1.5s cubic-bezier(0.77, 0, 0.18, 1) infinite;
+}
+.sw-dot {
+  fill: #efe6d2;
+}
+@keyframes sw-up {
+  0% { transform: translateY(16px); opacity: 0; }
+  20% { opacity: 1; }
+  75% { transform: translateY(-12px); opacity: 1; }
+  100% { transform: translateY(-12px); opacity: 0; }
+}
+.sw-t {
+  margin: 2px 0 0;
+  font-family: 'Noto Serif TC', 'Songti TC', serif;
+  font-weight: 900;
+  font-size: 22px;
+  letter-spacing: 0.2em;
+  color: #fbf3e2;
+}
+.sw-s {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  letter-spacing: 0.06em;
+  color: rgba(239, 230, 210, 0.7);
+}
+.sw-skip {
+  margin-top: 6px;
+  padding: 8px 24px;
+  border-radius: 99px;
+  font-size: 13px;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  color: rgba(239, 230, 210, 0.82);
+  box-shadow: inset 0 0 0 1px rgba(239, 230, 210, 0.3);
+  cursor: pointer;
+}
+.sw-skip:active {
+  background: rgba(200, 50, 43, 0.8);
+}

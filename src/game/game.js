@@ -49,6 +49,7 @@ export class Game {
           onUiSound: (n) => this.audio?.play(n),
           onSelectPreview: (c) => this.previewCharacter(c),
           onScreenChange: (s) => this._onScreen(s),
+          onBlockingOverlay: () => this.pause(),
         })
       : null;
     this.hud = new HudAdapter(this, this.ui?.hud);

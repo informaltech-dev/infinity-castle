@@ -4,6 +4,7 @@
 //
 //   node tests/mobile.mjs shots <device> [title menu select controls settings loading fight finisher pause result boss]
 //   node tests/mobile.mjs touch <device>
+//   node tests/mobile.mjs bars               (iPhone Safari: the swipe-up prompt that tucks the browser bars away)
 //
 // devices: se ip14 safari14 pixel small ipad desk portrait
 import { chromium } from 'playwright-core';
@@ -27,7 +28,9 @@ const DEVICES = {
   portrait: { width: 390, height: 844, ua: IPHONE },
 };
 
-const [, , cmd = 'shots', devName = 'ip14', ...rest] = process.argv;
+const [, , cmd = 'shots', devArg, ...rest] = process.argv;
+// the bars check always runs as an iPhone 14 in Safari: bars shown = the viewport is shorter than the screen
+const devName = cmd === 'bars' ? 'safari14' : devArg || 'ip14';
 const dev = DEVICES[devName];
 if (!dev) {
   console.error(`unknown device "${devName}"; one of: ${Object.keys(DEVICES).join(' ')}`);
@@ -42,6 +45,7 @@ const browser = await chromium.launch({
 });
 const context = await browser.newContext({
   viewport: { width: dev.width, height: dev.height },
+  ...(cmd === 'bars' ? { screen: { width: 844, height: 390 } } : {}),
   deviceScaleFactor: dpr,
   isMobile: !dev.desktop,
   hasTouch: !dev.desktop,
@@ -486,6 +490,49 @@ if (cmd === 'touch') {
   await sleep(400);
   const acts = await ev(() => window.__acts);
   check('lifting a finger over the new result screen presses nothing', rsBtns && acts.length === 0, `finger on "${target.t}", actions ${JSON.stringify(acts)}`);
+  const failed = checks.filter((c) => !c.ok).length;
+  console.log(`\n${checks.length - failed}/${checks.length} checks passed`);
+  if (failed) process.exitCode = 1;
+}
+
+if (cmd === 'bars') {
+  const checks = [];
+  const check = (name, ok, info = '') => {
+    checks.push({ name, ok: !!ok });
+    console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${info ? '  ' + info : ''}`);
+  };
+  const state = () => ev(() => {
+    const el = document.querySelector('.ic-swipe');
+    return { scroll: document.documentElement.classList.contains('ios-scroll'), prompt: !!el && !el.hidden, gs: window.__game.state, h: innerHeight };
+  });
+  const barsOut = () => page.setViewportSize({ width: 750, height: 342 });
+  const barsAway = () => page.setViewportSize({ width: 844, height: 390 });
+  await load('');
+  let s = await state();
+  check('iPhone Safari with its bars out: page scrolls, swipe prompt up', s.scroll && s.prompt, JSON.stringify(s));
+  await shot('bars-prompt');
+  // an upward swipe on the prompt scrolls the page (that is what tucks Safari's bars away)
+  await touch.drag(1, 375, 250, 375, 90, 250);
+  await touch.up(1);
+  await sleep(300);
+  const sy = await ev(() => window.scrollY);
+  await barsAway();
+  await sleep(300);
+  s = await state();
+  check('the swipe scrolls the page; bars tucked away hide the prompt', sy > 50 && !s.prompt, `scrollY ${sy}, ${JSON.stringify(s)}`);
+  await ev(() => window.__game.startGame('story', 'tanjiro'));
+  await sleep(1500);
+  await barsOut();
+  await sleep(400);
+  s = await state();
+  check('bars coming back mid-fight: prompt again, fight paused', s.prompt && s.gs === 'paused', JSON.stringify(s));
+  await ev(() => document.querySelector('.ic-swipe .sw-skip').click());
+  await sleep(200);
+  await barsAway();
+  await barsOut();
+  await sleep(400);
+  s = await state();
+  check('略過 turns the prompt off for the session', !s.prompt, JSON.stringify(s));
   const failed = checks.filter((c) => !c.ok).length;
   console.log(`\n${checks.length - failed}/${checks.length} checks passed`);
   if (failed) process.exitCode = 1;
