@@ -37,6 +37,30 @@ const list = [
     S.at(0.1, () => b._execute('combo'));
     S.at(0.25, () => S.tap('ult'));
   }, orbit(mid)],
+  ['rengoku-tiger', { world: 'hall', char: 'rengoku' }, (S) => {
+    for (let i = 0; i < 4; i++) S.demon(i === 1 ? 'brute' : 'grunt', [(i % 2 ? 0.6 : -0.6), 0, 2.4 + i * 2], { cooldown: 9 });
+    S.at(0.2, () => S.tap('skill3'));
+  }, orbit([0, 0, 3], 8.5, 2.4, 1.3)],
+  ['rengoku-vortex', { world: 'hall', char: 'rengoku' }, (S) => {
+    for (let i = 0; i < 4; i++) S.demon('grunt', [-1.8 + i * 1.2, 0, 2.4], { cooldown: 9 });
+    S.at(0.2, () => S.tap('skill2'));
+  }, orbit([0, 0, 1], 7, 2.2, 0.9)],
+  ['rengoku-ult', { world: 'hall', char: 'rengoku', player: { conc: 100 } }, (S) => {
+    for (let i = 0; i < 5; i++) S.demon(i === 2 ? 'brute' : 'grunt', [(i % 2 ? 0.8 : -0.8), 0, 3 + i * 2], { cooldown: 9 });
+    S.at(0.2, () => S.tap('ult'));
+  }, orbit([0, 0, 5], 11, 3, 1.4, 0.1)],
+  ['obanai-winding', { world: 'hall', char: 'obanai' }, (S) => {
+    for (let i = 0; i < 4; i++) S.demon(i % 2 ? 'fast' : 'grunt', [(i % 2 ? 1.2 : -1.2), 0, 2 + i * 1.3], { cooldown: 9 });
+    S.at(0.2, () => S.tap('skill1'));
+  }, orbit([0, 0, 2.5], 8, 3.2, 0.8)],
+  ['obanai-coil', { world: 'hall', char: 'obanai' }, (S) => {
+    for (let i = 0; i < 5; i++) S.demon(i % 2 ? 'fast' : 'grunt', [Math.sin(i * 1.26) * 2.8, 0, Math.cos(i * 1.26) * 2.8], { cooldown: 9 });
+    S.at(0.3, () => S.tap('skill3'));
+  }, orbit([0, 0, 0], 7, 3.4)],
+  ['obanai-ult', { world: 'hall', char: 'obanai', player: { conc: 100 } }, (S) => {
+    for (let i = 0; i < 5; i++) S.demon(i === 2 ? 'brute' : 'grunt', [Math.sin(i * 1.26) * 3.2, 0, 2.5 + Math.cos(i * 1.26) * 3.2], { cooldown: 9 });
+    S.at(0.2, () => S.tap('ult'));
+  }, orbit([0, 0, 2.5], 9.5, 3.6)],
   ['akaza-air', { world: 'arena', char: 'tanjiro', player: { pos: [0, 0, -6] } }, (S) => {
     const b = S.akaza([0, 0, 4], Math.PI);
     S.at(0.2, () => b._execute('airType'));

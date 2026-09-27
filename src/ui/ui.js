@@ -17,6 +17,7 @@ import { DEFAULT_SETTINGS, loadSettings, saveSettings, sanitizeSettings } from '
 import { LoadingScreen, TitleScreen, MenuScreen, PauseScreen, ResultScreen } from './screens-main.js';
 import { SelectScreen, ControlsScreen, SettingsScreen } from './screens-options.js';
 import { HUD } from './hud.js';
+import { CHAR_BY_ID } from './data.js';
 
 const MENU_SCREENS = ['title', 'menu', 'select', 'controls', 'settings', 'pause', 'result'];
 const IGNORED_KEYS = new Set(['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'NumLock', 'ScrollLock', 'OS', 'Fn', 'FnLock', 'Hyper', 'Super', 'ContextMenu', 'Dead', 'Unidentified', 'Process', 'AltGraph']);
@@ -258,7 +259,7 @@ export class UI {
 
   showResult(data = {}) {
     this._stamp++;
-    if (data && (data.character === 'tanjiro' || data.character === 'giyu')) this._hudChar = data.character;
+    if (data && CHAR_BY_ID[data.character]) this._hudChar = data.character;
     this._subReturn = null;
     this._inRun = false;
     this.el.classList.remove('is-paused');

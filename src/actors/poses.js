@@ -5,7 +5,7 @@
 //   off = blade angle relative to the hand direction, roll = blade roll.
 
 // ---------------------------------------------------------------------------
-// Swordsman (Tanjiro / Giyu)
+// Swordsman (Tanjiro / Giyu / Rengoku / Obanai)
 // ---------------------------------------------------------------------------
 export const SWORD_STANCE = {
   hp: [0, -0.06, 0],
@@ -329,6 +329,124 @@ export const SWORD_CLIPS = {
     keys: [
       { t: 0, e: 'out', p: { hp: [0, -0.22, -0.05], hips: [0, 30, 0], chest: [6, 40, 0], spine: [6, 14, 0], head: [-8, -40, 0], ...WIDE, lh: 1, sw: { tilt: 86, yaw: 0, a: -140, r: 0.34, off: -10, roll: 180 }, pole: [0.3, -0.4, 0.9] } },
       { t: 0.9, e: 'inOut', p: { hp: [0, -0.26, -0.08], chest: [8, 46, 0], sw: { a: -146 } } },
+    ],
+  },
+  // ----------------------------------------------------------- 炎之呼吸 (Rengoku)
+  // 壹之型・不知火: from the drawn-back charge, a flat right-to-left cut at the end of a blazing dash
+  shiranui: {
+    dur: 0.7,
+    keys: [
+      { t: 0, e: 'snap', p: { hp: [0, -0.26, -0.1], hips: [0, -36, 0], chest: [4, -50, 0], spine: [8, -16, 0], head: [-6, 50, 0], thighL: [-30, -30, 12], shinL: [50, 0, 0], thighR: [30, -10, -14], shinR: [40, 0, 0], lh: 0, upperArmL: [-50, 0, 50], foreArmL: [-40, 0, 0], sw: { tilt: 86, yaw: 0, a: 116, r: 0.4, off: 28, roll: 0 }, pole: [-0.9, 0.1, -0.2] } },
+      { t: 0.06, e: 'out', p: { hp: [0, -0.36, 0.35], spine: [26, -14, 0], chest: [16, -48, 0], head: [-24, 44, 0], ...LUNGE, thighR: [-70, -6, -4], shinR: [70, 0, 0], sw: { a: 122, off: 30 } } },
+      { t: 0.11, e: 'out', p: { hp: [0, -0.3, 0.5], hips: [0, 26, 0], chest: [14, 46, 0], spine: [14, 18, 0], head: [-16, -42, 0], upperArmL: [20, 0, 70], foreArmL: [-10, 0, 0], sw: { a: -112, r: 0.64, off: 6 }, pole: [-0.2, -0.6, 0.8] } },
+      { t: 0.42, e: 'inOut', p: { sw: { a: -118 } } },
+      { t: 0.7, e: 'inOut', p: { hp: [0, -0.14, 0.2], hips: [0, 10, 0], chest: [8, 24, 0], sw: { a: -98, off: 22 } } },
+    ],
+  },
+  // 貳之型・昇炎天: coiled low with the blade behind, then one rising crescent
+  risingSun: {
+    dur: 0.82,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.3, 0], hips: [0, -10, 0], spine: [22, -6, 0], chest: [14, -16, 0], head: [-24, 14, 0], thighL: [16, -10, 14], shinL: [44, 0, 0], thighR: [-40, -10, -14], shinR: [58, 0, 0], lh: 1, sw: { tilt: 6, yaw: -6, a: -150, r: 0.46, off: -10, roll: 0 }, pole: [-0.8, -0.4, -0.2] } },
+      { t: 0.12, e: 'in', p: { hp: [0, -0.36, 0.05], sw: { a: -160 } } },
+      { t: 0.22, e: 'out', p: { hp: [0, 0.06, 0.3], hips: [0, 6, 0], spine: [-8, 0, 0], chest: [-22, 6, 0], head: [16, 0, 0], thighL: [30, -6, 8], shinL: [30, 0, 0], footL: [30, 0, 0], thighR: [-20, -6, -4], shinR: [10, 0, 0], sw: { a: 100, r: 0.6, off: 10 }, pole: [-0.8, 0.2, -0.2] } },
+      { t: 0.52, e: 'inOut', p: { hp: [0, 0.02, 0.3], sw: { a: 108 } } },
+      { t: 0.82, e: 'inOut', p: { hp: [0, -0.1, 0.2], spine: [4, 0, 0], chest: [0, 0, 0], head: [-4, 0, 0], footL: [0, 0, 0], sw: { a: 70, off: 30 } } },
+    ],
+  },
+  // 肆之型・盛炎漩渦: the blade wheels in front of him, then a flat cut sweeps the flames outward
+  flameVortex: {
+    dur: 1.0,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.2, 0], hips: [0, 10, 0], spine: [10, 0, 0], chest: [4, 0, 0], head: [-10, 0, 0], ...WIDE, lh: 1, sw: { tilt: 16, yaw: 0, a: -80, r: 0.5, off: 0, roll: 0 }, pole: [-0.8, -0.3, -0.2] } },
+      { t: 0.1, e: 'in', p: { sw: { a: -100 } } },
+      { t: 0.42, e: 'linear', p: { chest: [8, 10, 0], sw: { a: 200, r: 0.56 } } },
+      { t: 0.68, e: 'linear', p: { chest: [6, -30, 0], head: [-8, 26, 0], sw: { tilt: 60, a: 480 } } },
+      { t: 0.78, e: 'out', p: { hp: [0, -0.24, 0.2], hips: [0, 24, 0], chest: [10, 44, 0], spine: [8, 16, 0], head: [-10, -40, 0], ...LUNGE, sw: { tilt: 86, a: 250, r: 0.62, off: 6 }, pole: [-0.2, -0.6, 0.8] } },
+      { t: 1.0, e: 'inOut', p: { hp: [0, -0.14, 0.15], sw: { a: 256, off: 20 } } },
+    ],
+  },
+  // 伍之型・炎虎: crouch, spring up with the blade high behind the head, crash down
+  flameTiger: {
+    dur: 1.1,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.3, -0.05], hips: [0, -10, 0], spine: [-6, -4, 0], chest: [-18, -10, 0], head: [14, 6, 0], thighL: [20, -10, 14], shinL: [46, 0, 0], thighR: [-36, -10, -14], shinR: [56, 0, 0], lh: 1, sw: { tilt: 6, yaw: -6, a: 206, r: 0.44, off: 26, roll: 0 }, pole: [-0.8, 0.3, -0.3] } },
+      { t: 0.16, e: 'in', p: { hp: [0, -0.38, -0.08], chest: [-22, -12, 0], sw: { a: 216 } } },
+      { t: 0.32, e: 'linear', p: { hp: [0, 0.5, 0.35], bp: -8, spine: [-10, 0, 0], chest: [-24, 0, 0], head: [14, 0, 0], thighL: [-50, 0, 10], shinL: [100, 0, 0], thighR: [-70, 0, -10], shinR: [110, 0, 0], sw: { a: 150, r: 0.5, off: 30 } } },
+      { t: 0.44, e: 'snap', p: { hp: [0, -0.34, 0.6], bp: 10, spine: [18, 0, 0], chest: [34, 6, 0], head: [-30, 0, 0], ...LUNGE, sw: { a: -62, r: 0.64, off: 2 }, pole: [-0.5, -1, 0] } },
+      { t: 0.8, e: 'inOut', p: { sw: { a: -66 } } },
+      { t: 1.1, e: 'inOut', p: { hp: [0, -0.16, 0.3], bp: 0, chest: [14, 4, 0], sw: { a: -52, off: 26 } } },
+    ],
+  },
+  // 玖之型・煉獄: the low stance before the charge, and the charge itself
+  rengokuReady: {
+    dur: 1.0,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.36, -0.08], hips: [0, -34, 0], spine: [14, -18, 0], chest: [8, -40, 0], head: [-14, 56, 0], thighL: [-40, -30, 16], shinL: [70, 0, 0], footL: [-10, 20, 0], thighR: [36, -12, -16], shinR: [50, 0, 0], lh: 1, sw: { tilt: 70, yaw: 0, a: 150, r: 0.4, off: 30, roll: 0 }, pole: [-0.9, 0.2, -0.3] } },
+      { t: 1.0, e: 'inOut', p: { hp: [0, -0.4, -0.1], chest: [10, -46, 0], sw: { a: 158 } } },
+    ],
+  },
+  rengokuDash: {
+    dur: 0.5,
+    keys: [
+      { t: 0, e: 'snap', p: { hp: [0, -0.3, 0.4], hips: [0, 20, 0], spine: [30, 10, 0], chest: [22, 30, 0], head: [-36, -26, 0], ...LUNGE, thighR: [-76, -6, -4], shinR: [70, 0, 0], lh: 0, upperArmL: [40, 0, 50], foreArmL: [-10, 0, 0], sw: { tilt: 80, yaw: 0, a: -100, r: 0.66, off: 4, roll: 0 }, pole: [-0.3, -0.6, 0.8] } },
+      { t: 0.5, e: 'inOut', p: { sw: { a: -110 } } },
+    ],
+  },
+  // ----------------------------------------------------------- 蛇之呼吸 (Obanai)
+  // 肆之型・頸蛇雙生: lunge (first head), recoil, rising flick (second head)
+  twinFang: {
+    dur: 0.72,
+    keys: [
+      { t: 0, e: 'snap', p: { hp: [0, -0.24, -0.16], hips: [0, -40, 0], chest: [6, -46, 0], spine: [6, -14, 0], head: [-4, 50, 0], lh: 1, sw: { tilt: 90, yaw: 0, a: 14, r: 0.08, off: -14, roll: 90 } } },
+      { t: 0.07, e: 'out', p: { hp: [0, -0.32, 0.45], hips: [0, 10, 0], chest: [14, 8, 0], spine: [16, 4, 0], head: [-26, -6, 0], ...LUNGE, thighR: [-70, -6, -4], shinR: [70, 0, 0], sw: { a: 2, r: 0.7, off: -2 }, pole: [-0.6, -0.8, -0.1] } },
+      { t: 0.16, e: 'inOut', p: { chest: [10, -16, 0], lh: 0, upperArmL: [10, 0, 50], foreArmL: [-30, 0, 0], sw: { tilt: 64, a: -40, r: 0.5, off: -20, roll: 0 } } },
+      { t: 0.23, e: 'out', p: { hp: [0, -0.24, 0.55], chest: [4, 24, 0], head: [-10, -20, 0], sw: { a: 112, r: 0.62, off: 8 } } },
+      { t: 0.5, e: 'inOut', p: { sw: { a: 118 } } },
+      { t: 0.72, e: 'inOut', p: { hp: [0, -0.14, 0.3], sw: { a: 84, off: 30 } } },
+    ],
+  },
+  // 壹之型・委蛇斬: bent low, leaning into each turn, cutting on every one
+  windingSlash: {
+    dur: 0.84,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.3, 0.05], spine: [30, 0, 0], chest: [10, -30, 0], head: [-30, 26, 0], thighL: [20, -6, 8], shinL: [40, 0, 0], thighR: [-40, -6, -4], shinR: [50, 0, 0], lh: 0, upperArmL: [20, 0, 40], foreArmL: [-30, 0, 0], sw: { tilt: 80, yaw: 0, a: 110, r: 0.5, off: 20, roll: 0 }, pole: [-0.9, 0.1, -0.2] } },
+      { t: 0.14, e: 'out', p: { br: 12, chest: [12, 34, 0], head: [-28, -24, 0], sw: { a: -100, r: 0.62, off: 6 }, pole: [-0.2, -0.6, 0.8] } },
+      { t: 0.28, e: 'out', p: { br: -12, chest: [12, -34, 0], head: [-28, 26, 0], sw: { a: 104 }, pole: [-0.9, 0.1, -0.2] } },
+      { t: 0.42, e: 'out', p: { br: 10, chest: [12, 30, 0], head: [-28, -22, 0], sw: { a: -96 }, pole: [-0.2, -0.6, 0.8] } },
+      { t: 0.49, e: 'in', p: { br: 0, chest: [8, -40, 0], head: [-20, 34, 0], sw: { a: 118, r: 0.5, off: 24 }, pole: [-0.9, 0.1, -0.2] } },
+      { t: 0.55, e: 'out', p: { hp: [0, -0.2, 0.2], chest: [12, 46, 0], spine: [16, 16, 0], head: [-14, -40, 0], ...LUNGE, sw: { a: -112, r: 0.64, off: 6 }, pole: [-0.2, -0.6, 0.8] } },
+      { t: 0.84, e: 'inOut', p: { hp: [0, -0.12, 0.1], spine: [10, 6, 0], sw: { a: -100, off: 22 } } },
+    ],
+  },
+  // 貳之型・狹頭之毒牙: coiled back (he is already slipping behind the target), then a biting downward cut
+  venomFang: {
+    dur: 0.72,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.34, -0.1], spine: [20, 0, 0], chest: [10, -30, 0], head: [-20, 30, 0], thighL: [20, -10, 14], shinL: [50, 0, 0], thighR: [-40, -10, -14], shinR: [60, 0, 0], lh: 0, upperArmL: [10, 0, 50], foreArmL: [-40, 0, 0], sw: { tilt: 40, yaw: 0, a: 150, r: 0.44, off: 24, roll: 0 }, pole: [-0.8, 0.3, -0.2] } },
+      { t: 0.12, e: 'in', p: { hp: [0, -0.4, -0.1], sw: { a: 160 } } },
+      { t: 0.22, e: 'out', p: { hp: [0, -0.28, 0.35], spine: [24, 0, 0], chest: [20, 30, 0], head: [-26, -24, 0], ...LUNGE, sw: { a: -40, r: 0.64, off: 4 }, pole: [-0.5, -1, 0] } },
+      { t: 0.48, e: 'inOut', p: { sw: { a: -46 } } },
+      { t: 0.72, e: 'inOut', p: { hp: [0, -0.14, 0.2], chest: [10, 10, 0], sw: { a: -30, off: 26 } } },
+    ],
+  },
+  // 參之型・塒締: three low turns with the blade held out, closing on a squeeze
+  coilChoke: {
+    dur: 1.05,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.32, 0], by: 0, hips: [0, 30, 0], chest: [14, 40, 0], spine: [14, 14, 0], head: [-16, -30, 0], thighL: [10, -10, 16], shinL: [36, 0, 0], thighR: [-16, -10, -16], shinR: [40, 0, 0], lh: 0, upperArmL: [0, 0, 80], foreArmL: [-10, 0, 0], sw: { tilt: 80, yaw: 0, a: -120, r: 0.5, off: -20, roll: 180 }, pole: [0, -0.3, 1] } },
+      { t: 0.12, e: 'in', p: { chest: [16, 52, 0], sw: { a: -130 } } },
+      { t: 0.84, e: 'linear', p: { by: -1080, hp: [0, -0.36, 0.05], hips: [0, -10, 0], chest: [8, -10, 0], head: [-12, 0, 0], sw: { a: -86, r: 0.66, off: 0 } } },
+      { t: 0.9, e: 'out', p: { by: -1080, chest: [18, -34, 0], sw: { tilt: 60, a: -56, r: 0.46, off: 12 } } },
+      { t: 1.05, e: 'inOut', p: { by: -1080, hp: [0, -0.16, 0.05], sw: { a: -64, off: 26 } } },
+    ],
+  },
+  // 伍之型・蜿蜒長蛇: coiled like a snake about to strike
+  serpentReady: {
+    dur: 0.7,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.38, -0.05], hips: [0, -20, 0], spine: [30, -10, 0], chest: [14, -20, 0], head: [-34, 24, 0], thighL: [-50, -20, 16], shinL: [90, 0, 0], thighR: [30, -10, -16], shinR: [60, 0, 0], lh: 0, upperArmL: [-60, 0, 30], foreArmL: [-30, 0, 0], sw: { tilt: 70, yaw: 0, a: 30, r: 0.5, off: -40, roll: 0 }, pole: [-0.8, -0.2, -0.3] } },
+      { t: 0.7, e: 'inOut', p: { hp: [0, -0.42, -0.08], chest: [16, -24, 0] } },
     ],
   },
   fall: {

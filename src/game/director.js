@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { Player } from '../actors/player.js';
 import { Enemy } from '../actors/enemy.js';
 import { Boss } from '../actors/boss.js';
-import { buildTanjiro, buildGiyu, buildAkaza, buildDemon } from '../actors/characters.js';
+import { buildTanjiro, buildGiyu, buildRengoku, buildObanai, buildAkaza, buildDemon } from '../actors/characters.js';
+import { CHAR_FX } from './moves.js';
 import { LAYER_FX } from '../render/pipeline.js';
 
 const WAVES = [
@@ -22,7 +23,28 @@ const LINES = {
     boss: ['富岡義勇', '上弦之參……我會在這裡斬了你。'],
     victory: ['富岡義勇', '……結束了。'],
   },
+  rengoku: {
+    intro: ['煉獄杏壽郎', '唔姆！這就是無限城嗎！鬼的巢穴，就由我一口氣燒盡！'],
+    boss: ['煉獄杏壽郎', '猗窩座！我不會成為鬼。我要履行我的職責！'],
+    victory: ['煉獄杏壽郎', '……燃燒你的心吧。向前邁進！'],
+  },
+  obanai: {
+    intro: ['伊黑小芭內', '……令人作嘔的地方。鬼一隻也別想逃。'],
+    boss: ['伊黑小芭內', '上弦之參……你的頸，由我來取。'],
+    victory: ['伊黑小芭內', '……哼。不過如此。'],
+  },
 };
+
+/** What Akaza says to each of them as the fight begins. */
+const AKAZA_GREETS = {
+  tanjiro: '又見面了，炭治郎。讓我看看你變得多強了！',
+  giyu: '好強的鬥氣……你是柱吧。成為鬼吧！',
+  rengoku: '杏壽郎！又見面了。這一次，你一定要成為鬼！',
+  obanai: '蛇一般的劍氣……你也是柱吧。成為鬼吧！',
+};
+
+const BUILDERS = { tanjiro: buildTanjiro, giyu: buildGiyu, rengoku: buildRengoku, obanai: buildObanai };
+export const isPlayable = (id) => Object.hasOwn(BUILDERS, id);
 
 export class Director {
   constructor(game) {
@@ -34,6 +56,13 @@ export class Director {
     this.lastTokenT = -9;
     this.seed = 1;
     this.pending = [];
+  }
+
+  get lines() {
+    return LINES[this.charId] || LINES.tanjiro;
+  }
+  get fxs() {
+    return CHAR_FX[this.charId] || CHAR_FX.tanjiro;
   }
 
   // ---------------------------------------------------------------- script runner
@@ -96,8 +125,7 @@ export class Director {
     g.slowT = 0;
     g.combo.count = 0;
     this.tokens.clear();
-    this.charId = charId;
-    this.lines = LINES[charId];
+    this.charId = isPlayable(charId) ? charId : 'tanjiro';
     g.cameraRig.lock = null;
     g.cameraRig.stopCine();
     if (mode === 'boss') this.run(this.bossOnly());
@@ -106,7 +134,7 @@ export class Director {
 
   spawnPlayer(pos, yaw) {
     const g = this.game;
-    const model = this.charId === 'giyu' ? buildGiyu(g.T) : buildTanjiro(g.T);
+    const model = BUILDERS[this.charId](g.T);
     const p = new Player(g, this.charId, model);
     p.pos.copy(pos);
     p.yaw = yaw;
@@ -198,6 +226,7 @@ export class Director {
 
   *introFall(p) {
     const g = this.game;
+    p.interruptUlt();
     p.control = false;
     p.setState('cine');
     p.posY = 13;
@@ -278,6 +307,7 @@ export class Director {
   *shiftToBoss() {
     const g = this.game;
     const p = g.player;
+    p.interruptUlt();
     p.control = false;
     g.hud.subtitle('', '錚——　鳴女的琵琶聲響徹無限城……', 3);
     g.audio?.play('biwaShift');
@@ -317,6 +347,7 @@ export class Director {
     boss.anim.play(boss.clips.taunt, { fade: 0, hold: true });
     boss.setState('intro');
     // intro cinematic
+    p.interruptUlt();
     p.control = false;
     p.setState('cine');
     g.hud.letterbox(true);
@@ -337,7 +368,7 @@ export class Director {
     g.audio?.play('bossRoar');
     g.fx.screen.flash(0x7fe6ff, 0.35, 4);
     yield 3.2;
-    g.hud.subtitle('猗窩座', this.charId === 'giyu' ? '好強的鬥氣……你是柱吧。成為鬼吧！' : '又見面了，炭治郎。讓我看看你變得多強了！', 3);
+    g.hud.subtitle('猗窩座', AKAZA_GREETS[this.charId], 3);
     boss.anim.stop(0.3);
     yield 2.4;
     g.hud.subtitle(this.lines.boss[0], this.lines.boss[1], 2.6);
@@ -368,6 +399,7 @@ export class Director {
     const g = this.game;
     const p = g.player;
     g.hud.objective('');
+    p.interruptUlt();
     p.control = false;
     p.action = null;
     p.setState('cine');
@@ -388,11 +420,11 @@ export class Director {
     g.timeScale = 1;
     // teleport-dash through Akaza
     const dir = new THREE.Vector3(boss.pos.x - p.pos.x, 0, boss.pos.z - p.pos.z).normalize();
-    g.fx.effects.afterimage(p.model, { color: this.charId === 'giyu' ? 0x4fb3e8 : 0xff8a2a, life: 0.5, alpha: 0.5 });
+    g.fx.effects.afterimage(p.model, { color: this.fxs.after, life: 0.5, alpha: 0.5 });
     p.pos.copy(boss.pos).addScaledVector(dir, 2.2);
     p.faceInstant(boss.pos.clone().addScaledVector(dir, 10));
     p.anim.play(p.clips.light3, { fade: 0, time: 0.17, hold: true });
-    p.setTrail(this.charId === 'giyu' ? 'water' : 'fire');
+    p.setTrail(this.fxs.style);
     g.hud.letterbox(true);
     g.fx.screen.impact(0.16, 0x050305, 0xfff4e8);
     g.fx.screen.radial(0.9);
@@ -402,12 +434,12 @@ export class Director {
     g.audio?.duck(0.8, 1.2);
     g.cameraRig.shake(0.9);
     boss.behead(dir);
-    g.fx.hit(boss.chest(new THREE.Vector3()), dir, { style: this.charId === 'giyu' ? 'water' : 'fire', power: 1, crit: true });
+    g.fx.hit(boss.chest(new THREE.Vector3()), dir, { style: this.fxs.style, power: 1, crit: true });
     g.fx.effects.arc({
       center: boss.chest(new THREE.Vector3()).setY(1.62),
       f: new THREE.Vector3(-dir.z, 0, dir.x),
       s: dir.clone(),
-      radius: 1.2, width: 0.6, arc: Math.PI * 1.2, style: this.charId === 'giyu' ? 'water' : 'fire', life: 0.6, wipe: 0.05,
+      radius: 1.2, width: 0.6, arc: Math.PI * 1.2, style: this.fxs.style, life: 0.6, wipe: 0.05,
     });
     const yaw = Math.atan2(dir.x, dir.z);
     g.cameraRig.play([

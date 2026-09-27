@@ -378,10 +378,10 @@ export class Boss extends Actor {
     this.game.fx.particles.flash(this.chest(_v).clone(), 0x7fe6ff, 1.2, 0.2);
   }
 
-  /** Akaza reads fighting spirit: parries melee hits while guarding. */
+  /** Akaza reads fighting spirit: parries melee hits while guarding (not projectiles, not an ultimate). */
   tryCounter(att, h) {
     if (this.state !== 'guard' || h.shape === 'circle' && (h.range ?? 0) > 3.2) return false;
-    if (att !== this.player) return false;
+    if (att !== this.player || h.unparryable || att.state === 'ult') return false;
     const g = this.game;
     this.anim.play(this.clips.counterGuard, { fade: 0.01 });
     g.audio?.play('clang');

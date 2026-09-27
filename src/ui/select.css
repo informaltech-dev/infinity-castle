@@ -58,25 +58,28 @@
   text-shadow: 0 0 calc(var(--u) * 0.8) #000, 0 1px 2px #000;
 }
 .sl-cards {
+  /* card unit: follows the viewport's width as well, so on narrower screens (4:3, tablets)
+     the four cards still end short of the preview model in the middle */
+  --cu: min(var(--u), 0.5625vw);
   position: absolute;
   left: 4vw;
   top: 17vh;
   display: flex;
-  gap: calc(var(--u) * 2);
+  gap: calc(var(--cu) * 2);
 }
 .sl-card {
   --acc: var(--gold);
   position: relative;
-  width: calc(var(--u) * 13.5);
-  height: min(60vh, calc(var(--u) * 62));
+  width: calc(var(--cu) * 13.5);
+  height: min(60vh, calc(var(--cu) * 62));
   cursor: pointer;
   color: var(--ink);
   background-color: #e9dec4;
   background-image: var(--tex-washi), linear-gradient(180deg, #f3ebd8 0%, #e3d5b5 100%);
-  border-radius: calc(var(--u) * 0.4);
-  box-shadow: 0 calc(var(--u) * 1) calc(var(--u) * 2.4) rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(120, 90, 40, 0.35);
+  border-radius: calc(var(--cu) * 0.4);
+  box-shadow: 0 calc(var(--cu) * 1) calc(var(--cu) * 2.4) rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(120, 90, 40, 0.35);
   filter: brightness(0.5) saturate(0.6);
-  transform: translateY(calc(var(--u) * 1.4)) scale(0.96);
+  transform: translateY(calc(var(--cu) * 1.4)) scale(0.96);
   transform-origin: 50% 100%;
   transition: filter 0.35s ease, transform 0.45s var(--ease-out), box-shadow 0.35s;
   animation: ic-rise 0.55s var(--ease-out) both;
@@ -89,7 +92,7 @@
 .sl-card.is-sel {
   filter: none;
   transform: none;
-  box-shadow: 0 calc(var(--u) * 1.4) calc(var(--u) * 3.4) rgba(0, 0, 0, 0.65), 0 0 0 2px var(--gold), 0 0 calc(var(--u) * 3) color-mix(in srgb, var(--acc) 55%, transparent);
+  box-shadow: 0 calc(var(--cu) * 1.4) calc(var(--cu) * 3.4) rgba(0, 0, 0, 0.65), 0 0 0 2px var(--gold), 0 0 calc(var(--cu) * 3) color-mix(in srgb, var(--acc) 55%, transparent);
 }
 .sl-card-pat {
   position: absolute;
@@ -103,24 +106,30 @@
   position: absolute;
   left: -10%;
   right: -10%;
-  bottom: calc(var(--u) * -1.4);
-  height: calc(var(--u) * 3);
+  bottom: calc(var(--cu) * -1.4);
+  height: calc(var(--cu) * 3);
   background: #16100e;
   -webkit-mask: var(--tex-stroke) center / 100% 100% no-repeat;
   mask: var(--tex-stroke) center / 100% 100% no-repeat;
 }
 .sl-card.is-tanjiro .sl-card-pat {
-  background: conic-gradient(#141212 25%, #2f8f74 0 50%, #141212 0 75%, #2f8f74 0) 0 0 / calc(var(--u) * 3.4) calc(var(--u) * 3.4);
+  background: conic-gradient(#141212 25%, #2f8f74 0 50%, #141212 0 75%, #2f8f74 0) 0 0 / calc(var(--cu) * 3.4) calc(var(--cu) * 3.4);
 }
 .sl-card.is-giyu .sl-card-pat {
-  background: linear-gradient(90deg, #6e1b29 0 50%, transparent 50%), var(--kikko) 0 0 / calc(var(--u) * 5.4) auto;
+  background: linear-gradient(90deg, #6e1b29 0 50%, transparent 50%), var(--kikko) 0 0 / calc(var(--cu) * 5.4) auto;
+}
+.sl-card.is-rengoku .sl-card-pat {
+  background: var(--flames) 0 100% / calc(var(--cu) * 5) auto repeat-x, #f3ecdc;
+}
+.sl-card.is-obanai .sl-card-pat {
+  background: repeating-linear-gradient(90deg, #18171d 0 calc(var(--cu) * 1.1), #e9e5dc 0 calc(var(--cu) * 2.2));
 }
 .sl-card-name {
   position: absolute;
   left: 50%;
   top: 40%;
   transform: translateX(-50%);
-  font-size: calc(var(--u) * 4.4);
+  font-size: calc(var(--cu) * 4.4);
   line-height: 1;
   letter-spacing: 0.06em;
   color: #16100e;
@@ -129,29 +138,29 @@
 }
 .sl-card-title {
   position: absolute;
-  right: calc(var(--u) * 0.9);
+  right: calc(var(--cu) * 0.9);
   top: 41%;
   font-family: var(--f-title);
   font-weight: 700;
-  font-size: calc(var(--u) * 1.35);
+  font-size: calc(var(--cu) * 1.35);
   letter-spacing: 0.3em;
   color: var(--verm);
 }
 .sl-card .ic-seal {
   position: absolute;
-  left: calc(var(--u) * 1);
-  bottom: calc(var(--u) * 1.2);
-  width: calc(var(--u) * 3.6);
+  left: calc(var(--cu) * 1);
+  bottom: calc(var(--cu) * 1.2);
+  width: calc(var(--cu) * 3.6);
 }
 .sl-card .ic-seal > span {
-  font-size: calc(var(--u) * 2.2);
+  font-size: calc(var(--cu) * 2.2);
 }
 .sl-card-acc {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: calc(var(--u) * 0.7);
+  height: calc(var(--cu) * 0.7);
   background: var(--acc);
   transform: scaleX(0);
   transform-origin: 0 50%;
@@ -162,6 +171,8 @@
 }
 .sl-card.is-tanjiro { --acc: var(--flame); }
 .sl-card.is-giyu { --acc: var(--water); }
+.sl-card.is-rengoku { --acc: var(--flame); }
+.sl-card.is-obanai { --acc: var(--serpent); }
 
 .sl-detail {
   --acc: var(--flame);
@@ -174,6 +185,9 @@
 }
 .sl-detail.is-giyu {
   --acc: #2b86c4;
+}
+.sl-detail.is-obanai {
+  --acc: #7a52c4;
 }
 .sd-body.is-swap {
   animation: sd-swap 0.42s var(--ease-out) both;
@@ -321,6 +335,9 @@
 }
 .sd-tech li.is-fire .t-name {
   color: #b8401a;
+}
+.sd-tech li.is-serpent .t-name {
+  color: #5e3aa0;
 }
 .sd-tech li.is-ult .t-name {
   color: var(--verm);

@@ -2,8 +2,10 @@ import * as THREE from 'three';
 import { LAYER_FX } from '../render/pipeline.js';
 
 // Style ids shared by trails / arcs / dragons
-export const STYLE = { STEEL: 0, WATER: 1, FIRE: 2, CALM: 3, DEMON: 4, COMPASS: 5 };
+export const STYLE = { STEEL: 0, WATER: 1, FIRE: 2, CALM: 3, DEMON: 4, COMPASS: 5, SERPENT: 6 };
 export const styleId = (s) => (typeof s === 'number' ? s : STYLE[(s || 'steel').toUpperCase()] ?? 0);
+/** Ink-painted styles (dark outlines) are drawn with normal blending; the glowing ones add light. */
+const inked = (sid) => sid === STYLE.WATER || sid === STYLE.SERPENT;
 
 const commonGLSL = /* glsl */ `
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
@@ -48,6 +50,22 @@ vec4 styleColor(int style, float u, float v, float t, float alpha) {
     vec3 col = mix(vec3(0.95, 0.35, 0.6), vec3(0.55, 0.95, 1.0), smoothstep(0.4, 0.9, v + (n - 0.5) * 0.4));
     float a = smoothstep(0.0, 0.2, v) * (1.0 - smoothstep(0.85, 1.0, v)) * (1.0 - smoothstep(0.3, 1.0, u + n * 0.3));
     c = vec4(col * 1.5, a * alpha);
+  } else if (style == 6) {
+    // serpent: pale lilac scales with violet ink edges and a white sheen along the belly
+    float n = fbm(vec2(u * 7.0 - t * 4.0, v * 3.0));
+    vec2 sc = vec2(u * 30.0 - t * 5.0, v * 4.0);
+    vec2 cell = fract(vec2(sc.x + sc.y, sc.x - sc.y) * 0.5) - 0.5;
+    float scale = smoothstep(0.3, 0.46, max(abs(cell.x), abs(cell.y)));
+    float band = v + (n - 0.5) * 0.3;
+    vec3 deep = vec3(0.3, 0.13, 0.52), mid = vec3(0.64, 0.47, 0.96), light = vec3(0.95, 0.91, 1.0);
+    vec3 col = band < 0.32 ? deep : band < 0.74 ? mid : light;
+    col = mix(col, deep * 0.85, scale * 0.5 * step(0.32, band) * (1.0 - step(0.74, band)));
+    float inkO = smoothstep(0.9, 0.97, v + (n - 0.5) * 0.1);
+    float inkI = 1.0 - smoothstep(0.02, 0.08, v);
+    col = mix(col, vec3(0.09, 0.02, 0.17), max(inkO, inkI) * 0.88);
+    float edge = 1.0 - smoothstep(0.97, 1.0, v + (n - 0.5) * 0.12);
+    float tail = 1.0 - smoothstep(0.5 + n * 0.35, 1.0, u);
+    c = vec4(col * 1.2, edge * tail * alpha);
   } else if (style == 5) {
     vec3 col = vec3(0.5, 0.92, 1.0);
     float a = (1.0 - smoothstep(0.7, 1.0, u)) * smoothstep(0.0, 0.2, v) * (1.0 - smoothstep(0.8, 1.0, v));
@@ -132,10 +150,11 @@ export class SwordTrail {
   setStyle(style, opts = {}) {
     this.style = styleId(style);
     this.mat.uniforms.uStyle.value = this.style;
-    this.mat.blending = this.style === STYLE.WATER ? THREE.NormalBlending : THREE.AdditiveBlending;
-    this.life = opts.life ?? (this.style === STYLE.WATER || this.style === STYLE.FIRE ? 0.26 : 0.14);
-    this.extend = opts.extend ?? (this.style === STYLE.WATER || this.style === STYLE.FIRE ? 0.55 : 0.05);
-    this.inner = opts.inner ?? (this.style === STYLE.WATER || this.style === STYLE.FIRE ? 0.15 : 0.35);
+    this.mat.blending = inked(this.style) ? THREE.NormalBlending : THREE.AdditiveBlending;
+    const broad = inked(this.style) || this.style === STYLE.FIRE;
+    this.life = opts.life ?? (broad ? 0.26 : 0.14);
+    this.extend = opts.extend ?? (broad ? 0.55 : 0.05);
+    this.inner = opts.inner ?? (broad ? 0.15 : 0.35);
   }
 
   push(base, tip, time) {
@@ -455,7 +474,7 @@ export class Effects {
 
   /**
    * Crescent slash in a plane: center, basis vectors f (arc start dir) and s (arc sweep dir), radius, arc radians.
-   * style: 'steel' | 'water' | 'fire' | 'calm' | 'demon'
+   * style: 'steel' | 'water' | 'fire' | 'calm' | 'demon' | 'serpent'
    */
   arc({ center, f, s, radius = 1.4, width = 0.5, arc = Math.PI * 0.9, style = 'steel', life = 0.32, wipe = 0.07 }) {
     const key = `${radius.toFixed(2)}|${width.toFixed(2)}|${arc.toFixed(2)}`;
@@ -472,7 +491,7 @@ export class Effects {
       transparent: true,
       depthWrite: false,
       side: THREE.DoubleSide,
-      blending: sid === STYLE.WATER ? THREE.NormalBlending : THREE.AdditiveBlending,
+      blending: inked(sid) ? THREE.NormalBlending : THREE.AdditiveBlending,
     });
     const mesh = new THREE.Mesh(g, mat);
     _x.copy(f).normalize();
@@ -515,7 +534,7 @@ export class Effects {
       transparent: true,
       depthWrite: false,
       side: THREE.DoubleSide,
-      blending: sid === STYLE.WATER ? THREE.NormalBlending : THREE.AdditiveBlending,
+      blending: inked(sid) ? THREE.NormalBlending : THREE.AdditiveBlending,
     });
     const mesh = new THREE.Mesh(tube, mat);
     mesh.renderOrder = 8;
@@ -582,7 +601,8 @@ export class Effects {
     const e = this._add(mesh, life, (t, dt, self) => {
       const a = self.age;
       const fin = fadeIn > 0 ? Math.min(1, a / fadeIn) : 1;
-      const fout = Math.min(1, (life - a) / Math.min(1.2, life * 0.4));
+      // (reads self.life, so shortening it fades the decal out over the same window)
+      const fout = Math.min(1, (self.life - a) / Math.min(1.2, life * 0.4));
       mat.uniforms.uAlpha.value = alpha * fin * Math.max(0, fout);
       mat.uniforms.uTime.value = a;
       mat.uniforms.uFill.value = fillTime > 0 ? Math.min(1, a / fillTime) : 1;

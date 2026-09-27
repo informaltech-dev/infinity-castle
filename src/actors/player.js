@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Actor } from './actor.js';
 import { SwordTrail } from '../fx/effects.js';
-import { playerMoves, SKILLS, ULTS } from '../game/moves.js';
+import { playerMoves, SKILLS, ULTS, CHAR_FX } from '../game/moves.js';
 import { clamp, dampT, angleDiff, DEG } from '../core/math.js';
 import { LAYER_FX } from '../render/pipeline.js';
 
@@ -14,11 +14,15 @@ const _mv = { x: 0, y: 0 };
 
 const WALK = 5.2;
 const SPRINT = 8.4;
+const HP = { tanjiro: 115, giyu: 125, rengoku: 130, obanai: 105 };
+const DMG = { tanjiro: 1.08, rengoku: 1.1 };
 
 export class Player extends Actor {
   constructor(game, charId, model) {
-    super(game, model, { team: 'player', hp: charId === 'giyu' ? 125 : 115, radius: 0.42, height: 1.8, poise: 40 });
+    super(game, model, { team: 'player', hp: HP[charId] ?? 115, radius: 0.42, height: 1.8, poise: 40 });
     this.charId = charId;
+    this.palette = CHAR_FX[charId] || CHAR_FX.tanjiro;
+    this.heart = false; // Rengoku's 燃燒心靈
     this.moves = playerMoves(charId);
     this.skills = SKILLS[charId];
     this.ultInfo = ULTS[charId];
@@ -42,7 +46,7 @@ export class Player extends Actor {
     this.critTarget = null;
     this.critT = 0;
     this.counterT = 0;
-    this.dmgMul = charId === 'tanjiro' ? 1.08 : 1.0;
+    this.baseDmg = this.dmgMul = DMG[charId] ?? 1.0;
     this.control = true;
     this.state = 'move';
     this.trail = new SwordTrail(game.scene, { style: 'steel' });
@@ -57,6 +61,14 @@ export class Player extends Actor {
     this.threadMesh = this._makeThread();
     this.ult = null;
     this.stats = { damageTaken: 0 };
+    // the blade's resting glow as built; techniques light it up, _restGlow puts it back
+    this._glow0 = model.sword.bladeMat.uniforms.uEmissive.value.clone();
+  }
+
+  setState(s) {
+    // super armor belongs to the action that granted it (_action re-reads it from the running move each frame)
+    this.armor = false;
+    super.setState(s);
   }
 
   _makeThread() {
@@ -124,7 +136,10 @@ export class Player extends Actor {
     }
   }
 
-  consumeCrit(victim) {
+  consumeCrit(victim, h) {
+    // Obanai's winding blade: a real blow (heavy, combo finisher, technique) landed from behind is always critical.
+    // Not the chip ticks or the ultimate's slither: each crit flashes the screen, and those land several times a second.
+    if (this.charId === 'obanai' && victim && this.state !== 'ult' && (h?.power ?? 0.5) >= 0.6 && this._behind(victim)) return true;
     if (this.counterT > 0) {
       this.counterT = 0;
       return true;
@@ -139,6 +154,40 @@ export class Player extends Actor {
     return false;
   }
 
+  /** Are we behind `v` (outside the front ~220° of its facing)? */
+  _behind(v) {
+    const toMe = Math.atan2(this.pos.x - v.pos.x, this.pos.z - v.pos.z);
+    return Math.abs(angleDiff(v.yaw, toMe)) > 1.92;
+  }
+
+  /** Back to the resting blade glow (the heart's fire outlasts every technique while it burns). */
+  _restGlow() {
+    const glow = this.model.sword.bladeMat.uniforms.uEmissive.value;
+    if (this.heart) glow.setRGB(0.55, 0.13, 0.02);
+    else glow.copy(this._glow0);
+  }
+
+  /** Rengoku: below 40% health his heart burns — harder blows, double breath, no flinching from light hits. */
+  _heartUpdate(dt) {
+    const on = this.alive && this.hp < this.maxHp * 0.4;
+    const g = this.game;
+    if (on !== this.heart) {
+      this.heart = on;
+      this.dmgMul = this.baseDmg * (on ? 1.3 : 1);
+      if (this.state !== 'ult') this._restGlow();
+      if (on) {
+        g.hud?.toast('燃燒心靈', 'counter');
+        g.audio?.play('fireBurst', { volume: 0.55 });
+        g.fx.screen.flash(0xff8a3a, 0.3, 6);
+        g.fx.particles.embers(this.chest(_v).clone(), 40, 0xff8a2a, 4, 1.2);
+      }
+    }
+    if (on && Math.random() < dt * 16) {
+      _v.set(this.pos.x + (Math.random() - 0.5) * 0.6, 0.3 + Math.random() * 1.4, this.pos.z + (Math.random() - 0.5) * 0.6);
+      g.fx.particles.embers(_v, 1, 0xff8a2a, 1.2, 0.4);
+    }
+  }
+
   // ---------------------------------------------------------------- update
   update(dt, realDt) {
     dt = this.tick(dt, realDt);
@@ -148,8 +197,9 @@ export class Player extends Actor {
     for (let i = 0; i < 3; i++) this.skillCd[i] = Math.max(0, this.skillCd[i] - dt);
     this.staminaDelay -= dt;
     if (this.staminaDelay <= 0 && this.state !== 'block') this.stamina = Math.min(this.maxStamina, this.stamina + 34 * dt);
-    this.breath = Math.min(this.maxBreath, this.breath + 5 * dt);
+    this.breath = Math.min(this.maxBreath, this.breath + (this.heart ? 10 : 5) * dt);
     this.comboTimer -= dt;
+    if (this.charId === 'rengoku') this._heartUpdate(dt);
     if (this.critT > 0) {
       this.critT -= dt;
       if (this.critT <= 0 || !this.critTarget?.alive) {
@@ -341,7 +391,7 @@ export class Player extends Actor {
     if (tgt && def.motion && !opts.noLunge) {
       const dist = this.distTo(tgt) - tgt.radius - 1.3;
       const base = def.motion.reduce((s, m) => s + m[2], 0);
-      if (base > 0) motionScale = clamp(dist / base, 0.25, 1.8);
+      if (base > 0) motionScale = clamp(dist / base, def.lunge?.[0] ?? 0.25, def.lunge?.[1] ?? 1.8);
     }
     this.setState('action');
     this.run(def, { target: tgt, motionScale });
@@ -353,7 +403,7 @@ export class Player extends Actor {
   }
 
   startDodge(input) {
-    if (!this.spend('stamina', 20)) {
+    if (!this.spend('stamina', this.charId === 'obanai' ? 10 : 20)) {
       this.game.hud?.toast('耐力不足', 'info');
       return;
     }
@@ -430,19 +480,25 @@ export class Player extends Actor {
     this.velXZ.multiplyScalar(Math.exp(-dt * 12));
     const tgt = this.aimTarget();
     if (tgt) this.turnTowards(tgt.pos, 8, dt);
+    const kind = this.palette.charge;
     if (this.chargeT > 0.22 && !this._charging) {
       this._charging = true;
       this.anim.play(this.clips.thrustCharge, { fade: 0.1, hold: true });
-      this.game.audio?.play('waterWave', { volume: 0.35, pitch: 1.3 });
+      if (kind === 'fire') this.game.audio?.play('fireWhoosh', { volume: 0.4, pitch: 1.2 });
+      else if (kind === 'serpent') this.game.audio?.play('serpentHiss', { volume: 0.45 });
+      else this.game.audio?.play('waterWave', { volume: 0.35, pitch: 1.3 });
     }
     if (this._charging && Math.random() < dt * 30) {
       this.model.sword.tip.getWorldPosition(_v);
-      this.game.fx.particles.droplets(_v, _v2.set(0, 1, 0), 1, 0x7ad0ff, 1.5, 0.05);
+      const P = this.game.fx.particles;
+      if (kind === 'fire') P.embers(_v, 2, 0xff8a2a, 1.4, 0.4);
+      else if (kind === 'serpent') P.sparks(_v, _v2.set(0, 1, 0), 1, 0xd9c6ff, 1.6, 1.2);
+      else P.droplets(_v, _v2.set(0, 1, 0), 1, 0x7ad0ff, 1.5, 0.05);
     }
     if (this.chargeT > 0.6 && !this._chargedFx) {
       this._chargedFx = true;
       this.model.sword.tip.getWorldPosition(_v);
-      this.game.fx.particles.flash(_v, 0xbfe8ff, 1.0, 0.18);
+      this.game.fx.particles.flash(_v, kind === 'fire' ? 0xffc080 : kind === 'serpent' ? 0xe6d8ff : 0xbfe8ff, 1.0, 0.18);
       this.game.audio?.play('gaugeFull', { volume: 0.4, pitch: 1.5 });
     }
     const released = !input.down('heavy') || !this.control;
@@ -646,7 +702,7 @@ export class Player extends Actor {
     this.gain(4, 0);
     g.audio?.play('playerHurt', { pos: this.pos });
     if (this.state === 'ult') return;
-    if (this.armor && h.stun !== 'down') {
+    if ((this.armor && h.stun !== 'down') || (this.heart && (h.stun || 'light') === 'light')) {
       this.anim.hitJolt = 0.6;
       return;
     }
@@ -759,12 +815,20 @@ export class Player extends Actor {
     this.game.fx.effects.arc({ center: p, f: new THREE.Vector3(0, 1, 0), s: f, radius: 1.5, width: 0.9, arc: Math.PI * 1.95, style: 'water', life: 0.6, wipe: 0.4 });
   }
 
-  fireCharge() {
+  fireCharge(hold = 1.2) {
     this.model.sword.tip.getWorldPosition(_v);
     this.game.fx.particles.embers(_v, 20, 0xff8a2a, 2, 0.6);
     this.game.fx.light(_v, 0xff7a2a, 3, 5, 0.5);
-    this.model.sword.bladeMat.uniforms.uEmissive.value.setRGB(0.9, 0.25, 0.05);
-    this.game.fx.effects.timer(1.2, null, () => this.model.sword.bladeMat.uniforms.uEmissive.value.setRGB(0, 0, 0));
+    const glow = this.model.sword.bladeMat.uniforms.uEmissive.value;
+    glow.setRGB(0.9, 0.25, 0.05);
+    const token = (this._glowToken = (this._glowToken || 0) + 1);
+    this.game.fx.effects.timer(hold, null, () => {
+      if (token === this._glowToken && this.state !== 'ult') this._restGlow();
+    });
+  }
+
+  afterimage(alpha = 0.45, life = 0.35) {
+    this.game.fx.effects.afterimage(this.model, { color: this.palette.after, life, alpha });
   }
 
   fireBurst() {
@@ -812,8 +876,253 @@ export class Player extends Actor {
     this.game.fx.effects.dragon(pts, { style: 'water', radius: 0.75, life: 2.2, grow: 0.72 });
   }
 
+  // ---------------------------------------------------------------- 炎之呼吸 fx
+  /** Small eruption of fire where the blade lands. */
+  flameGround(size = 1.3) {
+    const g = this.game;
+    const p = _v.copy(this.pos).addScaledVector(this.forward(_v2), 1.4);
+    p.y = 0.1;
+    g.fx.effects.ring(p.clone(), { color: 0xff8a2a, from: 0.3, to: size * 1.8, life: 0.4, thick: 0.3 });
+    for (let i = 0; i < 3; i++) {
+      _v3.set(p.x + (Math.random() - 0.5) * size, 0.5 + Math.random() * 0.5, p.z + (Math.random() - 0.5) * size);
+      g.fx.effects.sprite(_v3.clone(), { tex: 'flame', size: 0.8 + Math.random() * 0.6, life: 0.45, grow: 0.5, rise: 1.6, additive: true, add: 0.6 });
+    }
+    g.fx.particles.embers(p.clone().setY(0.5), 26, 0xff8a2a, 4, 1);
+    g.fx.light(p.clone().setY(0.9), 0xff6a1a, 4, 7, 0.35);
+  }
+
+  /** 不知火: the path of the dash goes up in flames behind him. */
+  flameStreak(from) {
+    if (!from) return;
+    const g = this.game;
+    const to = this.pos.clone();
+    const len = Math.hypot(to.x - from.x, to.z - from.z);
+    const n = Math.max(2, Math.round(len / 0.7));
+    for (let i = 0; i <= n; i++) {
+      const k = i / n;
+      const p = new THREE.Vector3(from.x + (to.x - from.x) * k, 0.35 + Math.random() * 0.3, from.z + (to.z - from.z) * k);
+      g.fx.effects.timer(k * 0.08, null, () => g.fx.effects.sprite(p, { tex: 'flame', size: 0.7 + Math.random() * 0.5, life: 0.5, grow: 0.6, rise: 1.8, additive: true, add: 0.6 }));
+    }
+    if (len > 1) {
+      const mid = from.clone().lerp(to, 0.5).setY(1.0);
+      g.fx.effects.dragon([from.clone().setY(0.7), mid, to.clone().setY(1.05)], { style: 'fire', radius: 0.55, life: 0.6, grow: 0.12, seg: 40 });
+    }
+    g.fx.particles.embers(this.chest(_v).clone(), 30, 0xff8a2a, 5, 1.1);
+    g.fx.light(this.chest(_v).clone(), 0xff7a2a, 4, 8, 0.3);
+    g.fx.screen.speed(0.9, 0.14);
+  }
+
+  /** 昇炎天: a column of fire climbs out of the rising cut. */
+  risingFlameFx() {
+    const g = this.game;
+    const f = this.forward(new THREE.Vector3());
+    const base = this.pos.clone().addScaledVector(f, 1.5);
+    const pts = [];
+    for (let i = 0; i <= 5; i++) {
+      const k = i / 5;
+      pts.push(base.clone().addScaledVector(f, Math.sin(k * Math.PI) * 0.5).setY(0.2 + k * 3.8));
+    }
+    g.fx.effects.dragon(pts, { style: 'fire', radius: 0.75, life: 0.8, grow: 0.22, seg: 48 });
+    for (let i = 0; i < 5; i++) {
+      _v3.set(base.x + (Math.random() - 0.5) * 1.2, 0.4 + i * 0.55, base.z + (Math.random() - 0.5) * 1.2);
+      g.fx.effects.sprite(_v3.clone(), { tex: 'flame', size: 1 + Math.random() * 0.6, life: 0.55, grow: 0.5, rise: 3, additive: true, add: 0.6 });
+    }
+    g.fx.particles.embers(base.clone().setY(0.8), 40, 0xff9a3a, 6, 1.4);
+    g.fx.light(base.clone().setY(1.4), 0xff6a1a, 6, 10, 0.45);
+  }
+
+  /** 盛炎漩渦: wheels of fire spinning in front of him. */
+  flameVortexFx() {
+    const g = this.game;
+    for (let i = 0; i < 4; i++) {
+      g.fx.effects.timer(i * 0.14, null, () => {
+        if (this.state !== 'action' || this.curMove !== 'flameVortex') return;
+        const f = this.forward(new THREE.Vector3());
+        const r = this.right(new THREE.Vector3());
+        const c = this.chest(new THREE.Vector3()).addScaledVector(f, 1.0);
+        const a0 = i * 1.3;
+        const start = new THREE.Vector3(0, Math.cos(a0), 0).addScaledVector(r, Math.sin(a0));
+        const sweep = new THREE.Vector3(0, -Math.sin(a0), 0).addScaledVector(r, Math.cos(a0));
+        g.fx.effects.arc({ center: c, f: start, s: sweep, radius: 1.25 + i * 0.12, width: 0.85, arc: Math.PI * 1.9, style: 'fire', life: 0.42, wipe: 0.2 });
+        g.fx.effects.sprite(c.clone().addScaledVector(r, (Math.random() - 0.5) * 1.6).setY(0.6 + Math.random() * 1.2), { tex: 'flame', size: 1.1, life: 0.45, grow: 0.5, rise: 1.4, additive: true, add: 0.6 });
+        g.fx.particles.embers(c, 14, 0xff8a2a, 4, 0.9);
+      });
+    }
+    g.fx.light(this.chest(_v).clone(), 0xff7a2a, 5, 9, 0.9);
+  }
+
+  /** Burns up anything thrown at him from the front half (projectiles only). */
+  burnProjectiles(R) {
+    const g = this.game;
+    const f = this.forward(_v2);
+    for (const p of g.combat.projectiles) {
+      if (p.owner === this || p.age >= p.life) continue;
+      const dx = p.pos.x - this.pos.x, dz = p.pos.z - this.pos.z;
+      if (Math.hypot(dx, dz) < R && dx * f.x + dz * f.z > -0.5) {
+        p.life = 0;
+        g.fx.particles.embers(p.pos, 16, 0xff8a2a, 4, 0.8);
+        g.fx.particles.flash(p.pos, 0xffc080, 1.2, 0.12);
+      }
+    }
+  }
+
+  /** 炎虎: the cut lands and a tiger of flame bounds away down the hall, mauling everything in its way. */
+  flameTigerFx() {
+    const g = this.game;
+    const f = this.forward(new THREE.Vector3());
+    const start = this.pos.clone().addScaledVector(f, 1.3);
+    g.fx.ground(start.clone(), { size: 2.6, color: 0xff8a2a, crack: true });
+    g.fx.screen.impact(0.1, 0x140404, 0xffd9a0);
+    g.fx.screen.radial(0.6);
+    g.fx.screen.flash(0xffb060, 0.3, 6);
+    g.cameraRig.shake(0.65);
+    g.cameraRig.kick(8);
+    g.freeze?.(0.06);
+    const speed = 17, life = 0.5;
+    // its body: a thick blaze leaping along the path, plus the head
+    const end = start.clone().addScaledVector(f, speed * life);
+    g.world?.constrain(end, 0.5);
+    // (kept slim and low: from the follow camera a thick blaze would bloom over the head and hide it)
+    const body = start.clone().addScaledVector(f, 1.2);
+    const pts = [];
+    for (let i = 0; i <= 6; i++) {
+      const k = i / 6;
+      pts.push(body.clone().lerp(end, k).setY(0.7 + Math.sin(k * Math.PI) * 0.55));
+    }
+    g.fx.effects.dragon(pts, { style: 'fire', radius: 0.8, life: 0.9, grow: life, seg: 80 });
+    const head = g.fx.effects.sprite(start.clone().setY(1.5), { tex: 'flameTiger', size: 3.4, life: life + 0.2, grow: 0.2, additive: true, add: 0.25 });
+    g.combat.spawn({
+      pos: start.clone().setY(1.1),
+      vel: f.clone().multiplyScalar(speed),
+      radius: 1.6,
+      life,
+      owner: this,
+      pierce: true,
+      hit: { dmg: 88, poise: 110, knock: 8, hitstop: 0.1, shake: 0.55, power: 1, stun: 'down', style: 'fire', radial: 0.35, fov: 6, unparryable: true },
+      // emission is rated per second (none while frozen), and one light is re-lit rather than stacking one per frame
+      fx: (pr, dt) => {
+        const k = Math.min(1, pr.age / life);
+        if (head) head.obj.position.set(pr.pos.x, 1.5 + Math.sin(k * Math.PI) * 0.7, pr.pos.z);
+        if (Math.random() < dt * 21) g.fx.effects.sprite(pr.pos.clone().add(_v3.set((Math.random() - 0.5) * 1.6, Math.random() * 0.6 - 0.4, (Math.random() - 0.5) * 1.6)), { tex: 'flame', size: 0.9 + Math.random() * 0.6, life: 0.45, grow: 0.5, rise: 2, additive: true, add: 0.5 });
+        const n = Math.floor(dt * 180 + Math.random());
+        if (n) g.fx.particles.embers(pr.pos, n, 0xff8a2a, 4, 1.2);
+        pr.lightT = (pr.lightT ?? 0) - dt;
+        if (pr.lightT <= 0) {
+          pr.lightT = 0.07;
+          g.fx.light(pr.pos, 0xff6a1a, 3, 8, 0.14);
+        }
+      },
+    });
+  }
+
+  // ---------------------------------------------------------------- 蛇之呼吸 fx
+  /** Two fangs of light where the blade bites. */
+  fangMark(size = 1.2) {
+    const g = this.game;
+    const f = this.forward(new THREE.Vector3());
+    const r = this.right(new THREE.Vector3());
+    const c = this.chest(new THREE.Vector3()).addScaledVector(f, 1.1);
+    for (const s of [-1, 1]) {
+      g.fx.effects.arc({
+        center: c.clone().addScaledVector(r, s * 0.22 * size),
+        f: new THREE.Vector3(0, 1, 0),
+        s: r.clone().multiplyScalar(s),
+        radius: 0.55 * size, width: 0.3, arc: Math.PI * 0.95, style: 'serpent', life: 0.36, wipe: 0.06,
+      });
+    }
+    g.fx.particles.sparks(c, f, 14, 0xf0e6ff, 8, 0.9);
+    g.fx.light(c, 0xc6a4ff, 2.5, 6, 0.25);
+  }
+
+  /** 頸蛇雙生: two serpents twisting round each other along the lunge. */
+  twinFangFx() {
+    const g = this.game;
+    const f = this.forward(new THREE.Vector3());
+    const r = this.right(new THREE.Vector3());
+    const base = this.chest(new THREE.Vector3());
+    for (const s of [0, Math.PI]) {
+      const pts = [];
+      for (let k = 0; k <= 12; k++) {
+        const t = k / 12;
+        const a = t * Math.PI * 2.2 + s;
+        const rr = 0.45 * Math.sin(Math.min(1, t * 1.4) * Math.PI * 0.5);
+        pts.push(base.clone().addScaledVector(f, -0.6 + t * 5.4).addScaledVector(r, Math.cos(a) * rr).add(_v3.set(0, Math.sin(a) * rr, 0)));
+      }
+      g.fx.effects.dragon(pts, { style: 'serpent', radius: 0.3, life: 0.6, grow: 0.12, seg: 60 });
+    }
+    this.afterimage(0.4, 0.3);
+    g.fx.screen.speed(0.9, 0.12);
+  }
+
+  /** 委蛇斬: a serpent traces the weaving path the dash is about to take. */
+  windingFx(runner) {
+    const g = this.game;
+    const k = runner?.motionScale ?? 1;
+    const p = this.pos.clone();
+    const pts = [p.clone().setY(0.8)];
+    for (const m of this.moves.windingSlash.motion) {
+      const y = this.yaw + (m[4] ?? 0);
+      p.x += Math.sin(y) * m[2] * k;
+      p.z += Math.cos(y) * m[2] * k;
+      pts.push(p.clone().setY(0.8 + pts.length * 0.08));
+    }
+    g.fx.effects.dragon(pts, { style: 'serpent', radius: 0.42, life: 0.9, grow: 0.42, seg: 70 });
+    this.afterimage(0.35, 0.3);
+  }
+
+  /** 狹頭之毒牙: slip round to the target's back (or dart forward when there is none). */
+  venomBlink() {
+    const g = this.game;
+    const tgt = this.aimTarget() || this.bestTarget(9, 120);
+    const from = this.pos.clone();
+    this.afterimage(0.5, 0.4);
+    let to;
+    if (tgt && this.distTo(tgt) < 9) {
+      to = tgt.pos.clone().add(_v2.set(-Math.sin(tgt.yaw), 0, -Math.cos(tgt.yaw)).multiplyScalar(tgt.radius + 1.05));
+      if (this.action) this.action.target = tgt;
+    } else {
+      to = from.clone().addScaledVector(this.forward(_v2), 3.2);
+    }
+    g.world?.constrain(to, this.radius);
+    // the path curls round the target's flank like a snake
+    const side = this.right(_v3).clone().multiplyScalar(Math.random() < 0.5 ? 1 : -1);
+    const mid = from.clone().lerp(to, 0.5).addScaledVector(side, 1.4).setY(0.9);
+    g.fx.effects.dragon([from.clone().setY(0.7), mid, to.clone().setY(0.8)], { style: 'serpent', radius: 0.36, life: 0.5, grow: 0.1, seg: 40 });
+    g.fx.particles.smoke(from.clone().setY(0.1), 4, 0x2a2233, 0.4, 1, 0.5);
+    this.pos.copy(to);
+    if (tgt) this.faceInstant(tgt.pos);
+    g.fx.screen.speed(0.6, 0.12);
+  }
+
+  /** 塒締: two coils wind inward and upward round him. */
+  coilFx() {
+    const g = this.game;
+    const c = this.pos.clone();
+    for (let j = 0; j < 2; j++) {
+      const pts = [];
+      const a0 = this.yaw + j * Math.PI;
+      for (let k = 0; k <= 20; k++) {
+        const t = k / 20;
+        const a = a0 + t * Math.PI * 3.2;
+        const rr = 3.0 - t * 1.7;
+        pts.push(new THREE.Vector3(c.x + Math.cos(a) * rr, 0.3 + t * 1.5, c.z + Math.sin(a) * rr));
+      }
+      g.fx.effects.timer(j * 0.12, null, () => g.fx.effects.dragon(pts, { style: 'serpent', radius: 0.5, life: 0.95, grow: 0.62, seg: 90 }));
+    }
+    g.fx.effects.ring(c.clone().setY(0.08), { color: 0xc6a4ff, from: 3.8, to: 0.9, life: 0.75, thick: 0.3 });
+  }
+
+  /** 塒締's closing squeeze bursts outward (a move event, so it keeps time with the final hit). */
+  coilBurst() {
+    const g = this.game;
+    const p = this.pos.clone();
+    g.fx.effects.ring(p.clone().setY(0.1), { color: 0xe6d8ff, from: 0.4, to: 4.2, life: 0.45, thick: 0.25 });
+    g.fx.particles.sparks(p.clone().setY(1), _v2.set(0, 1, 0), 30, 0xf0e6ff, 9, 1.4);
+    g.fx.light(p.clone().setY(1.2), 0xc6a4ff, 4, 8, 0.3);
+  }
+
   dodgeFx(ang) {
-    this.game.fx.effects.afterimage(this.model, { color: this.charId === 'giyu' ? 0x4fb3e8 : 0x7fd4a8, life: 0.25, alpha: 0.3 });
+    this.game.fx.effects.afterimage(this.model, { color: this.palette.dodge, life: 0.25, alpha: 0.3 });
     this.game.fx.particles.smoke(_v.set(this.pos.x, 0.1, this.pos.z), 3, 0x3a2e2a, 0.35, 1.0, 0.5);
     void ang;
   }
@@ -852,7 +1161,7 @@ export class Player extends Actor {
     this.model.setFace('fierce');
     const g = this.game;
     g.audio?.play('ultimate');
-    g.fx.screen.flash(this.charId === 'giyu' ? 0xdff4ff : 0xffd0a0, 0.5, 5);
+    g.fx.screen.flash(this.palette.flash, 0.5, 5);
     g.fx.screen.speed(1, 0.6);
     g.cameraRig.kick(10);
     this.callout(this.ultInfo.school, this.ultInfo.form, this.ultInfo.name, this.ultInfo.style);
@@ -866,6 +1175,10 @@ export class Player extends Actor {
       g.audio?.duck(0.7, 3.5);
       this.calmDecal = g.fx.effects.decal(this.pos, { kind: 'ripple', size: 15, life: 4.4, color: 0x9fdcff, alpha: 0.9, fadeIn: 0.4, y: 0.03 });
       g.enemyTimeScale = 0.3;
+    } else if (this.charId === 'rengoku') {
+      this._purgatoryStart();
+    } else if (this.charId === 'obanai') {
+      this._serpentStart();
     } else {
       this.anim.play(this.clips.ultReady, { fade: 0.08, hold: true });
       g.enemyTimeScale = 0.15;
@@ -888,6 +1201,8 @@ export class Player extends Actor {
     u.t += dt;
     this._idle(dt);
     if (this.charId === 'giyu') return this._calmUpdate(dt, realDt);
+    if (this.charId === 'rengoku') return this._purgatoryUpdate(dt);
+    if (this.charId === 'obanai') return this._serpentUpdate(dt);
     if (u.phase === 'ready') {
       if (Math.random() < dt * 40) {
         this.model.sword.tip.getWorldPosition(_v);
@@ -963,7 +1278,14 @@ export class Player extends Actor {
       }
       return;
     }
-    if (u.phase === 'finish' && u.t > 1.1) this._endUlt();
+    if (u.phase === 'finish') {
+      // on the ultimate's own clock: effect timers keep ticking under the pause menu
+      if (!u.blasted && u.t >= 0.28) {
+        u.blasted = true;
+        this._ultBlast();
+      }
+      if (u.t > 1.1) this._endUlt();
+    }
   }
 
   _ultFinish() {
@@ -976,18 +1298,20 @@ export class Player extends Actor {
       if (pts.length === 2) pts.splice(1, 0, pts[0].clone().lerp(pts[1], 0.5).setY(2.2));
       g.fx.effects.dragon(pts, { style: 'fire', radius: 1.0, life: 1.6, grow: 0.35, seg: 160 });
     }
-    g.fx.effects.timer(0.28, null, () => {
-      g.fx.screen.impact(0.14, 0x140404, 0xffd9a0);
-      g.fx.screen.radial(0.8);
-      g.audio?.play('fireDragon');
-      g.audio?.play('impactFrame');
-      g.cameraRig.shake(0.8);
-      for (const e of g.enemies) {
-        if (!e.alive) continue;
-        if (this.distTo(e) < 9) g.combat.applyHit(this, e, { dmg: 90, poise: 200, knock: 7, hitstop: 0.12, shake: 0.6, power: 1, style: 'fire', stun: 'down', crit: true });
-      }
-      this.fireBurst();
-    });
+  }
+
+  _ultBlast() {
+    const g = this.game;
+    g.fx.screen.impact(0.14, 0x140404, 0xffd9a0);
+    g.fx.screen.radial(0.8);
+    g.audio?.play('fireDragon');
+    g.audio?.play('impactFrame');
+    g.cameraRig.shake(0.8);
+    for (const e of g.enemies) {
+      if (!e.alive) continue;
+      if (this.distTo(e) < 9) g.combat.applyHit(this, e, { dmg: 90, poise: 200, knock: 7, hitstop: 0.12, shake: 0.6, power: 1, style: 'fire', stun: 'down', crit: true });
+    }
+    this.fireBurst();
   }
 
   _calmUpdate(dt, realDt) {
@@ -1043,6 +1367,254 @@ export class Player extends Actor {
     void realDt;
   }
 
+  // 玖之型・煉獄: a low stance while the fire gathers, then one charge that burns a tunnel through the hall.
+  _purgatoryStart() {
+    const g = this.game;
+    this.anim.play(this.clips.rengokuReady, { fade: 0.08, hold: true });
+    g.enemyTimeScale = 0.12;
+    this.model.sword.bladeMat.uniforms.uEmissive.value.setRGB(1.3, 0.4, 0.06);
+    g.fx.screen.tintTarget.setRGB(1.08, 0.96, 0.88);
+    g.audio?.play('fireWhoosh', { volume: 0.7, pitch: 0.8 });
+    g.cameraRig.play(
+      [
+        { t: 0, pos: [-1.5, 0.7, 1.9], look: [0, 0.9, 0], fov: 42 },
+        { t: 1.0, pos: [-1.0, 0.8, 2.4], look: [0, 1.0, 0], fov: 36, e: 'inOut' },
+      ],
+      { anchor: this.pos.clone(), relYaw: this.yaw },
+    );
+  }
+
+  _purgatoryUpdate(dt) {
+    const u = this.ult;
+    const g = this.game;
+    if (u.phase === 'ready') {
+      if (Math.random() < dt * 60) {
+        // embers drawn in toward the body
+        const a = Math.random() * Math.PI * 2, r = 1.2 + Math.random() * 1.2;
+        _v.set(this.pos.x + Math.cos(a) * r, 0.2 + Math.random() * 1.6, this.pos.z + Math.sin(a) * r);
+        g.fx.particles.embers(_v, 1, 0xff9a3a, 1.5, 0.5);
+      }
+      if (!u.ring && u.t > 0.35) {
+        u.ring = true;
+        g.fx.effects.ring(this.pos.clone().setY(0.06), { color: 0xff7a2a, from: 2.6, to: 0.6, life: 0.6, thick: 0.35 });
+        g.fx.effects.sprite(this.chest(_v).clone(), { tex: 'flame', size: 2.4, life: 0.7, grow: 0.3, rise: 0.6, additive: true, add: 0.6 });
+        g.fx.light(this.chest(_v).clone(), 0xff6a1a, 6, 8, 0.7);
+      }
+      if (u.t > 1.0) {
+        g.cameraRig.stopCine();
+        g.cameraRig._syncFromCamera();
+        const tgt = this.lockTarget && this.lockTarget.alive ? this.lockTarget : this.bestTarget(20, 75);
+        if (tgt) this.faceInstant(tgt.pos);
+        const from = this.pos.clone();
+        const to = from.clone().addScaledVector(this.forward(_v), 14);
+        g.world?.constrain(to, this.radius);
+        u.dash = { from, to, t: 0 };
+        u.phase = 'dash';
+        u.t = 0;
+        this.anim.play(this.clips.rengokuDash, { fade: 0.02, hold: true });
+        this.setTrail('fire');
+        g.audio?.play('fireDragon');
+        g.audio?.play('swingFire', { pitch: 0.8 });
+        g.audio?.play('impactFrame');
+        g.fx.screen.flash(0xffd0a0, 0.45, 8);
+        g.fx.screen.speed(1, 0.4);
+        g.fx.screen.radial(0.8);
+        g.cameraRig.shake(0.7);
+        g.cameraRig.kick(10);
+        const mid = from.clone().lerp(to, 0.5);
+        g.fx.effects.dragon([from.clone().setY(0.9), from.clone().lerp(to, 0.25).setY(1.35), mid.setY(1.2), to.clone().setY(1.1)], { style: 'fire', radius: 1.55, life: 1.6, grow: 0.3, seg: 100 });
+        this.afterimage(0.6, 0.5);
+      }
+      return;
+    }
+    if (u.phase === 'dash') {
+      u.dash.t += dt / 0.3;
+      const k = Math.min(1, u.dash.t);
+      this.pos.lerpVectors(u.dash.from, u.dash.to, 1 - Math.pow(1 - k, 3));
+      if (Math.random() < dt * 48) {
+        _v.set(this.pos.x + (Math.random() - 0.5) * 1.4, 0.4 + Math.random() * 1.4, this.pos.z + (Math.random() - 0.5) * 1.4);
+        g.fx.effects.sprite(_v.clone(), { tex: 'flame', size: 1.4 + Math.random(), life: 0.6, grow: 0.5, rise: 1.6, additive: true, add: 0.6 });
+      }
+      if (k > 0.35 && !u.hitDone) {
+        u.hitDone = true;
+        for (const e of g.enemies) {
+          if (!e.alive) continue;
+          if (distToSegment(e.pos, u.dash.from, u.dash.to) < 2.6 + e.radius) {
+            g.combat.applyHit(this, e, { dmg: e.isBoss ? 200 : 240, poise: 300, knock: 9, hitstop: 0.12, shake: 0.8, power: 1, style: 'fire', stun: 'down', crit: true, impact: 0.14, impactA: 0x140404, impactB: 0xffd9a0, radial: 0.8 });
+          }
+        }
+      }
+      if (k >= 1) {
+        u.phase = 'finish';
+        u.t = 0;
+        this.anim.play(this.clips.flameTiger, { fade: 0.04, time: 0.44 });
+        g.fx.ground(this.pos.clone().addScaledVector(this.forward(_v), 1.2), { size: 3.4, color: 0xff8a2a, crack: true });
+        g.audio?.play('fireBurst');
+        g.fx.light(this.chest(_v).clone(), 0xff6a1a, 9, 14, 0.7);
+        // the scorched path keeps burning a moment
+        const { from, to } = u.dash;
+        for (let i = 0; i <= 10; i++) {
+          const p = from.clone().lerp(to, i / 10).setY(0.5);
+          g.fx.effects.timer(i * 0.04, null, () => g.fx.effects.sprite(p, { tex: 'flame', size: 1.3 + Math.random() * 0.6, life: 0.8, grow: 0.5, rise: 1.4, additive: true, add: 0.6 }));
+        }
+      }
+      return;
+    }
+    if (u.phase === 'finish' && u.t > 1.0) this._endUlt();
+  }
+
+  // 伍之型・蜿蜒長蛇: he slithers from foe to foe, then the whole path rears up as one great serpent and constricts.
+  _serpentStart() {
+    const g = this.game;
+    this.anim.play(this.clips.serpentReady, { fade: 0.08, hold: true });
+    g.enemyTimeScale = 0.2;
+    g.fx.screen.desatTarget = 0.35;
+    g.fx.screen.tintTarget.setRGB(0.98, 0.92, 1.08);
+    g.audio?.play('serpentHiss', { volume: 0.9 });
+    this.model.sword.bladeMat.uniforms.uEmissive.value.setRGB(0.4, 0.2, 0.7);
+    g.cameraRig.play(
+      [
+        { t: 0, pos: [-1.6, 0.55, 1.9], look: [0, 0.8, 0.3], fov: 44 },
+        { t: 0.75, pos: [-1.15, 0.65, 2.35], look: [0, 0.9, 0.3], fov: 38, e: 'inOut' },
+      ],
+      { anchor: this.pos.clone(), relYaw: this.yaw },
+    );
+  }
+
+  _serpentUpdate(dt) {
+    const u = this.ult;
+    const g = this.game;
+    if (u.phase === 'ready') {
+      if (u.t > 0.75) {
+        g.cameraRig.stopCine();
+        g.cameraRig._syncFromCamera();
+        u.phase = 'slither';
+        u.t = 0;
+        u.next = 0;
+        const list = g.enemies.filter((e) => e.alive && e.targetable !== false).sort((a, b) => this.distTo(a) - this.distTo(b));
+        u.targets = list.slice(0, 6);
+        if (!u.targets.length) u.targets = [null, null, null, null];
+        while (u.targets.length < 5 && list.length) u.targets.push(list[u.targets.length % list.length]);
+        u.main = list[0] || null;
+      }
+      return;
+    }
+    if (u.phase === 'slither') {
+      if (u.t >= u.next) {
+        if (u.i >= u.targets.length) {
+          u.phase = 'constrict';
+          u.t = 0;
+          this._serpentConstrict();
+          return;
+        }
+        const tgt = u.targets[u.i];
+        const side = u.i % 2 ? 1 : -1;
+        const from = this.pos.clone();
+        let to;
+        if (tgt && tgt.alive) {
+          const d = _v.set(tgt.pos.x - from.x, 0, tgt.pos.z - from.z);
+          d.multiplyScalar(1 / Math.max(0.01, d.length()));
+          to = tgt.pos.clone().addScaledVector(d, 1.8).add(_v2.set(-d.z, 0, d.x).multiplyScalar(side * 0.9));
+        } else {
+          const a = this.yaw + side * 0.9;
+          to = from.clone().add(_v.set(Math.sin(a) * 3.5, 0, Math.cos(a) * 3.5));
+        }
+        g.world?.constrain(to, this.radius);
+        const dir = _v.set(to.x - from.x, 0, to.z - from.z);
+        const mid = from.clone().lerp(to, 0.5).add(_v2.set(-dir.z, 0, dir.x).normalize().multiplyScalar(side * 1.5));
+        u.dash = { from, mid, to, t: 0 };
+        u.path.push(mid.clone(), to.clone());
+        this.faceInstant(to);
+        this.anim.play(u.i % 2 ? this.clips.dragonDanceB : this.clips.dragonDanceA, { fade: 0.02 });
+        g.audio?.play('swingSerpent', { pitch: 1 + u.i * 0.04 });
+        g.fx.screen.speed(0.7, 0.1);
+        g.fx.effects.dragon([from.clone().setY(0.8), mid.clone().setY(1.0), to.clone().setY(0.9)], { style: 'serpent', radius: 0.5, life: 0.8, grow: 0.16, seg: 40 });
+        u.i++;
+        u.next = u.t + 0.2;
+        u.hitDone = false;
+      }
+      if (u.dash) {
+        u.dash.t += dt / 0.13;
+        const k = Math.min(1, u.dash.t);
+        const e = 1 - Math.pow(1 - k, 3);
+        const { from, mid, to } = u.dash;
+        // quadratic curve from -> mid -> to
+        const a = (1 - e) * (1 - e), b = 2 * e * (1 - e), c = e * e;
+        this.pos.set(from.x * a + mid.x * b + to.x * c, 0, from.z * a + mid.z * b + to.z * c);
+        if (k > 0.5 && !u.hitDone) {
+          u.hitDone = true;
+          for (const en of g.enemies) {
+            if (!en.alive) continue;
+            const d = Math.min(distToSegment(en.pos, from, mid), distToSegment(en.pos, mid, to));
+            if (d < 1.7 + en.radius) g.combat.applyHit(this, en, { dmg: en.isBoss ? 30 : 38, poise: 50, knock: 2.5, hitstop: 0.04, shake: 0.25, power: 0.8, style: 'serpent', stun: 'heavy' });
+          }
+          g.fx.particles.sparks(this.chest(_v), _v2.set(0, 1, 0), 12, 0xf0e6ff, 7, 1.2);
+        }
+      }
+      return;
+    }
+    if (u.phase === 'constrict') {
+      if (!u.squeezed && u.t >= 0.62) {
+        u.squeezed = true;
+        this._serpentSqueeze();
+      }
+      if (u.t > 1.15) this._endUlt();
+    }
+  }
+
+  _serpentConstrict() {
+    const g = this.game;
+    const u = this.ult;
+    // the whole slither path rears up as one great serpent
+    const pts = u.path.map((p, i) => p.clone().setY(0.9 + Math.sin(i * 1.3) * 0.4));
+    if (pts.length === 2) pts.splice(1, 0, pts[0].clone().lerp(pts[1], 0.5).setY(1.8));
+    if (pts.length >= 3) g.fx.effects.dragon(pts, { style: 'serpent', radius: 1.0, life: 1.4, grow: 0.35, seg: 140 });
+    // and coils round the first foe (or round him) before it squeezes
+    const main = u.main && u.main.alive ? u.main : null;
+    const c = (u.coilAt = (main ? main.pos : this.pos).clone());
+    const coil = [];
+    for (let k = 0; k <= 26; k++) {
+      const t = k / 26;
+      const a = t * Math.PI * 5;
+      const r = 2.4 - t * 1.2;
+      coil.push(new THREE.Vector3(c.x + Math.cos(a) * r, 0.2 + t * 2.6, c.z + Math.sin(a) * r));
+    }
+    g.fx.effects.timer(0.2, null, () => g.fx.effects.dragon(coil, { style: 'serpent', radius: 0.6, life: 1.0, grow: 0.4, seg: 120 }));
+    this.anim.play(this.clips.coilChoke, { fade: 0.05, time: 0.84 });
+    g.audio?.play('serpentHiss');
+  }
+
+  /** ...and squeezes: everything along the path or inside the coil. */
+  _serpentSqueeze() {
+    const g = this.game;
+    const u = this.ult;
+    const c = u.coilAt;
+    g.fx.screen.impact(0.12, 0x0c0418, 0xf0e6ff);
+    g.fx.screen.radial(0.7);
+    g.audio?.play('impactFrame');
+    g.audio?.play('swingSerpent', { pitch: 0.7 });
+    g.cameraRig.shake(0.7);
+    g.fx.effects.ring(c.clone().setY(0.1), { color: 0xe6d8ff, from: 0.5, to: 6, life: 0.6, thick: 0.2 });
+    g.fx.particles.sparks(c.clone().setY(1.2), _v2.set(0, 1, 0), 40, 0xf0e6ff, 10, 1.4);
+    for (const e of g.enemies) {
+      if (!e.alive) continue;
+      let near = Math.hypot(e.pos.x - c.x, e.pos.z - c.z) < 3.4 + e.radius;
+      for (let i = 1; i < u.path.length && !near; i++) near = distToSegment(e.pos, u.path[i - 1], u.path[i]) < 2 + e.radius;
+      if (near) g.combat.applyHit(this, e, { dmg: e.isBoss ? 70 : 80, poise: 220, knock: 6, hitstop: 0.12, shake: 0.6, power: 1, style: 'serpent', stun: 'down', crit: true });
+    }
+  }
+
+  /** A cutscene takes over mid-ultimate: put the world back the way the ultimate found it. */
+  interruptUlt() {
+    if (!this.ult) return;
+    this.game.cameraRig.stopCine();
+    // Giyu's calm spreads its ripple over the floor and the screen: let both die out now
+    const d = this.calmDecal;
+    if (d && d.life - d.age > 1.2) d.life = d.age + 1.2;
+    this.game.fx.screen.endRipple();
+    this._endUlt();
+  }
+
   _endUlt() {
     const g = this.game;
     this.ult = null;
@@ -1050,7 +1622,8 @@ export class Player extends Actor {
     g.enemyTimeScale = 1;
     g.fx.screen.desatTarget = 0;
     g.fx.screen.tintTarget.setRGB(1, 1, 1);
-    this.model.sword.bladeMat.uniforms.uEmissive.value.setRGB(this.charId === 'giyu' ? 0.02 : 0, this.charId === 'giyu' ? 0.08 : 0, this.charId === 'giyu' ? 0.19 : 0);
+    this._restGlow();
+    this.setTrail(null);
     this.model.setFace('neutral');
     this.setState('move');
     this.anim.stop(0.15);

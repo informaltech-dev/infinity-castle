@@ -1,4 +1,4 @@
-// Water Breathing and Hinokami Kagura technique sounds.
+// Breathing-style technique sounds: water, fire (Hinokami Kagura and Flame Breathing) and serpent.
 
 import { whoosh, thump } from './common.js';
 
@@ -100,6 +100,55 @@ export default {
         env: [[0, 0], [0.15, 1.2], [d, 0.001]], am: [11, 0.25],
       });
       v.layer(v.b.crackle, { offset: 'rand', type: 'highpass', f: 2200, env: [[0, 0], [0.1, 0.7], [d, 0.001]] });
+      return d + 0.05;
+    },
+  },
+
+  // Flame Tiger: a roaring beast of fire bursting out of the cut.
+  tigerRoar: {
+    path: 'hero', gain: 0.52, send: 0.34, maxDur: 1.4, jitter: 0.03,
+    fn(v) {
+      const d = 1.2;
+      v.saturate(0.55);
+      v.layer(v.pick(v.b.roar), {
+        rate: v.rnd(0.72, 0.8) * v.p, type: 'lowpass', f: v.F([[0, 2400], [d, 700]]),
+        env: [[0, 0], [0.06, 1.2], [0.5, 0.9], [d, 0.001]], level: 1.1,
+      });
+      v.layer(v.b.fire, {
+        offset: 'rand', rate: v.p, type: 'lowpass', f: v.F([[0, 1200], [0.3, 3200], [d, 800]]),
+        env: [[0, 0], [0.08, 1.3], [d, 0.001]], am: [13, 0.3],
+      });
+      whoosh(v, { kind: 'pink', dur: 0.8, f0: 300, f1: 1800, f2: 500, peakAt: 0.25, Q: 0.8, level: 0.9 });
+      thump(v, { f0: 80, f1: 38, drop: 0.5, dur: 0.9, level: 0.9, atk: 0.02 });
+      return d + 0.05;
+    },
+  },
+
+  // Serpent Breathing: a thin, fast cut with a hissing tail.
+  swingSerpent: {
+    gain: 0.36, send: 0.14, maxDur: 0.45, jitter: 0.06,
+    fn(v) {
+      const d = v.rnd(0.18, 0.24);
+      whoosh(v, { dur: d, f0: 900, f1: v.rnd(3200, 3900), f2: 1900, peakAt: 0.38, Q: v.rnd(1.2, 1.6), level: 0.9 });
+      v.noise('white', {
+        at: d * 0.3, type: 'bandpass', Q: 1.2, f: v.F([[0, 5200], [d, 7400]]),
+        env: [[0, 0], [d * 0.3, 0.55], [d + 0.14, 0.001]], am: [34, 0.45],
+      });
+      return d + 0.17;
+    },
+  },
+
+  // Kaburamaru's hiss.
+  serpentHiss: {
+    path: 'hero', gain: 0.3, send: 0.2, maxDur: 0.9, jitter: 0.05,
+    fn(v) {
+      const d = v.rnd(0.55, 0.7);
+      v.noise('white', {
+        type: 'bandpass', Q: 0.9, f: v.F([[0, 3800], [0.12, 6200], [d, 5200]]),
+        env: [[0, 0], [0.05, 1], [d * 0.6, 0.7], [d, 0.001]], am: [22, 0.35],
+      });
+      v.noise('white', { type: 'highpass', f: 8000, env: [[0, 0], [0.08, 0.35], [d, 0.001]] });
+      v.noise('pink', { type: 'bandpass', Q: 1.4, f: 1500, env: [[0, 0], [0.04, 0.25], [0.2, 0.001]] });
       return d + 0.05;
     },
   },

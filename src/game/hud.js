@@ -142,7 +142,7 @@ export class HudAdapter {
       ready: p.skillCd[i] <= 0 && p.breath >= s.cost,
       cooldown01: s.cd > 0 ? p.skillCd[i] / s.cd : 0,
     }));
-    h.setSkills?.(skills, { key: 'R', name: p.ultInfo.name, charge01: p.conc / p.maxConc, ready: p.conc >= p.maxConc });
+    h.setSkills?.(skills, { key: 'R', name: p.ultInfo.name, glyph: p.ultInfo.glyph, charge01: p.conc / p.maxConc, ready: p.conc >= p.maxConc });
     h.setAttackMode?.(g.input.attackMode);
     h.ui?.touch?.sync({
       lock: !!(p.lockTarget && p.lockTarget.alive),

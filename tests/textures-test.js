@@ -8,12 +8,14 @@ const params = new URLSearchParams(location.search);
 const SECTIONS = [
   ['sec-data', 'Data', (n) => n === 'paper' || n === 'noise'],
   ['sec-env', 'Environment', (n) => ['woodFloor', 'woodDark', 'pillarRed', 'shoji', 'fusuma1', 'fusuma2', 'fusuma3', 'roofTiles', 'plaster', 'tatami', 'lantern'].includes(n)],
-  ['sec-char', 'Characters', (n) => !n.startsWith('face_') && ['checkerTanjiro', 'giyuSolid', 'giyuKikko', 'uniformBlack', 'legWraps', 'akazaSkin', 'akazaTop', 'akazaPants', 'demonSkin', 'demonRags', 'hairTanjiro', 'hairGiyu', 'hairAkaza'].includes(n)],
+  ['sec-char', 'Characters', (n) => !n.startsWith('face_') && ['checkerTanjiro', 'giyuSolid', 'giyuKikko', 'rengokuHaori', 'obanaiStripes', 'uniformBlack', 'legWraps', 'akazaSkin', 'akazaTop', 'akazaPants', 'demonSkin', 'demonRags', 'hairTanjiro', 'hairGiyu', 'hairAkaza'].includes(n)],
   ['sec-face', 'Face decals (canvas space, transparent)', (n) => n.startsWith('face_')],
-  ['sec-fx', 'Effects', (n) => ['crack', 'compass', 'waveCurl', 'splash', 'flame', 'smoke', 'shadow'].includes(n)],
+  ['sec-fx', 'Effects', (n) => ['crack', 'compass', 'waveCurl', 'splash', 'flame', 'flameTiger', 'smoke', 'shadow'].includes(n)],
 ];
 
-const TRANSPARENT = new Set(['crack', 'waveCurl', 'splash', 'flame', 'smoke', 'shadow', 'demonRags']);
+const TRANSPARENT = new Set(['crack', 'waveCurl', 'splash', 'flame', 'flameTiger', 'smoke', 'shadow', 'demonRags']);
+// tileable left-right only (mapped once vertically): shown 2x1, seam checked in x only
+const TILE_X_ONLY = new Set(['rengokuHaori']);
 
 // ---------------------------------------------------------------------------
 // Generation with timing
@@ -39,8 +41,22 @@ console.log(`[textures] generated ${names.length} in ${genMs.toFixed(1)} ms`);
 // Three.js face viewer (also used to time the GPU upload of every texture)
 // ---------------------------------------------------------------------------
 const R = 1;
-const SKIN = { tanjiro: '#f6d6c2', giyu: '#f4d5c3', akaza: '#f2d9cf', demon_a: '#8f9b86', demon_b: '#9aa08e' };
-const HAIR = { tanjiro: 'hairTanjiro', giyu: 'hairGiyu', akaza: 'hairAkaza', demon_a: 'hairGiyu', demon_b: 'hairGiyu' };
+const SKIN = { tanjiro: '#f6d6c2', giyu: '#f4d5c3', akaza: '#f2d9cf', rengoku: '#f6d8c4', obanai: '#f3d7c6', demon_a: '#8f9b86', demon_b: '#9aa08e' };
+// texture name, or [root, tip] colours for a plain gradient when the library has no hair texture for them
+const HAIR = { tanjiro: 'hairTanjiro', giyu: 'hairGiyu', akaza: 'hairAkaza', rengoku: ['#f2c230', '#d2381c'], obanai: 'hairGiyu', demon_a: 'hairGiyu', demon_b: 'hairGiyu' };
+function hairTexture(h) {
+  if (typeof h === 'string') return textures[h];
+  const c = document.createElement('canvas');
+  c.width = 4; c.height = 128;
+  const x = c.getContext('2d');
+  const g = x.createLinearGradient(0, 0, 0, 128);
+  g.addColorStop(0, h[0]); g.addColorStop(0.8, h[0]); g.addColorStop(1, h[1]);
+  x.fillStyle = g;
+  x.fillRect(0, 0, 4, 128);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
 const faceNames = names.filter((n) => n.startsWith('face_'));
 const who = (n) => (n.startsWith('face_demon') ? n.slice(5) : n.split('_')[1]);
 
@@ -93,7 +109,7 @@ function makeHead(faceName) {
   const faceGeo = new THREE.SphereGeometry(R * 1.015, 32, 20, Math.PI / 2 - 1.05, 2.1, 0.55, 1.5);
   deformHead(faceGeo, R);
   g.add(new THREE.Mesh(faceGeo, new THREE.MeshLambertMaterial({ map: textures[faceName], transparent: true, alphaTest: 0.4 })));
-  const hair = hairShell(textures[HAIR[who(faceName)]]);
+  const hair = hairShell(hairTexture(HAIR[who(faceName)]));
   hair.name = 'hair';
   g.add(hair);
   // simple neck so the jaw reads
@@ -145,9 +161,10 @@ function renderBig() {
   show(current, false);
 }
 function renderAll() {
-  // rows: faces 0-4 front, faces 0-4 at 3/4, faces 5-9 front, faces 5-9 at 3/4
+  // rows: first half of the faces front, then at 3/4; second half front, then at 3/4
   setLight();
-  const cols = 5, cell = 180, H = cell * 4;
+  const cols = Math.ceil(faceNames.length / 2), cell = 180, H = cell * 4;
+  allRenderer.setSize(cols * cell, H, false);
   cam.aspect = 1;
   cam.updateProjectionMatrix();
   for (const n of faceNames) heads[n].visible = false;
@@ -283,11 +300,12 @@ function displayCanvas(name, tex) {
   const src = tex.image;
   if (name === 'noise') return channelsView(tex);
   const reps = info.tile ? 2 : 1;
+  const repsY = TILE_X_ONLY.has(name) ? 1 : reps;
   const c = document.createElement('canvas');
   c.width = src.width * reps;
-  c.height = src.height * reps;
+  c.height = src.height * repsY;
   const ctx = c.getContext('2d');
-  for (let j = 0; j < reps; j++) for (let i = 0; i < reps; i++) ctx.drawImage(src, i * src.width, j * src.height);
+  for (let j = 0; j < repsY; j++) for (let i = 0; i < reps; i++) ctx.drawImage(src, i * src.width, j * src.height);
   return c;
 }
 
@@ -299,7 +317,7 @@ function openLightbox(name) {
   view.innerHTML = '';
   view.className = 'view ' + (info.blend === 'additive' ? 'black' : TRANSPARENT.has(name) || info.face ? 'checker' : '');
   view.appendChild(displayCanvas(name, tex));
-  $('lbCap').textContent = `${name}  ${tex.image.width}x${tex.image.height}${info.tile ? '  (shown 2x2)' : ''}`;
+  $('lbCap').textContent = `${name}  ${tex.image.width}x${tex.image.height}${info.tile ? (TILE_X_ONLY.has(name) ? '  (shown 2x1)' : '  (shown 2x2)') : ''}`;
   lb.classList.add('open');
 }
 lb.onclick = () => lb.classList.remove('open');
@@ -333,7 +351,7 @@ for (const [id, title, test] of SECTIONS) {
     const tags = [
       `${tex.image.width}x${tex.image.height}`,
       tex.colorSpace === THREE.SRGBColorSpace ? 'sRGB' : 'NoColorSpace',
-      info.tile ? 'repeat (2x2 shown)' : 'clamp',
+      info.tile ? (TILE_X_ONLY.has(name) ? 'repeat x (2x1 shown)' : 'repeat (2x2 shown)') : 'clamp',
       tex.anisotropy > 1 ? `aniso ${tex.anisotropy}` : null,
       info.blend ? `${info.blend} blend` : null,
       tex.mipmaps && tex.mipmaps.length ? `exact mips x${tex.mipmaps.length}` : null,
@@ -342,8 +360,9 @@ for (const [id, title, test] of SECTIONS) {
     meta.innerHTML = tags.map((t) => `<span class="tag">${t}</span>`).join('');
     if (info.tile) {
       const s = seamScore(tex.image);
-      const ok = s.x < 1.5 && s.y < 1.5;
-      meta.innerHTML += `<div class="${ok ? 'seam-ok' : 'seam-bad'}">seam ratio x ${s.x.toFixed(2)} / y ${s.y.toFixed(2)} ${ok ? '(seamless)' : '(CHECK)'}</div>`;
+      const xOnly = TILE_X_ONLY.has(name);
+      const ok = s.x < 1.5 && (xOnly || s.y < 1.5);
+      meta.innerHTML += `<div class="${ok ? 'seam-ok' : 'seam-bad'}">seam ratio x ${s.x.toFixed(2)} / y ${xOnly ? 'n/a (x only)' : s.y.toFixed(2)} ${ok ? '(seamless)' : '(CHECK)'}</div>`;
     }
     card.appendChild(meta);
     card.onclick = () => openLightbox(name);

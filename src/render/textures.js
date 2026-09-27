@@ -7,13 +7,13 @@ import { paper, noise } from './tex/data.js';
 import { woodFloor, woodDark, pillarRed, shoji, fusuma1, fusuma2, fusuma3, roofTiles, plaster, tatami, lantern } from './tex/env.js';
 import {
   checkerTanjiro, giyuSolid, giyuKikko, uniformBlack, legWraps, akazaSkin, akazaTop, akazaPants,
-  demonSkin, demonRags, hairTanjiro, hairGiyu, hairAkaza,
+  demonSkin, demonRags, hairTanjiro, hairGiyu, hairAkaza, rengokuHaori, obanaiStripes,
 } from './tex/fabric.js';
 import { FACE_MAKERS } from './tex/faces.js';
-import { crack, compass, waveCurl, splash, flame, smoke, shadow } from './tex/fx.js';
+import { crack, compass, waveCurl, splash, flame, flameTiger, smoke, shadow } from './tex/fx.js';
 
 // kind: 'data' => NoColorSpace, otherwise sRGB colour.
-// tile: RepeatWrapping (drawn seamless). aniso: anisotropy 8 (floors / walls).
+// tile: RepeatWrapping (drawn seamless); clampY: only across (vertical edges clamp). aniso: anisotropy 8 (floors / walls).
 // blend: informational hint for effect sprites ('alpha' | 'additive').
 const SPECS = [
   { name: 'paper', make: paper, kind: 'data', tile: true },
@@ -34,6 +34,9 @@ const SPECS = [
   { name: 'checkerTanjiro', make: checkerTanjiro, tile: true },
   { name: 'giyuSolid', make: giyuSolid, tile: true },
   { name: 'giyuKikko', make: giyuKikko, tile: true },
+  // seamless left-right only: mapped once vertically (hem = canvas bottom); the top half is plain cream
+  { name: 'rengokuHaori', make: rengokuHaori, tile: true, clampY: true }, // hem at the bottom, mapped once vertically
+  { name: 'obanaiStripes', make: obanaiStripes, tile: true },
   { name: 'uniformBlack', make: uniformBlack, tile: true },
   { name: 'legWraps', make: legWraps, tile: true },
   { name: 'akazaSkin', make: akazaSkin, tile: true },
@@ -52,6 +55,7 @@ const SPECS = [
   { name: 'waveCurl', make: waveCurl, blend: 'alpha' },
   { name: 'splash', make: splash, blend: 'alpha' },
   { name: 'flame', make: flame, blend: 'alpha' },
+  { name: 'flameTiger', make: flameTiger, blend: 'additive' },
   { name: 'smoke', make: smoke, blend: 'alpha' },
   { name: 'shadow', make: shadow, blend: 'alpha' },
 ];
@@ -84,6 +88,7 @@ export async function createTextures(onProgress) {
     tex.name = spec.name;
     tex.colorSpace = spec.kind === 'data' ? THREE.NoColorSpace : THREE.SRGBColorSpace;
     if (spec.tile) tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    if (spec.clampY) tex.wrapT = THREE.ClampToEdgeWrapping;
     if (spec.aniso) tex.anisotropy = 8;
     if (made.mipmaps) {
       // Exact un-premultiplied data (a 2D canvas stores premultiplied alpha,

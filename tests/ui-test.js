@@ -281,7 +281,7 @@ function useUlt() {
   const c = sim.c;
   const tq = c.techniques[3];
   sim.conc = 0;
-  techniqueCallout({ ...tq, style: c.id === 'giyu' ? 'calm' : 'fire' }, c);
+  techniqueCallout(tq, c);
   ui.hud.setLetterbox(true);
   setTimeout(() => ui.hud.setLetterbox(false), 1600);
 }
@@ -378,7 +378,7 @@ function simTick(dt, t) {
     cooldown01: sim.cds[i],
   }));
   const u = c.techniques[3];
-  ui.hud.setSkills(skills, { key: 'R', name: u.form ? `${u.form}・${u.name}` : `${u.school}・${u.name}`, charge01: sim.conc / sim.maxConc, ready: sim.conc >= sim.maxConc });
+  ui.hud.setSkills(skills, { key: 'R', name: u.form ? `${u.form}・${u.name}` : `${u.school}・${u.name}`, glyph: u.glyph, charge01: sim.conc / sim.maxConc, ready: sim.conc >= sim.maxConc });
   ui.hud.setAttackMode(Math.floor(sim.t / 4) % 2 ? 'heavy' : 'light');
   ui.hud.setCombo(sim.combo);
   ui.hud.setDanger(sim.hp / sim.maxHp < 0.35 ? 1 - sim.hp / sim.maxHp / 0.35 : 0);

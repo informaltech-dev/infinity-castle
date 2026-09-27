@@ -1,5 +1,5 @@
 // Effect sprites: ground crack decal, compass-needle mandala (additive),
-// breaking wave, splash, flame, sumi smoke, blob shadow.
+// breaking wave, splash, flame, flame tiger (additive), sumi smoke, blob shadow.
 import {
   TAU, lerp, makeRng, canvas2d, css, catmull, blobPts, pathOf, ribbon, offsetPts, grain,
 } from './core.js';
@@ -544,6 +544,310 @@ export function flame(seed) {
     ctx.fillStyle = css(i % 2 ? '#ec6a1c' : '#c01a16');
     ctx.fill(p);
   }
+  return c;
+}
+
+// ---------------------------------------------------------------------------
+// Flame Tiger (ADDITIVE, 伍之型・炎虎): a roaring tiger head of fire seen from
+// the front. Additive sprites add rgb * a, so dark paint would simply vanish:
+// ink lines, stripes, eyes, nostrils and the mouth are cut out as holes / low
+// alpha instead. Design space: origin between the eyes and the nose, y down.
+// ---------------------------------------------------------------------------
+
+// Flame-tongue spine: leaves (x, y) along `ang`, bends towards straight up by
+// `rise` and hooks over towards `dir` (+1 clockwise on screen) near the tip.
+function tongueSpine(x, y, ang, len, dir, o = {}) {
+  const { n = 22, rise = 0.5, curl = 2.2, curlAt = 0.62, sway = 0.12, swayPh = 0 } = o;
+  let d = -Math.PI / 2 - ang;
+  d = Math.atan2(Math.sin(d), Math.cos(d));
+  const pts = [[x, y]];
+  let px = x, py = y;
+  const ds = len / n;
+  for (let i = 0; i < n; i++) {
+    const u = (i + 0.5) / n;
+    const k = u > curlAt ? (u - curlAt) / (1 - curlAt) : 0;
+    const th = ang + d * rise * Math.pow(u, 1.2) + sway * Math.sin(u * Math.PI * 1.4 + swayPh) + dir * curl * k * k;
+    px += Math.cos(th) * ds;
+    py += Math.sin(th) * ds;
+    pts.push([px, py]);
+  }
+  return pts;
+}
+
+export function flameTiger(seed) {
+  const S = 512;
+  const rng = makeRng(seed);
+  const { c, ctx } = canvas2d(S, S);
+  const K = 0.88, CX = S / 2, CY = S * 0.56;
+  const EMBER = '#9c1e0a', RED = '#c2320e', OUTER = '#e2521a', MID = '#f58a22', GOLD = '#ffc640', CORE = '#fff2c6', SEAM = '#7a1406';
+  const design = (g, s = 1) => g.setTransform(K * s, 0, 0, K * s, CX * s, CY * s);
+  const closed = (pts, per = 6) => pathOf(catmull(pts, per, true), true);
+  const mirror = (pts) => pts.map(([x, y]) => [-x, y]);
+  // symmetric outline from its right half (top centre -> bottom centre)
+  const sym = (half) => half.concat(mirror(half.slice(1, -1)).reverse());
+  const taper = (w, pow = 0.95, bulge = 0.3) => (t) => w * Math.pow(Math.max(0, 1 - t), pow) * (1 + bulge * Math.sin(Math.PI * t));
+  const rib = (pts, w) => ribbon(pts, w, { taperA: 0, taperB: 0 }).path;
+  const both = (fn) => { fn(1, (p) => p); fn(-1, mirror); };
+  const cut = (fn, a = 1) => {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = ctx.strokeStyle = `rgba(0,0,0,${a})`;
+    fn();
+    ctx.globalCompositeOperation = 'source-over';
+  };
+
+  // ---- flame tongues: nested layers like flame() (body, mid, core)
+  const tongue = (side, x, y, ang, len, w0, dir, o, cols = [RED, OUTER, GOLD]) => {
+    let pts = tongueSpine(x, y, ang, len, dir, o);
+    if (side < 0) pts = mirror(pts);
+    const n = pts.length;
+    const lay = (frac, k) => rib(pts.slice(0, Math.max(2, Math.round(n * frac))), taper(w0 * k));
+    return { outer: lay(1, 1), mid: lay(0.8, 0.56), core: lay(0.52, 0.28), cols };
+  };
+  const paint = (t, rim = 5) => {
+    if (rim) {
+      ctx.lineWidth = rim;
+      ctx.strokeStyle = css(EMBER);
+      ctx.stroke(t.outer);
+    }
+    ctx.fillStyle = css(t.cols[0]);
+    ctx.fill(t.outer);
+    ctx.save();
+    ctx.clip(t.outer);
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = css(SEAM);
+    ctx.stroke(t.mid);
+    ctx.fillStyle = css(t.cols[1]);
+    ctx.fill(t.mid);
+    ctx.stroke(t.core);
+    ctx.fillStyle = css(t.cols[2]);
+    ctx.fill(t.core);
+    ctx.restore();
+  };
+  const back = [], crown = [], cheeks = [], brow = [];
+  for (const s of [1, -1]) {
+    // mane: long tongues flaring out and sweeping up, tips hooking outwards
+    const degs = [-98, -80, -62, -44, -26, -8, 10, 28];
+    const lens = [96, 106, 122, 146, 166, 176, 168, 150];
+    degs.forEach((deg, i) => {
+      const a = (deg * Math.PI) / 180 + rng.range(-0.04, 0.04);
+      back.push(tongue(s, Math.cos(a) * 140, -8 + Math.sin(a) * 142, a, lens[i] * rng.range(0.92, 1.06), rng.range(50, 62), rng.chance(0.8) ? 1 : -1,
+        { rise: lerp(0.55, 0.95, i / 7) * rng.range(0.92, 1.05), curl: rng.range(2.2, 2.9), curlAt: rng.range(0.58, 0.66), sway: rng.range(0.08, 0.16), swayPh: rng.range(-1, 1) }));
+    });
+    // crown: tongues rooted inside the head that lick up over its outline
+    for (const deg of [-88, -58, -30]) {
+      const a = (deg * Math.PI) / 180 + rng.range(-0.05, 0.05);
+      crown.push(tongue(s, Math.cos(a) * 118, -8 + Math.sin(a) * 120, a, rng.range(74, 92), rng.range(38, 46), rng.chance(0.7) ? 1 : -1,
+        { rise: rng.range(0.55, 0.8), curl: rng.range(2.0, 2.6), curlAt: 0.6, sway: 0.1, swayPh: rng.range(-1, 1) }));
+    }
+    // cheeks: flames sweeping out from the muzzle over the outline (the ruff), tips hooking up;
+    // the gaps between them read as the cheek stripes
+    for (const [x, y, a, len, w] of [[76, -14, -0.2, 128, 44], [84, 24, 0.08, 136, 46], [80, 62, 0.34, 132, 46], [70, 100, 0.62, 118, 42], [52, 134, 0.95, 92, 36]]) {
+      cheeks.push(tongue(s, x, y, a + rng.range(-0.04, 0.04), len * rng.range(0.94, 1.06), w, -1,
+        { rise: 0.22, curl: rng.range(2.0, 2.5), curlAt: 0.6, sway: 0.08, swayPh: rng.range(-1, 1) }, [OUTER, MID, GOLD]));
+    }
+    // forehead: flames rising off the brow and on up into the crown
+    for (const [x, y, len, w] of [[18, -58, 118, 40], [56, -62, 112, 42], [96, -48, 104, 40]]) {
+      brow.push(tongue(s, x, y, -Math.PI / 2 + x / 300 + rng.range(-0.05, 0.05), len * rng.range(0.94, 1.06), w, rng.chance(0.6) ? 1 : -1,
+        { rise: 0.1, curl: rng.range(2.0, 2.6), curlAt: 0.6, sway: 0.1, swayPh: rng.range(-1, 1) }, [OUTER, MID, GOLD]));
+    }
+  }
+  const chin = [[0, Math.PI / 2], [24, Math.PI / 2 - 0.35], [-24, Math.PI / 2 + 0.35]].map(([x, a]) =>
+    tongue(1, x, 186, a, rng.range(30, 38), rng.range(26, 30), rng.sign(), { rise: 0, curl: 1.5, curlAt: 0.6, sway: 0.05 }, [OUTER, MID, GOLD]));
+
+  // ---- head shapes (right halves mirrored)
+  const HEAD = closed(sym([[0, -150], [50, -146], [96, -132], [132, -108], [156, -76], [170, -38], [178, 4], [180, 44], [172, 86], [150, 126], [118, 158], [78, 186], [38, 202], [0, 208]]));
+  const earR = [[76, -128], [86, -164], [110, -190], [138, -194], [160, -172], [164, -138], [150, -104], [112, -108]];
+  const earInR = [[96, -134], [104, -162], [124, -178], [144, -164], [148, -136], [134, -116], [110, -118]];
+  const EARS = [closed(earR), closed(mirror(earR))];
+  const EARS_IN = [closed(earInR), closed(mirror(earInR))];
+
+  // ---- glow: the silhouette drawn small and stretched (soft, cheap)
+  const silhouette = [HEAD, ...EARS, ...[...back, ...crown, ...cheeks, ...brow, ...chin].map((t) => t.outer)];
+  for (const [s, dil, a] of [[1 / 16, 44, 0.55], [1 / 8, 18, 0.45]]) {
+    const g = canvas2d(S * s, S * s);
+    design(g.ctx, s);
+    g.ctx.fillStyle = g.ctx.strokeStyle = css(EMBER);
+    g.ctx.lineWidth = dil;
+    g.ctx.lineJoin = 'round';
+    for (const p of silhouette) { g.ctx.stroke(p); g.ctx.fill(p); }
+    ctx.globalAlpha = a;
+    ctx.drawImage(g.c, 0, 0, S, S);
+    ctx.globalAlpha = 1;
+  }
+
+  design(ctx);
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  for (const t of back) paint(t);
+  // ears: cut free of the mane by a dark gap; rim, dark hollow, a gold tuft of fur
+  cut(() => { ctx.lineWidth = 14; for (const e of EARS) ctx.stroke(e); });
+  for (let i = 0; i < 2; i++) {
+    const s = i ? -1 : 1;
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = css(EMBER);
+    ctx.stroke(EARS[i]);
+    ctx.fillStyle = css(RED);
+    ctx.fill(EARS[i]);
+    cut(() => ctx.fill(EARS_IN[i]), 0.85);
+    let fp = tongueSpine(122, -118, -Math.PI / 2 - 0.35, 56, 1, { rise: 0.3, curl: 1.8, curlAt: 0.6 });
+    if (s < 0) fp = mirror(fp);
+    ctx.fillStyle = css(MID);
+    ctx.fill(rib(fp, taper(20)));
+  }
+  // head: red-orange, a crown of flames licking up over its outline
+  ctx.fillStyle = css(RED);
+  ctx.fill(HEAD);
+  for (const t of crown) paint(t, 0);
+  // forehead and cheeks are built from flame tongues; a warm nose bridge between them
+  for (const t of [...brow, ...cheeks, ...chin]) paint(t, 0);
+  ctx.lineWidth = 2.4;
+  ctx.strokeStyle = css(SEAM);
+  const BRIDGE = rib([[0, -76], [0, -30], [0, 20]], (t) => 34 + 30 * t);
+  ctx.stroke(BRIDGE);
+  ctx.fillStyle = css(OUTER);
+  ctx.fill(BRIDGE);
+  // brow flames: white-hot tongues flicking up and out from the bridge of the nose
+  both((s, M) => {
+    const pts = M(tongueSpine(18, -52, -0.5, 96, -1, { rise: 0.15, curl: 1.9, curlAt: 0.6, sway: 0.06 }));
+    const p = rib(pts, taper(30, 0.9, 0.2));
+    cut(() => { ctx.lineWidth = 9; ctx.stroke(p); });
+    ctx.fillStyle = css(GOLD);
+    ctx.fill(p);
+    ctx.fillStyle = css(CORE);
+    ctx.fill(rib(pts.slice(0, 16), taper(14)));
+  });
+  // muzzle
+  both((s) => {
+    ctx.beginPath();
+    ctx.ellipse(s * 30, 58, 33, 21, 0, 0, TAU);
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = css(SEAM);
+    ctx.stroke();
+    ctx.fillStyle = css(GOLD);
+    ctx.fill();
+    ctx.fillStyle = css(CORE);
+    ctx.beginPath();
+    ctx.ellipse(s * 30, 54, 20, 11, 0, 0, TAU);
+    ctx.fill();
+  });
+
+  // ---- dark markings, cut as holes: stripes, eye rims, snarl, nose, mouth
+  const wedge = (pts, w) => rib(catmull(pts, 6), (t) => w * Math.pow(1 - t, 0.75) * Math.min(1, t * 5 + 0.45));
+  const STRIPES_R = [
+    // forehead, converging on the centre
+    [[[126, -92], [98, -106], [66, -108], [40, -100]], 18], [[[130, -118], [102, -132], [72, -134], [48, -126]], 17], [[[112, -142], [90, -154], [66, -154]], 13],
+    // cheeks, from the ruff inwards
+    [[[188, -8], [156, -2], [116, 10]], 24], [[[192, 34], [160, 38], [122, 50]], 24], [[[182, 76], [152, 82], [116, 96]], 21], [[[158, 120], [132, 126], [100, 140]], 17],
+    // eye-liner sweeping back from the outer corner
+    [[[152, -86], [122, -68], [94, -56]], 14],
+  ];
+  const eyeR = [[20, -24], [36, -36], [56, -46], [78, -53], [98, -56], [86, -43], [64, -31], [40, -23]];
+  const MOUTH = closed(sym([[0, 70], [22, 78], [48, 80], [72, 88], [88, 112], [82, 142], [62, 168], [34, 184], [0, 190]]));
+  const NOSE = closed(sym([[0, 8], [22, 8], [36, 12], [40, 22], [28, 34], [12, 44], [0, 48]]));
+  cut(() => {
+    both((s, M) => {
+      for (const [pts, w] of STRIPES_R) ctx.fill(wedge(M(pts), w));
+      const eye = closed(M(eyeR));
+      ctx.lineWidth = 20;
+      ctx.stroke(eye);
+      ctx.fill(eye);
+      for (let r = 0; r < 3; r++) for (let j = 0; j < 3; j++) {
+        ctx.beginPath();
+        ctx.arc(s * (24 + r * 3 + j * 9), 50 + r * 8, 2.4, 0, TAU);
+        ctx.fill();
+      }
+    });
+    ctx.fill(wedge([[0, -152], [0, -126], [0, -100]], 17));
+    for (const y of [-34, -20, -6]) ctx.fill(rib(catmull([[-16, y + 3], [0, y - 3], [16, y + 3]], 6), (t) => 4.2 * Math.sin(Math.PI * t) + 0.5));
+    ctx.lineWidth = 9;
+    ctx.stroke(NOSE);
+    ctx.lineWidth = 4.5;
+    ctx.beginPath();
+    ctx.moveTo(0, 46);
+    ctx.lineTo(0, 74);
+    ctx.stroke();
+    ctx.fill(MOUTH);
+  });
+  // eyes: slanted white-hot irises with hollow pupils
+  both((s, M) => {
+    const eye = closed(M(eyeR));
+    const eg = ctx.createRadialGradient(s * 58, -40, 2, s * 58, -40, 42);
+    eg.addColorStop(0, css(CORE));
+    eg.addColorStop(0.5, css(CORE));
+    eg.addColorStop(1, css(GOLD));
+    ctx.fillStyle = eg;
+    ctx.fill(eye);
+  });
+  cut(() => both((s) => {
+    ctx.beginPath();
+    ctx.ellipse(s * 56, -38, 6, 8, 0, 0, TAU);
+    ctx.fill();
+  }));
+  // nose leather
+  ctx.fillStyle = css(RED);
+  ctx.fill(NOSE);
+  ctx.fillStyle = css(OUTER);
+  ctx.beginPath();
+  ctx.ellipse(0, 16, 22, 6, 0, 0, TAU);
+  ctx.fill();
+  cut(() => both((s) => {
+    ctx.beginPath();
+    ctx.ellipse(s * 17, 34, 8, 4.5, s * 0.5, 0, TAU);
+    ctx.fill();
+  }));
+  // roaring mouth: a dim red tongue and long white-hot fangs
+  ctx.save();
+  ctx.clip(MOUTH);
+  ctx.fillStyle = css('#b02010', 0.32);
+  ctx.beginPath();
+  ctx.ellipse(0, 164, 46, 22, 0, 0, TAU);
+  ctx.fill();
+  ctx.restore();
+  const tooth = (pts, w) => {
+    const p = rib(catmull(pts, 6), (t) => w * Math.pow(1 - t, 0.8));
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = css(GOLD);
+    ctx.stroke(p);
+    ctx.fillStyle = css(CORE);
+    ctx.fill(p);
+  };
+  both((s) => {
+    tooth([[s * 46, 74], [s * 48, 106], [s * 40, 146]], 21);
+    tooth([[s * 32, 190], [s * 34, 162], [s * 42, 134]], 17);
+    for (const x of [10, 24]) tooth([[s * x, 76], [s * x, 90]], 12);
+    for (const x of [8, 21]) tooth([[s * x, 186], [s * x, 173]], 11);
+  });
+
+  // ---- whisker-like flame strands, cut free of the cheek by a thin dark gap
+  both((s, M) => {
+    for (const [y, a, len] of [[50, -0.3, 136], [60, -0.02, 152], [70, 0.26, 128]]) {
+      const pts = M(tongueSpine(52, y, a, len, -1, { rise: 0.12, curl: 1.5, curlAt: 0.68, sway: 0.1, swayPh: rng.range(-1, 1) }));
+      const p = rib(pts, taper(8, 0.85, 0.25));
+      cut(() => { ctx.lineWidth = 6; ctx.stroke(p); });
+      ctx.fillStyle = css(GOLD);
+      ctx.fill(p);
+      ctx.fillStyle = css(CORE);
+      ctx.fill(rib(pts.slice(0, 16), taper(3.5, 0.9, 0.2)));
+    }
+  });
+
+  // alpha: full over the face, easing off through the mane (its tips are dimmer and burn
+  // away first when the sprite dissolves), then to zero before the canvas edge
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = 'destination-in';
+  const face = ctx.createRadialGradient(CX, CY - 20, 0, CX, CY - 20, 250);
+  face.addColorStop(0, 'rgba(0,0,0,1)');
+  face.addColorStop(0.6, 'rgba(0,0,0,1)');
+  face.addColorStop(1, 'rgba(0,0,0,0.72)');
+  ctx.fillStyle = face;
+  ctx.fillRect(0, 0, S, S);
+  const fall = ctx.createRadialGradient(CX, CX, 0, CX, CX, CX);
+  fall.addColorStop(0, 'rgba(0,0,0,1)');
+  fall.addColorStop(0.86, 'rgba(0,0,0,1)');
+  fall.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = fall;
+  ctx.fillRect(0, 0, S, S);
+  ctx.globalCompositeOperation = 'source-over';
   return c;
 }
 

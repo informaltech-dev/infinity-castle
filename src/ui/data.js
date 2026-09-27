@@ -19,6 +19,7 @@ export const CHARACTERS = [
       { key: '3', school: '火之神神樂', form: '', name: '圓舞', style: 'fire' },
       { key: 'R', school: '火之神神樂', form: '', name: '日暈之龍 頭舞', style: 'fire', ult: true },
     ],
+    charged: '漆之型・雫波紋擊刺',
     trait: '完美閃避後浮現『隙之線』，下一擊必定暴擊。',
     accent: '#ff7a2a',
     accent2: '#2f8f74',
@@ -44,6 +45,7 @@ export const CHARACTERS = [
       { key: '3', school: '', form: '拾之型', name: '生生流轉', style: 'water' },
       { key: 'R', school: '', form: '拾壹之型', name: '凪', style: 'calm', ult: true },
     ],
+    charged: '漆之型・雫波紋擊刺',
     trait: '完美格擋會觸發反擊並大幅回復呼吸。',
     accent: '#4fb3e8',
     accent2: '#7a1f2e',
@@ -51,12 +53,65 @@ export const CHARACTERS = [
     crest: '水',
     ultStyle: 'water',
   },
+  {
+    id: 'rengoku',
+    name: '煉獄杏壽郎',
+    title: '炎柱',
+    school: '炎之呼吸',
+    blurb: '熱情豪邁的炎柱。刀勢剛猛直進，每一擊都挾帶烈焰；奧義玖之型『煉獄』足以焚盡前方的一切。',
+    stats: [
+      ['攻擊', 5],
+      ['速度', 3],
+      ['防禦', 4],
+      ['技巧', 3],
+    ],
+    techniques: [
+      { key: '1', school: '', form: '貳之型', name: '昇炎天', style: 'fire' },
+      { key: '2', school: '', form: '肆之型', name: '盛炎漩渦', style: 'fire' },
+      { key: '3', school: '', form: '伍之型', name: '炎虎', style: 'fire' },
+      { key: 'R', school: '', form: '玖之型', name: '煉獄', style: 'fire', ult: true },
+    ],
+    charged: '壹之型・不知火',
+    trait: '生命低於四成時『燃燒心靈』：攻擊力提升三成、呼吸回復加倍，且不因輕擊而硬直。',
+    accent: '#ff6a1a',
+    accent2: '#f2c230',
+    motif: 'flame',
+    crest: '炎',
+    ultStyle: 'fire',
+  },
+  {
+    id: 'obanai',
+    name: '伊黑小芭內',
+    title: '蛇柱',
+    school: '蛇之呼吸',
+    blurb: '與白蛇鏑丸形影不離的蛇柱。劍路如蛇般蜿蜒難測，專從死角直取要害。',
+    stats: [
+      ['攻擊', 3],
+      ['速度', 5],
+      ['防禦', 2],
+      ['技巧', 5],
+    ],
+    techniques: [
+      { key: '1', school: '', form: '壹之型', name: '委蛇斬', style: 'serpent' },
+      { key: '2', school: '', form: '貳之型', name: '狹頭之毒牙', style: 'serpent' },
+      { key: '3', school: '', form: '參之型', name: '塒締', style: 'serpent' },
+      { key: 'R', school: '', form: '伍之型', name: '蜿蜒長蛇', style: 'serpent', ult: true, glyph: '蛇' },
+    ],
+    charged: '肆之型・頸蛇雙生',
+    trait: '從背後以重擊、連段收尾或招式命中，必定暴擊；閃避只消耗一半耐力。',
+    accent: '#a77bf0',
+    accent2: '#e9e5dc',
+    motif: 'stripes',
+    crest: '蛇',
+    ultStyle: 'serpent',
+  },
 ];
 
 export const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));
 
+// {charged} is replaced by the swordsman's own charged technique.
 export const COMMON_MOVES = [
-  { mouse: 'left', key: '左鍵', text: '攻擊（輕：四段連斬；重：重斬，長按蓄力施展漆之型・雫波紋擊刺）' },
+  { mouse: 'left', key: '左鍵', text: '攻擊（輕：四段連斬；重：重斬，長按蓄力施展{charged}）' },
   { k: 'Q', key: 'Q 鍵', text: '切換輕攻擊／重攻擊' },
   { mouse: 'right', key: '右鍵', text: '防禦（按住）；命中前一刻按下為完美格擋' },
 ];
@@ -64,7 +119,7 @@ export const COMMON_MOVES = [
 // Touch-screen equivalents: {btn} is the calligraphy glyph on the on-screen button.
 export const COMMON_MOVES_TOUCH = [
   { btn: '斬', key: '斬', text: '輕攻擊，連按施展四段連斬' },
-  { btn: '重', key: '重', text: '重斬；按住蓄力施展漆之型・雫波紋擊刺' },
+  { btn: '重', key: '重', text: '重斬；按住蓄力施展{charged}' },
   { btn: '防', key: '防', text: '防禦（按住）；命中前一刻按下為完美格擋' },
   { btn: '閃', key: '閃', text: '閃避；命中前一刻閃避為完美閃避' },
 ];
@@ -109,7 +164,7 @@ export const CONTROLS_TOUCH = [
   { keys: [{ touch: 'stick', text: '左半邊' }], label: '移動', note: '手指按住左半邊任一處即出現搖桿；推出外圈即衝刺' },
   { keys: [{ touch: 'drag', text: '右半邊' }], label: '視角', note: '在右半邊空白處滑動' },
   { keys: [{ btn: '斬' }], label: '輕攻擊', note: '連按施展四段連斬' },
-  { keys: [{ btn: '重' }, { tag: '按住' }], label: '重攻擊', note: '按住蓄力，放開施展漆之型・雫波紋擊刺' },
+  { keys: [{ btn: '重' }, { tag: '按住' }], label: '重攻擊', note: '按住蓄力，放開施展劍士專屬的蓄力技' },
   { keys: [{ btn: '閃' }], label: '閃避', note: '敵人命中前一刻閃避為「完美閃避」' },
   { keys: [{ btn: '防' }, { tag: '按住' }], label: '防禦', note: '敵人命中前一刻按下為「完美格擋」' },
   { keys: [{ btn: '壹' }, { sep: '／' }, { btn: '貳' }, { sep: '／' }, { btn: '參' }], label: '呼吸法招式', note: '外圈三鈕，標示各招式的型數或首字；消耗呼吸值' },
@@ -223,17 +278,21 @@ export const LOADING_TIPS = [
   '全集中值蓄滿後，按 R 施展奧義。',
   '呼吸法招式會消耗呼吸值，連擊與格擋可使其回復。',
   '按 Tab 或滑鼠中鍵鎖定目標，便於追擊。',
-  '重攻擊模式下長按左鍵蓄力，可施展漆之型・雫波紋擊刺。',
+  '重攻擊模式下長按左鍵蓄力，可施展劍士專屬的蓄力技。',
+  '煉獄杏壽郎生命低於四成時「燃燒心靈」，攻擊力大增且呼吸回復加倍。',
+  '伊黑小芭內從背後以重擊、連段收尾或招式命中必定暴擊；貳之型・狹頭之毒牙會繞到目標背後。',
 ];
 
 export const LOADING_TIPS_TOUCH = [
   '於敵人命中前一刻按「閃」，可觸發「完美閃避」。',
   '按住「防」防禦；在敵人命中前一刻按下即為「完美格擋」。',
-  '按住「重」蓄力，放開即施展漆之型・雫波紋擊刺。',
+  '按住「重」蓄力，放開即施展劍士專屬的蓄力技。',
   '全集中值蓄滿後，「奧」鈕會發光，按下施展奧義。',
   '左手搖桿推出外圈即可衝刺。',
   '輕觸畫面上的敵人即可鎖定，便於追擊。',
   '設定中可調整觸控按鈕大小與視角靈敏度。',
+  '煉獄杏壽郎生命低於四成時「燃燒心靈」，攻擊力大增且呼吸回復加倍。',
+  '伊黑小芭內從背後以重擊、連段收尾或招式命中必定暴擊；貳之型・狹頭之毒牙會繞到目標背後。',
 ];
 
 /** Numeral glyph for a skill slot: 壹之型 -> 壹, 拾壹之型 -> 拾壹, 火之神神樂 -> 火 */
@@ -246,8 +305,9 @@ export function formGlyph(form, name) {
   return n ? n[0] : '';
 }
 
-/** Glyph for the ultimate slot: last segment after 「・」, first character. */
-export function ultGlyph(name) {
+/** Glyph for the ultimate slot: an explicit glyph, else the first character of the last segment after 「・」. */
+export function ultGlyph(name, glyph) {
+  if (glyph) return String(glyph);
   const n = String(name || '').trim();
   if (!n) return '奧';
   const seg = n.split('・').pop().trim();

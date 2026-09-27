@@ -74,6 +74,12 @@
 .hd-player.is-giyu .hd-crest-pat {
   background: linear-gradient(90deg, #6e1b29 50%, transparent 50%), var(--kikko) 0 0 / calc(var(--u) * 3.4) auto;
 }
+.hd-player.is-rengoku .hd-crest-pat {
+  background: var(--flames) 0 100% / calc(var(--u) * 3.2) auto repeat-x, #f3ecdc;
+}
+.hd-player.is-obanai .hd-crest-pat {
+  background: repeating-linear-gradient(90deg, #18171d 0 calc(var(--u) * 0.7), #e9e5dc 0 calc(var(--u) * 1.4));
+}
 .hd-crest-ring {
   position: absolute;
   inset: 0;
@@ -405,6 +411,9 @@
 .hd-sk.is-fire .sk-bg {
   background: radial-gradient(circle at 38% 32%, rgba(150, 50, 22, 0.92), rgba(28, 8, 6, 0.95) 72%);
 }
+.hd-sk.is-serpent .sk-bg {
+  background: radial-gradient(circle at 38% 32%, rgba(104, 66, 164, 0.92), rgba(20, 10, 34, 0.95) 72%);
+}
 .sk-ring {
   position: absolute;
   inset: 0;
@@ -421,6 +430,10 @@
 .hd-sk.is-fire.is-ready .sk-ring {
   fill: #ffe0b8;
   filter: drop-shadow(0 0 calc(var(--u) * 0.7) rgba(255, 122, 42, 0.9));
+}
+.hd-sk.is-serpent.is-ready .sk-ring {
+  fill: #efe6ff;
+  filter: drop-shadow(0 0 calc(var(--u) * 0.7) rgba(167, 123, 240, 0.9));
 }
 .sk-g {
   position: absolute;
@@ -616,6 +629,11 @@
   --u1: #4fb3e8;
   --u2: #e6f6ff;
   --u3: #1d4f8a;
+}
+.hd-ult.is-serpent {
+  --u1: #a77bf0;
+  --u2: #f2ecff;
+  --u3: #4a2a86;
 }
 .ul-disc {
   position: relative;
@@ -1050,6 +1068,19 @@
 .hd-co.is-fire .co-name {
   color: #fff3de;
   text-shadow: 0 0 calc(var(--u) * 1) rgba(255, 122, 42, 0.95), 0.05em 0.05em 0 #4a0e06, 0 0 2px #000;
+}
+.hd-co.is-serpent {
+  --fk: #e6d8ff;
+}
+.hd-co.is-serpent .co-splash {
+  background: linear-gradient(180deg, rgba(30, 10, 50, 0) 0%, rgba(34, 12, 58, 0.95) 10%, rgba(96, 52, 160, 0.9) 52%, rgba(190, 160, 240, 0.8) 86%, rgba(190, 160, 240, 0) 100%);
+}
+.hd-co.is-serpent .co-school {
+  color: #e0d0ff;
+}
+.hd-co.is-serpent .co-name {
+  color: #f8f4ff;
+  text-shadow: 0 0 calc(var(--u) * 1) rgba(167, 123, 240, 0.95), 0.05em 0.05em 0 #1e0c3a, 0 0 2px #000;
 }
 .hd-co.is-demon {
   --fk: #6fe3ff;

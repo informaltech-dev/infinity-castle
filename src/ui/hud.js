@@ -1,12 +1,20 @@
 // In-game HUD. Every setter is safe to call every frame: values are cached and the DOM is only
 // touched when something visibly changes (transforms / opacity where possible, pooled nodes).
 import { h, clamp } from './dom.js';
-import { enso, keyCap, mouseIcon, ICON, kikkoURL } from './icons.js';
-import { CHAR_BY_ID, formGlyph, ultGlyph } from './data.js';
+import { enso, keyCap, mouseIcon, ICON, kikkoURL, flamesURL } from './icons.js';
+import { CHARACTERS, CHAR_BY_ID, formGlyph, ultGlyph } from './data.js';
 import { Callouts, Banner, Subtitle, Prompt, Toasts, LockOn, EnemyBars, DamageNumbers, BossIntro } from './hud-fx.js';
 
 const EASE_OUT = 'cubic-bezier(.16,1,.3,1)';
 const FIRE_RE = /火|日|炎|圓舞|陽/;
+const SERPENT_RE = /蛇|塒|毒牙/;
+
+/** Colour scheme of an ultimate gauge: fire (default), water or serpent. */
+export function setUltStyle(el, style) {
+  el.classList.toggle('is-water', style === 'water');
+  el.classList.toggle('is-serpent', style === 'serpent');
+  el.classList.toggle('is-fire', style !== 'water' && style !== 'serpent');
+}
 const q = (el, s) => el.querySelector(s);
 const tx = (v01) => `translateX(${((v01 - 1) * 100).toFixed(2)}%)`;
 
@@ -15,7 +23,7 @@ const BOSS_END = `<svg viewBox="0 0 48 40" aria-hidden="true"><path class="be-ta
 export class HUD {
   constructor(ui, parent) {
     this.ui = ui;
-    this.el = h('div', { class: 'ic-hud', hidden: true, vars: { '--kikko': kikkoURL() } });
+    this.el = h('div', { class: 'ic-hud', hidden: true, vars: { '--kikko': kikkoURL(), '--flames': flamesURL() } });
     parent.append(this.el);
     this.visible = false;
 
@@ -170,13 +178,11 @@ export class HUD {
   configure(charId) {
     const c = CHAR_BY_ID[charId];
     if (!c) return;
-    this.player.classList.toggle('is-tanjiro', c.id === 'tanjiro');
-    this.player.classList.toggle('is-giyu', c.id === 'giyu');
+    for (const o of CHARACTERS) this.player.classList.toggle(`is-${o.id}`, o.id === c.id);
     this.pName.textContent = c.name;
     this.pSchool.textContent = c.school;
     this.crestG.textContent = c.crest;
-    this.ultEl.classList.toggle('is-water', c.ultStyle === 'water');
-    this.ultEl.classList.toggle('is-fire', c.ultStyle !== 'water');
+    setUltStyle(this.ultEl, c.ultStyle);
     this.el.dataset.char = c.id;
   }
 
@@ -377,6 +383,7 @@ export class HUD {
       sl.g.classList.toggle('is-2', [...g].length > 1);
       sl.nameEl.textContent = name;
       sl.el.classList.toggle('is-fire', FIRE_RE.test(form + name));
+      sl.el.classList.toggle('is-serpent', SERPENT_RE.test(form + name));
     }
     if (s.cost !== sl.cost) {
       sl.cost = s.cost;
@@ -421,7 +428,7 @@ export class HUD {
     const name = String(u.name || '');
     if (name !== c.name) {
       c.name = name;
-      this.ultG.textContent = ultGlyph(name);
+      this.ultG.textContent = ultGlyph(name, u.glyph);
       this.ultName.textContent = [...name].length > 8 ? name.split('・').pop().trim() : name;
     }
     const c01 = Math.round(clamp(Number(u.charge01) || 0, 0, 1) * 300) / 300;

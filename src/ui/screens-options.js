@@ -1,6 +1,6 @@
 // Character select · Controls · Settings screens.
 import { h, esc, clamp } from './dom.js';
-import { keyCap, mouseIcon, padIcon, touchIcon, sealHTML, kikkoURL, enso, ICON } from './icons.js';
+import { keyCap, mouseIcon, padIcon, touchIcon, sealHTML, kikkoURL, flamesURL, enso, ICON } from './icons.js';
 
 const MARK = `<div class="op-mark">${enso({ r: 42, w: 9, seed: 23, start: -60, sweep: 320, wobble: 1.6 }, '')}</div>`;
 import { Screen, makeHints } from './screen-base.js';
@@ -28,11 +28,12 @@ export class SelectScreen extends Screen {
     this.body = this.el.querySelector('.sd-body');
     const cardsEl = this.el.querySelector('.sl-cards');
     const kikko = kikkoURL();
+    const flames = flamesURL();
     this.cards = CHARACTERS.map((c, i) => {
       const el = h('div', {
         class: `sl-card is-${c.id}`,
         role: 'button',
-        vars: { '--i': i, '--kikko': kikko },
+        vars: { '--i': i, '--kikko': kikko, '--flames': flames },
         html: `<div class="sl-card-pat"></div><div class="sl-card-name ic-cal ic-vert">${esc(c.name)}</div><div class="sl-card-title ic-vert">${esc(c.title)}</div>${sealHTML(c.crest)}<div class="sl-card-acc"></div>`,
       });
       el.addEventListener('pointerenter', () => {
@@ -107,8 +108,7 @@ export class SelectScreen extends Screen {
   }
 
   renderDetail(c, animate) {
-    this.detail.classList.toggle('is-giyu', c.id === 'giyu');
-    this.detail.classList.toggle('is-tanjiro', c.id === 'tanjiro');
+    for (const o of CHARACTERS) this.detail.classList.toggle(`is-${o.id}`, o.id === c.id);
     const stats = c.stats
       .map(([l, v]) => `<div class="sd-stat"><span>${l}</span><span class="sd-pips">${[1, 2, 3, 4, 5].map((k) => `<i class="${k <= v ? 'on' : ''}"></i>`).join('')}</span></div>`)
       .join('');
@@ -118,15 +118,17 @@ export class SelectScreen extends Screen {
         const full = t.form ? `${t.form}・${t.name}` : t.school ? `${t.school}・${t.name}` : t.name;
         const sch = t.form && t.school ? `<span class="t-sch">${esc(t.school)}</span>` : '';
         // on a touch screen the legend is the glyph printed on the matching button
-        const glyph = t.ult ? ultGlyph(t.name.replace(/\s+/g, '・')) : formGlyph(t.form, t.name);
+        const glyph = t.ult ? ultGlyph(t.name.replace(/\s+/g, '・'), t.glyph) : formGlyph(t.form, t.name);
         const cap = touch ? touchIcon('btn', glyph) : keyCap(t.key, 1);
-        return `<li class="${t.style === 'fire' ? 'is-fire' : ''} ${t.ult ? 'is-ult' : ''}">${cap}<span>${sch}<span class="t-name">${esc(full)}</span></span></li>`;
+        const st = t.style === 'fire' || t.style === 'serpent' ? `is-${t.style}` : '';
+        return `<li class="${st} ${t.ult ? 'is-ult' : ''}">${cap}<span>${sch}<span class="t-name">${esc(full)}</span></span></li>`;
       })
       .join('');
+    const text = (m) => esc(m.text.replace('{charged}', c.charged || ''));
     const common = touch
-      ? COMMON_MOVES_TOUCH.map((m) => `<li class="is-common">${touchIcon('btn', m.btn)}<span>${esc(m.text)}</span></li>`).join('')
+      ? COMMON_MOVES_TOUCH.map((m) => `<li class="is-common">${touchIcon('btn', m.btn)}<span>${text(m)}</span></li>`).join('')
       : COMMON_MOVES.map(
-          (m) => `<li class="is-common">${m.mouse ? mouseIcon(m.mouse) : keyCap(m.k, 1)}<span><span class="t-sch">${m.key}</span>${esc(m.text)}</span></li>`,
+          (m) => `<li class="is-common">${m.mouse ? mouseIcon(m.mouse) : keyCap(m.k, 1)}<span><span class="t-sch">${m.key}</span>${text(m)}</span></li>`,
         ).join('');
     this.body.innerHTML = `
       <div class="sd-top"><span class="sd-title">${esc(c.title)}</span><h3 class="sd-name ic-cal">${esc(c.name)}</h3><div class="sd-school">${esc(c.school)}</div></div>

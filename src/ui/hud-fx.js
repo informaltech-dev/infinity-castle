@@ -57,7 +57,7 @@ export class Callouts {
     this.cur = (this.cur + 1) % this.nodes.length;
     const n = this.nodes[this.cur];
     resetNode(n);
-    const st = ['water', 'fire', 'demon', 'calm'].includes(style) ? style : 'water';
+    const st = ['water', 'fire', 'demon', 'calm', 'serpent'].includes(style) ? style : 'water';
     n.el.className = `hd-co is-${st} is-${side === 'left' ? 'left' : 'right'}`;
     n.school.textContent = school;
     n.form.textContent = form;

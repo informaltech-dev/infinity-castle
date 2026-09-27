@@ -5,11 +5,11 @@ import { Input } from '../core/input.js';
 import { device } from '../core/device.js';
 import { CameraRig } from './camera.js';
 import { Combat } from './combat.js';
-import { Director } from './director.js';
+import { Director, isPlayable } from './director.js';
 import { FX } from '../fx/fx.js';
 import { World } from '../world/castle.js';
 import { HudAdapter } from './hud.js';
-import { buildTanjiro, buildGiyu } from '../actors/characters.js';
+import { buildTanjiro, buildGiyu, buildRengoku, buildObanai } from '../actors/characters.js';
 import { createAnimator } from '../actors/animsets.js';
 import { clamp } from '../core/math.js';
 
@@ -163,7 +163,7 @@ export class Game {
     this.world.buildHall();
     this._lightingHall();
     // preview models for the select screen
-    this.previews = { tanjiro: buildTanjiro(T), giyu: buildGiyu(T) };
+    this.previews = { tanjiro: buildTanjiro(T), giyu: buildGiyu(T), rengoku: buildRengoku(T), obanai: buildObanai(T) };
     for (const k in this.previews) {
       const m = this.previews[k];
       m.anim = createAnimator(m);
@@ -175,7 +175,7 @@ export class Game {
     await new Promise((r) => setTimeout(r, 250));
     this.ui?.hideLoading();
     this.toTitle();
-    // debug shortcut: ?play=tanjiro|giyu&mode=story|boss
+    // debug shortcut: ?play=tanjiro|giyu|rengoku|obanai&mode=story|boss
     const q = new URLSearchParams(location.search);
     if (q.get('play')) this.startGame(q.get('mode') || 'story', q.get('play'));
     if (q.get('bot')) import('./bot.js').then(({ Bot }) => (this._liveBot = new Bot(this)));
@@ -369,6 +369,7 @@ export class Game {
     this.audio?.hold?.(false);
     this._unlockAudio();
     this.mode = mode;
+    if (!isPlayable(charId)) charId = 'tanjiro'; // e.g. a mistyped ?play= id
     this.charId = charId;
     this.stats = { time: 0, maxCombo: 0, kills: 0, damageTaken: 0 };
     for (const k in this.previews || {}) this.previews[k].root.visible = false;
@@ -424,6 +425,8 @@ export class Game {
     for (const e of this.enemies) e.dispose();
     this.enemies = [];
     if (this.player) {
+      // an ultimate still running would leave the enemies' clock slowed
+      this.player.interruptUlt();
       this.player.dispose();
       this.scene.remove(this.player.trail.mesh);
       this.scene.remove(this.player.threadMesh);

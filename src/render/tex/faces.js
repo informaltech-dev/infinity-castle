@@ -137,47 +137,50 @@ function drawIris(ctx, F, I) {
   ctx.transform(ax[0], ax[1], bx[0], bx[1], c0[0], c0[1]);
   const iris = new Path2D();
   iris.ellipse(0, 0, I.rx, I.ry, 0, 0, TAU);
-  const g = ctx.createLinearGradient(0, -I.ry, 0, I.ry);
-  g.addColorStop(0, css(I.cols[0]));
-  g.addColorStop(0.42, css(I.cols[1]));
-  g.addColorStop(1, css(I.cols[2]));
-  ctx.fillStyle = g;
-  ctx.fill(iris);
-  ctx.save();
-  ctx.clip(iris);
-  // lower reflected light
-  if (I.refl) {
-    ctx.fillStyle = css(I.refl, 0.9);
+  if (I.radial) radialIrisBody(ctx, iris, I);
+  else {
+    const g = ctx.createLinearGradient(0, -I.ry, 0, I.ry);
+    g.addColorStop(0, css(I.cols[0]));
+    g.addColorStop(0.42, css(I.cols[1]));
+    g.addColorStop(1, css(I.cols[2]));
+    ctx.fillStyle = g;
+    ctx.fill(iris);
+    ctx.save();
+    ctx.clip(iris);
+    // lower reflected light
+    if (I.refl) {
+      ctx.fillStyle = css(I.refl, 0.9);
+      ctx.beginPath();
+      ctx.ellipse(0, I.ry * 0.56, I.rx * 0.78, I.ry * 0.36, 0, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = css(I.cols[2]);
+      ctx.beginPath();
+      ctx.ellipse(0, I.ry * 0.36, I.rx * 0.7, I.ry * 0.36, 0, 0, TAU);
+      ctx.fill();
+    }
+    // fine radial streaks
+    ctx.strokeStyle = css(I.cols[0], 0.55);
+    ctx.lineWidth = 0.035;
+    for (let k = 0; k < 14; k++) {
+      const a = (k / 14) * TAU + 0.2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * I.rx * 0.32, Math.sin(a) * I.ry * 0.32);
+      ctx.lineTo(Math.cos(a) * I.rx * 0.82, Math.sin(a) * I.ry * 0.82);
+      ctx.stroke();
+    }
+    // pupil
+    ctx.fillStyle = css(I.pupil);
     ctx.beginPath();
-    ctx.ellipse(0, I.ry * 0.56, I.rx * 0.78, I.ry * 0.36, 0, 0, TAU);
+    if (I.slit) ctx.ellipse(0, 0, I.rx * I.slit, I.ry * 0.82, 0, 0, TAU);
+    else ctx.ellipse(0, -I.ry * 0.04, I.rx * I.pk, I.ry * I.pk * 1.02, 0, 0, TAU);
     ctx.fill();
-    ctx.fillStyle = css(I.cols[2]);
+    // shadow under the upper lid
+    ctx.fillStyle = css(I.shadow || I.cols[0], I.shadowA ?? 0.75);
     ctx.beginPath();
-    ctx.ellipse(0, I.ry * 0.36, I.rx * 0.7, I.ry * 0.36, 0, 0, TAU);
+    ctx.ellipse(0, -I.ry * 0.88, I.rx * 1.25, I.ry * 0.5, 0, 0, TAU);
     ctx.fill();
+    ctx.restore();
   }
-  // fine radial streaks
-  ctx.strokeStyle = css(I.cols[0], 0.55);
-  ctx.lineWidth = 0.035;
-  for (let k = 0; k < 14; k++) {
-    const a = (k / 14) * TAU + 0.2;
-    ctx.beginPath();
-    ctx.moveTo(Math.cos(a) * I.rx * 0.32, Math.sin(a) * I.ry * 0.32);
-    ctx.lineTo(Math.cos(a) * I.rx * 0.82, Math.sin(a) * I.ry * 0.82);
-    ctx.stroke();
-  }
-  // pupil
-  ctx.fillStyle = css(I.pupil);
-  ctx.beginPath();
-  if (I.slit) ctx.ellipse(0, 0, I.rx * I.slit, I.ry * 0.82, 0, 0, TAU);
-  else ctx.ellipse(0, -I.ry * 0.04, I.rx * I.pk, I.ry * I.pk * 1.02, 0, 0, TAU);
-  ctx.fill();
-  // shadow under the upper lid
-  ctx.fillStyle = css(I.shadow || I.cols[0], I.shadowA ?? 0.75);
-  ctx.beginPath();
-  ctx.ellipse(0, -I.ry * 0.88, I.rx * 1.25, I.ry * 0.5, 0, 0, TAU);
-  ctx.fill();
-  ctx.restore();
   // limbal ring
   ctx.strokeStyle = css(I.ring);
   ctx.lineWidth = I.ringW ?? 0.085;
@@ -191,6 +194,65 @@ function drawIris(ctx, F, I) {
     ctx.ellipse(c0[0] + h.x * irx, c0[1] + h.y * iry, h.rx * irx, h.ry * iry, h.rot || 0, 0, TAU);
     ctx.fill();
   }
+}
+
+/**
+ * Radial iris body (I.radial set): [t, colour] stops run from the pupil (t = 0) out to the rim (t = 1),
+ * stretched to the iris ellipse. Optional I.flame: tongues licking outward from the pupil; I.glow: a
+ * bright crescent of reflected light along the bottom. Runs inside drawIris's iris frame; the limbal
+ * ring and the highlights stay shared with the linear mode.
+ */
+function radialIrisBody(ctx, iris, I) {
+  const py = -I.ry * 0.04;
+  ctx.save();
+  ctx.clip(iris);
+  ctx.save();
+  ctx.translate(0, py);
+  ctx.scale(I.rx, I.ry);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+  for (const [t, col] of I.radial) g.addColorStop(t, css(col));
+  ctx.fillStyle = g;
+  ctx.fillRect(-1.5, -1.5, 3, 3);
+  if (I.flame) {
+    const n = I.tongues ?? 14;
+    const at = (ang, r) => [Math.cos(ang) * r, Math.sin(ang) * r];
+    ctx.fillStyle = css(I.flame, I.flameA ?? 0.6);
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * TAU + 0.12;
+      const long = k % 2 === 0;
+      const r0 = 0.2, r1 = long ? 0.86 : 0.64, hw = long ? 0.19 : 0.15;
+      ctx.beginPath();
+      ctx.moveTo(...at(a - hw, r0));
+      ctx.quadraticCurveTo(...at(a - hw * 0.55, r1 * 0.62), ...at(a + hw * 0.1, r1));
+      ctx.quadraticCurveTo(...at(a + hw * 0.5, r1 * 0.62), ...at(a + hw, r0));
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+  if (I.glow) {
+    ctx.save();
+    const cut = new Path2D();
+    cut.rect(-2, -2, 4, 4);
+    cut.ellipse(0, I.ry * 0.3, I.rx * 0.86, I.ry * 0.44, 0, 0, TAU);
+    ctx.clip(cut, 'evenodd');
+    ctx.fillStyle = css(I.glow, I.glowA ?? 0.8);
+    ctx.beginPath();
+    ctx.ellipse(0, I.ry * 0.54, I.rx * 0.8, I.ry * 0.38, 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+  // pupil
+  ctx.fillStyle = css(I.pupil);
+  ctx.beginPath();
+  ctx.ellipse(0, py, I.rx * I.pk, I.ry * I.pk * 1.02, 0, 0, TAU);
+  ctx.fill();
+  // shadow under the upper lid
+  ctx.fillStyle = css(I.shadow || I.radial[0][1], I.shadowA ?? 0.75);
+  ctx.beginPath();
+  ctx.ellipse(0, -I.ry * 0.88, I.rx * 1.25, I.ry * 0.5, 0, 0, TAU);
+  ctx.fill();
+  ctx.restore();
 }
 
 /** Squeezed-shut eye: a '>' / '<' chevron pointing to the nose. */
@@ -599,6 +661,301 @@ function faceAkaza(expr) {
   return c;
 }
 
+// ---------------------------------------------------------------------------
+// Rengoku Kyojuro: wide burning eyes, forked two-tone brows, big grin
+// ---------------------------------------------------------------------------
+/**
+ * Thick brows in his hair colours (golden, red-orange underside, crimson tips) with a thin ink outline,
+ * forked at the temple end. B: (u, f) spine points of the viewer-left brow (the other is mirrored):
+ * inner -> mid -> fork -> up is the main stroke ending in the upper prong; split -> lowMid -> low is the
+ * lower prong, which leaves the main stroke just before the fork.
+ */
+function forkedBrows(ctx, B) {
+  const { w, ink, inkW, gold, red, tip, shine } = B;
+  for (const mirror of [false, true]) {
+    const M = (pts) => (mirror ? MIR(PP(pts)) : PP(pts));
+    const mainPts = catmull(M([B.inner, B.mid, B.fork, B.up]), 12);
+    const lowPts = catmull(M([B.split, B.lowMid, B.low]), 12);
+    const mainW = (t) => w * lerp(1, 0.72, t);
+    const main = ribbon(mainPts, mainW, { taperA: 0.05, taperB: 0.36, pow: 0.8 });
+    const prong = ribbon(lowPts, w * (B.lowW ?? 0.72), { taperA: 0, taperB: 0.72, pow: 0.9 });
+    const down = mirror ? 1 : -1; // offsetPts sign that points down the face
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = css(ink);
+    ctx.lineWidth = inkW * 2;
+    ctx.stroke(main.path);
+    ctx.stroke(prong.path);
+    // lower prong first (red-orange), the main stroke overlaps its root
+    ctx.fillStyle = css(red);
+    ctx.fill(prong.path);
+    ctx.fillStyle = css(gold);
+    ctx.fill(main.path);
+    ctx.save();
+    ctx.clip(main.path);
+    fillRib(ctx, ribbon(offsetPts(mainPts, (t) => down * mainW(t) * 0.46), (t) => mainW(t) * 0.62, { taperA: 0.12, taperB: 0.1 }), red);
+    fillRib(ctx, ribbon(offsetPts(mainPts.slice(3, Math.round(mainPts.length * 0.72)), -down * w * 0.25), w * 0.2, { taperA: 0.4, taperB: 0.5 }), shine);
+    ctx.restore();
+    // both prong tips burn to crimson
+    const both = new Path2D();
+    both.addPath(main.path);
+    both.addPath(prong.path);
+    ctx.clip(both);
+    const x0 = M([B.fork])[0][0], x1 = M([B.up])[0][0];
+    const g = ctx.createLinearGradient(x0, 0, x1, 0);
+    g.addColorStop(0.4, css(tip, 0));
+    g.addColorStop(1, css(tip, 0.95));
+    ctx.fillStyle = g;
+    ctx.fillRect(Math.min(x0, x1) - w * 3, 0, Math.abs(x1 - x0) + w * 6, S);
+    ctx.restore();
+  }
+}
+
+/**
+ * Wide open grin. top / bottom: (u, f) points from the left mouth corner to the right one (shared
+ * corners). The upper teeth hang from the upper lip line and fade out before the corners.
+ * dimpleW > 0 adds small upturned creases of that width at the corners.
+ */
+function grinMouth(ctx, top, bottom, o = {}) {
+  const { inside = '#5a1212', ink = '#2a0a0a', lw = 2.8, teeth = '#fbf6ee', teethH = 7, tongue = '#c04850', dimpleW = 0 } = o;
+  const T = catmull(PP(top), 10), B = catmull(PP(bottom), 10);
+  const path = pathOf(T.concat(B.slice(1, -1).reverse()), true);
+  let x0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [x, y] of B) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  const yTop = T[Math.floor(T.length / 2)][1];
+  const cx = (x0 + x1) / 2, wd = x1 - x0, hd = y1 - yTop;
+  ctx.fillStyle = css(inside);
+  ctx.fill(path);
+  ctx.save();
+  ctx.clip(path);
+  if (tongue) {
+    ctx.fillStyle = css(tongue);
+    ctx.beginPath();
+    ctx.ellipse(cx, y1 + hd * 0.08, wd * 0.3, hd * 0.5, 0, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = css('#e8848a', 0.9);
+    ctx.beginPath();
+    ctx.ellipse(cx - wd * 0.07, y1 - hd * 0.18, wd * 0.08, hd * 0.08, 0, 0, TAU);
+    ctx.fill();
+  }
+  const edge = offsetPts(T, (t) => teethH * smooth(0, 0.2, t) * smooth(1, 0.8, t));
+  ctx.fillStyle = css(teeth);
+  ctx.fill(pathOf(offsetPts(T, -4).concat(edge.slice().reverse()), true));
+  ctx.strokeStyle = css('#b8a8a0');
+  ctx.lineWidth = 1.2;
+  ctx.stroke(pathOf(edge.slice(Math.round(edge.length * 0.16), Math.round(edge.length * 0.84))));
+  ctx.restore();
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = css(ink);
+  ctx.lineWidth = lw;
+  ctx.stroke(path);
+  // heavier upper lip line
+  fillRib(ctx, ribbon(T, lw * 1.3, { taperA: 0.1, taperB: 0.1, pow: 0.8 }), ink);
+  if (dimpleW) {
+    for (const [p, s] of [[T[0], -1], [T[T.length - 1], 1]]) {
+      const q = (du, df) => [p[0] + s * du * S, p[1] + df * S];
+      inkLine(ctx, [q(0.001, 0.008), q(0.008, 0.002), q(0.009, -0.007)], dimpleW, ink, { taperA: 0.4, taperB: 0.5 });
+    }
+  }
+}
+
+const RENGOKU = {
+  sclera: '#fffbf5', scleraShade: '#f0dccd',
+  iris: {
+    a: -0.02, b: 0.05, rx: 0.55, ry: 0.88,
+    // golden rim burning down to red-orange around a small pupil
+    radial: [[0, '#8a1004'], [0.22, '#c4220a'], [0.44, '#ea5014'], [0.66, '#f89c1e'], [0.86, '#ffd443'], [1, '#f3b01a']],
+    flame: '#d8360e', glow: '#fff1a0', ring: '#6a1804', pupil: '#240402', pk: 0.2, shadow: '#7a1606', shadowA: 0.45,
+    hl: [{ x: -0.36, y: -0.4, rx: 0.3, ry: 0.23, rot: -0.2 }, { x: 0.38, y: 0.42, rx: 0.13, ry: 0.09 }, { x: -0.5, y: 0.24, rx: 0.07, ry: 0.05, col: '#fff4d6' }],
+  },
+  lash: { col: '#34120a', w0: 3.2, w1: 8.8, wing: [0.16, 0.06, 0], flicks: [[0.57, -0.86, 0.78, -1.14, 4.2], [0.82, -0.62, 1.08, -0.84, 3.8]] },
+  crease: { col: '#904228', w: 2.4, off: 11, from: 0.22, to: 0.9 },
+  lower: { col: '#5e2414', w: 2.6, from: 0.36, to: 1 },
+};
+const RENGOKU_BROW = { w: 17, ink: '#4a1606', inkW: 1.4, gold: '#f2c230', red: '#e2521c', tip: '#c42c16', shine: '#ffe890' };
+const RK = 1.06; // his eyes are drawn a size larger than everyone else's
+const rengokuEye = (i, f = EYE_F) => eyeFrame(EYE_U[i], f, i ? 1 : -1, RK);
+
+function faceRengoku(expr) {
+  const { c, ctx } = canvas2d(S, S);
+  const INK = '#3a1410', NOSE = '#a45a42';
+  if (expr === 'neutral') {
+    forkedBrows(ctx, { ...RENGOKU_BROW, inner: [0.412, 0.49], mid: [0.358, 0.471], fork: [0.3, 0.457], up: [0.218, 0.418], split: [0.334, 0.466], lowMid: [0.28, 0.474], low: [0.234, 0.49] });
+    const spec = {
+      ...RENGOKU,
+      lid: { inner: [-1, 0.14], c1: [-0.92, -1.18], c2: [0.36, -1.58], outer: [1.04, -0.3] },
+      low: { c1: [-0.55, 1.12], c2: [0.66, 1.02] },
+    };
+    for (const i of [0, 1]) drawEye(ctx, rengokuEye(i), spec);
+    smallNose(ctx, NOSE);
+    grinMouth(ctx,
+      [[0.43, 0.771], [0.458, 0.782], [0.5, 0.787], [0.542, 0.782], [0.57, 0.771]],
+      [[0.43, 0.771], [0.445, 0.797], [0.47, 0.818], [0.5, 0.825], [0.53, 0.818], [0.555, 0.797], [0.57, 0.771]],
+      { inside: '#5a1212', ink: INK, lw: 2.8, teethH: 7.5, dimpleW: 2.2 });
+  } else if (expr === 'fierce') {
+    forkedBrows(ctx, { ...RENGOKU_BROW, inner: [0.418, 0.516], mid: [0.368, 0.49], fork: [0.31, 0.467], up: [0.226, 0.426], split: [0.342, 0.478], lowMid: [0.288, 0.478], low: [0.24, 0.49] });
+    const spec = {
+      ...RENGOKU,
+      iris: { ...RENGOKU.iris, rx: 0.48, ry: 0.77, pk: 0.16, b: 0.04, hl: [{ x: -0.34, y: -0.38, rx: 0.26, ry: 0.2, rot: -0.2 }, { x: 0.36, y: 0.42, rx: 0.11, ry: 0.08 }] },
+      lid: { inner: [-1, 0.08], c1: [-0.82, -0.88], c2: [0.36, -1.6], outer: [1.06, -0.34] },
+      low: { c1: [-0.55, 1.1], c2: [0.66, 1.0] },
+      lash: { ...RENGOKU.lash, w0: 4.4, w1: 9.4 },
+    };
+    for (const i of [0, 1]) drawEye(ctx, rengokuEye(i), spec);
+    inkLine(ctx, PP([[0.455, 0.494], [0.466, 0.528]]), 3, INK, { taperA: 0.4, taperB: 0.4 });
+    inkLine(ctx, PP([[0.545, 0.494], [0.534, 0.528]]), 3, INK, { taperA: 0.4, taperB: 0.4 });
+    smallNose(ctx, NOSE);
+    openMouth(ctx, PP([[0.438, 0.786], [0.47, 0.776], [0.5, 0.773], [0.53, 0.776], [0.562, 0.786], [0.566, 0.818], [0.546, 0.852], [0.5, 0.864], [0.454, 0.852], [0.434, 0.818]]), { inside: '#3a0a0e', upperTeeth: 7, lowerTeeth: 5, tongue: '#a8323a', lw: 3.2, ink: INK });
+  } else {
+    forkedBrows(ctx, { ...RENGOKU_BROW, inner: [0.406, 0.464], mid: [0.36, 0.468], fork: [0.306, 0.476], up: [0.228, 0.452], split: [0.334, 0.474], lowMid: [0.284, 0.49], low: [0.246, 0.51] });
+    // his left eye squeezed shut, the right one still open, pained
+    drawSquint(ctx, rengokuEye(1, EYE_F + 0.01), '#34120a', 6.6);
+    drawEye(ctx, rengokuEye(0), {
+      ...RENGOKU,
+      iris: { ...RENGOKU.iris, b: 0.14, rx: 0.5, ry: 0.8, hl: [{ x: -0.34, y: -0.3, rx: 0.26, ry: 0.2, rot: -0.2 }, { x: 0.36, y: 0.42, rx: 0.1, ry: 0.07 }] },
+      lid: { inner: [-1, 0.22], c1: [-0.8, -0.6], c2: [0.4, -0.98], outer: [1.04, -0.1] },
+      low: { c1: [-0.52, 0.9], c2: [0.64, 0.84] },
+      lash: { ...RENGOKU.lash, flicks: [[0.62, -0.64, 0.82, -0.92, 4], [0.84, -0.42, 1.1, -0.62, 3.6]] },
+    });
+    smallNose(ctx, NOSE);
+    grimace(ctx, PP([[0.444, 0.788], [0.5, 0.78], [0.556, 0.788], [0.55, 0.808], [0.5, 0.816], [0.45, 0.808]]), { lw: 2.8, splits: 5, ink: INK });
+    sweatDrop(ctx, 0.83, 0.52, 1);
+  }
+  return c;
+}
+
+// ---------------------------------------------------------------------------
+// Iguro Obanai: heterochromia, heavy-lidded glare, bandaged lower face
+// ---------------------------------------------------------------------------
+const OBANAI = {
+  sclera: '#fbfbfd', scleraShade: '#d8d4e6',
+  lash: { col: '#0e0f17', w0: 4.2, w1: 9.6, peak: 0.55, wing: [0.2, 0.02, 0], flicks: [[0.8, -0.1, 1.08, -0.34, 3.4]] },
+  crease: { col: '#3e3242', w: 2.3, off: 7, from: 0.1, to: 0.96 },
+  lower: { col: '#322e3c', w: 2.4, from: 0.45, to: 1 },
+};
+// his right eye (viewer's left, index 0) gold, his left eye (viewer's right, index 1) turquoise
+const OBANAI_IRIS = [
+  { cols: ['#5a3802', '#c68e0c', '#f8d846'], refl: '#fff09a', ring: '#322002', pupil: '#120a02', shadow: '#281602' },
+  { cols: ['#02343a', '#08888c', '#38d0c4'], refl: '#aef6ea', ring: '#02262a', pupil: '#021214', shadow: '#01222a' },
+];
+
+function obanaiEye(ctx, i, spec) {
+  return drawEye(ctx, eyeFrame(EYE_U[i], EYE_F, i ? 1 : -1), { ...OBANAI, ...spec, iris: { ...spec.iris, ...OBANAI_IRIS[i] } });
+}
+
+/** Cream bandage wrapped round the lower face in overlapping bands, ink on the top edge. */
+function obanaiBandage(ctx) {
+  const s2 = (u) => Math.min(1, Math.abs(u - 0.5) * 2) ** 2;
+  // f(u) of the top edge (under the nose), the lower edge of each wrap, and the bottom edge. The wraps
+  // tilt against each other and vary in width so they read as bandage, not as a pleated mask.
+  const E = [
+    (u) => 0.748 - 0.026 * s2(u),
+    (u) => 0.818 + 0.03 * (u - 0.5) - 0.03 * s2(u) + 0.003 * Math.sin(u * 9),
+    (u) => 0.866 - 0.022 * (u - 0.5) - 0.034 * s2(u) + 0.003 * Math.sin(u * 7 + 1),
+    (u) => 0.934 + 0.016 * (u - 0.5) - 0.042 * s2(u),
+    (u) => 0.993 - 0.05 * s2(u),
+  ];
+  const N = 96;
+  const us = Array.from({ length: N + 1 }, (_, i) => -0.01 + (1.02 * i) / N);
+  const edge = (k, df = 0) => us.map((u) => [u * S, (E[k](u) + df) * S]);
+  const HEM = '#a69cb6', FOLD = '#aca2bc';
+  // the hem of each wrap is inked in broken runs (u ranges), the cast shadow carries the gaps
+  const HEMS = [null, [[-0.02, 0.3], [0.36, 0.72], [0.8, 1.02]], [[-0.02, 0.18], [0.26, 0.6], [0.66, 1.02]], [[-0.02, 0.45], [0.52, 0.86], [0.9, 1.02]], [[-0.02, 1.02]]];
+  // bottom-up, so every wrap overlaps the one below it
+  for (let k = 3; k >= 0; k--) {
+    const band = pathOf(edge(k, k ? -0.014 : 0).concat(edge(k + 1).reverse()), true);
+    ctx.fillStyle = css('#f6f2eb');
+    ctx.fill(band);
+    ctx.save();
+    ctx.clip(band);
+    const stops = k
+      ? [[0, '#c6bdd3'], [0.1, '#e8e3ec'], [0.22, '#f8f5ef'], [0.72, '#f5f1eb'], [0.93, '#e9e3ec'], [1, '#ddd6e4']]
+      : [[0, '#fefcf8'], [0.35, '#f9f6f0'], [0.78, '#f3efea'], [0.94, '#e6e0e9'], [1, '#d9d2e1']];
+    // soft shading in narrow vertical strips so it follows the curved edges
+    for (let x = 0; x < S; x += 4) {
+      const u = (x + 2) / S;
+      const yt = E[k](u) * S, yb = E[k + 1](u) * S;
+      const g = ctx.createLinearGradient(0, yt, 0, yb);
+      for (const [t, col] of stops) g.addColorStop(t, css(col));
+      ctx.fillStyle = g;
+      ctx.fillRect(x, yt - 12, 4, yb - yt + 24);
+    }
+    ctx.restore();
+    // hem where this wrap lies over the next one
+    const hem = edge(k + 1);
+    for (const [ua, ub] of HEMS[k + 1]) {
+      const run = hem.filter((_, i) => us[i] >= ua && us[i] <= ub);
+      fillRib(ctx, ribbon(run, 1.8, { taperA: ua < 0 ? 0 : 0.18, taperB: ub > 1 ? 0 : 0.18 }), HEM);
+    }
+  }
+  // folds and creases, kept away from where the mouth would be
+  const folds = [
+    [[0.16, 0.742], [0.14, 0.765], [0.115, 0.785]], [[0.84, 0.744], [0.862, 0.768], [0.89, 0.79]],
+    [[0.27, 0.778], [0.31, 0.789], [0.355, 0.793]], [[0.12, 0.8], [0.16, 0.815], [0.2, 0.822]],
+    [[0.6, 0.878], [0.65, 0.889], [0.7, 0.892]], [[0.22, 0.874], [0.26, 0.884], [0.3, 0.888]],
+    [[0.38, 0.955], [0.43, 0.967], [0.48, 0.971]], [[0.76, 0.925], [0.79, 0.94], [0.81, 0.955]],
+  ];
+  for (const f of folds) inkLine(ctx, PP(f), 1.9, FOLD, { taperA: 0.45, taperB: 0.45 });
+  // clean inked top edge with a folded hem just under it
+  fillRib(ctx, ribbon(edge(0, 0.009), 1.4, { taperA: 0, taperB: 0 }), '#c9c0d4');
+  fillRib(ctx, ribbon(edge(0), 3.2, { taperA: 0, taperB: 0 }), '#2c2638');
+  // let the wrap fade out where the decal ends at the sides of the head
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  const fw = 0.04 * S;
+  for (const [xa, xb] of [[0, fw], [S, S - fw]]) {
+    const g = ctx.createLinearGradient(xa, 0, xb, 0);
+    g.addColorStop(0, 'rgba(0,0,0,1)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(Math.min(xa, xb), 0, fw, S);
+  }
+  ctx.restore();
+}
+
+function faceObanai(expr) {
+  const { c, ctx } = canvas2d(S, S);
+  const BROW = '#161a2c', NOSE = '#8e5448';
+  if (expr === 'neutral') {
+    bothBrows(ctx, [[0.4, 0.516], [0.356, 0.502], [0.306, 0.492], [0.256, 0.488]], 5.8, BROW, { fall: 0.5 });
+    // flat, heavy upper lid across the top of the iris, drooping toward the outer corner
+    const spec = {
+      iris: { a: 0.02, b: 0.06, rx: 0.43, ry: 0.7, pk: 0.3, shadowA: 0.8, hl: [{ x: -0.32, y: -0.02, rx: 0.2, ry: 0.15, rot: -0.2 }, { x: 0.3, y: 0.4, rx: 0.08, ry: 0.06 }] },
+      lid: { inner: [-1, 0.1], c1: [-0.6, -0.42], c2: [0.5, -0.48], outer: [1.08, 0.12] },
+      low: { c1: [-0.5, 0.66], c2: [0.64, 0.6] },
+    };
+    obanaiEye(ctx, 0, spec);
+    obanaiEye(ctx, 1, spec);
+  } else if (expr === 'fierce') {
+    bothBrows(ctx, [[0.412, 0.526], [0.368, 0.498], [0.314, 0.474], [0.258, 0.458]], 6.6, BROW, { fall: 0.45 });
+    const spec = {
+      iris: { a: 0.02, b: 0.02, rx: 0.34, ry: 0.58, pk: 0.26, shadowA: 0.7, hl: [{ x: -0.3, y: -0.28, rx: 0.2, ry: 0.15 }, { x: 0.3, y: 0.44, rx: 0.08, ry: 0.06 }] },
+      lid: { inner: [-1, 0.08], c1: [-0.64, -0.74], c2: [0.36, -0.92], outer: [1.06, -0.1] },
+      low: { c1: [-0.5, 0.84], c2: [0.62, 0.74] },
+      lash: { ...OBANAI.lash, w0: 4.6, w1: 9.6, flicks: [[0.86, -0.3, 1.14, -0.5, 3.4]] },
+    };
+    obanaiEye(ctx, 0, spec);
+    obanaiEye(ctx, 1, spec);
+    // crease between the brows
+    inkLine(ctx, PP([[0.466, 0.508], [0.472, 0.53]]), 2.4, BROW, { taperA: 0.4, taperB: 0.4 });
+    inkLine(ctx, PP([[0.534, 0.508], [0.528, 0.53]]), 2.4, BROW, { taperA: 0.4, taperB: 0.4 });
+  } else {
+    bothBrows(ctx, [[0.402, 0.47], [0.36, 0.478], [0.31, 0.488], [0.258, 0.502]], 5.8, BROW, { fall: 0.5 });
+    // his left eye squeezed, the right one narrowed in pain
+    drawSquint(ctx, eyeFrame(EYE_U[1], EYE_F + 0.01, 1), '#0e0f17', 6.2);
+    obanaiEye(ctx, 0, {
+      iris: { a: 0.02, b: 0.1, rx: 0.42, ry: 0.7, pk: 0.28, shadowA: 0.8, hl: [{ x: -0.3, y: -0.06, rx: 0.18, ry: 0.14, rot: -0.2 }] },
+      lid: { inner: [-1, 0.2], c1: [-0.7, -0.24], c2: [0.36, -0.42], outer: [1.04, 0.18] },
+      low: { c1: [-0.5, 0.66], c2: [0.62, 0.58] },
+      crease: { ...OBANAI.crease, off: 6.5 },
+    });
+    sweatDrop(ctx, 0.2, 0.52, 0.9);
+  }
+  smallNose(ctx, NOSE);
+  obanaiBandage(ctx);
+  return c;
+}
+
 function demonVeins(ctx, rng, starts, col) {
   const grow = (x, y, a, w, len, depth) => {
     const pts = [[x, y]];
@@ -721,6 +1078,12 @@ export const FACE_MAKERS = {
   face_giyu_hurt: () => faceGiyu('hurt'),
   face_akaza_neutral: () => faceAkaza('neutral'),
   face_akaza_fierce: () => faceAkaza('fierce'),
+  face_rengoku_neutral: () => faceRengoku('neutral'),
+  face_rengoku_fierce: () => faceRengoku('fierce'),
+  face_rengoku_hurt: () => faceRengoku('hurt'),
+  face_obanai_neutral: () => faceObanai('neutral'),
+  face_obanai_fierce: () => faceObanai('fierce'),
+  face_obanai_hurt: () => faceObanai('hurt'),
   face_demon_a: () => faceDemonA(),
   face_demon_b: () => faceDemonB(),
 };

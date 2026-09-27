@@ -5,6 +5,7 @@
 import { h, clamp } from './dom.js';
 import { enso, ICON, PAUSE_PATH } from './icons.js';
 import { CHAR_BY_ID, ultGlyph } from './data.js';
+import { setUltStyle } from './hud.js';
 import { device } from '../core/device.js';
 
 // ring 0 = the attack button, 1 = inner arc, 2 = outer arc; a = angle in degrees (180 = left, 90 = up)
@@ -363,8 +364,7 @@ export class TouchControls {
   configure(charId) {
     const c = CHAR_BY_ID[charId];
     if (!c || !this.ultEl) return;
-    this.ultEl.classList.toggle('is-water', c.ultStyle === 'water');
-    this.ultEl.classList.toggle('is-fire', c.ultStyle !== 'water');
+    setUltStyle(this.ultEl, c.ultStyle);
   }
 
   /** Mirrors the HUD skill bar onto the touch buttons (same data as HUD.setSkills). */
@@ -386,7 +386,7 @@ export class TouchControls {
       const name = String(ult.name || '');
       if (name !== u.name) {
         u.name = name;
-        this.ultG.textContent = ultGlyph(name);
+        this.ultG.textContent = ultGlyph(name, ult.glyph);
       }
       const c01 = Math.round(clamp(Number(ult.charge01) || 0, 0, 1) * 300) / 300;
       if (c01 !== u.c01) {

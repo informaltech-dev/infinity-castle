@@ -19,7 +19,8 @@ const DEFAULTS = {
 export const SOUND_GROUPS = {
   'Sword & movement': ['swingLight', 'swingHeavy', 'swingWater', 'swingFire', 'hitSlash', 'hitCrit', 'hitBlunt',
     'clang', 'block', 'guardBreak', 'dodge', 'perfectDodge', 'step', 'land'],
-  'Water / fire': ['waterSplash', 'waterWave', 'waterDragon', 'calm', 'fireBurst', 'fireWhoosh', 'fireDragon'],
+  'Water / fire / serpent': ['waterSplash', 'waterWave', 'waterDragon', 'calm', 'fireBurst', 'fireWhoosh', 'fireDragon', 'tigerRoar',
+    'swingSerpent', 'serpentHiss'],
   'Akaza': ['punchWhoosh', 'punchHit', 'shockwave', 'groundSlam', 'crack', 'barrage', 'compass', 'bossCharge', 'bossRoar'],
   'Demons & misc': ['demonGrowl', 'demonHurt', 'demonDeath', 'decap', 'spawn', 'playerHurt', 'playerDeath',
     'biwa', 'biwaShift', 'taiko', 'doorSlide'],

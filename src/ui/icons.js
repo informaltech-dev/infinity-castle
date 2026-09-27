@@ -203,6 +203,19 @@ export function kikkoURL(size = 10, colors = ['#c9a03a', '#4f6d35', '#b4592b'], 
   return url(svg);
 }
 
+/** Rengoku's haori hem: flame tongues rising from a crimson band on cream. Tiles horizontally. Returns a CSS url(). */
+export function flamesURL(W = 60, H = 100) {
+  const tongue = (cx, w, h, hook, k) => {
+    const y0 = H - 8, wk = w * k, hk = h * k;
+    return `M${f1(cx - wk / 2)} ${y0}C${f1(cx - wk / 2)} ${f1(y0 - hk * 0.55)} ${f1(cx - wk * 0.1 + hook * k)} ${f1(y0 - hk * 0.72)} ${f1(cx + hook * 1.25 * k)} ${f1(y0 - hk)}C${f1(cx + wk * 0.22)} ${f1(y0 - hk * 0.66)} ${f1(cx + wk / 2)} ${f1(y0 - hk * 0.42)} ${f1(cx + wk / 2)} ${y0}Z`;
+  };
+  const set = [[12, 26, 58, 7], [40, 24, 40, -6]];
+  const layer = (k, fill, stroke = 'none', sw = 0) =>
+    `<path d="${[-W, 0, W].flatMap((dx) => set.map(([cx, w, h, hook]) => tongue(cx + dx, w, h, hook, k))).join('')}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#f3ecdc"/>${layer(1, '#d8381c', '#7a1208', 1.6)}${layer(0.68, '#f28a24')}${layer(0.4, '#f9c440')}<rect y="${H - 9}" width="100%" height="9" fill="#b3261a"/><rect y="${H - 9.8}" width="100%" height="1.2" fill="#7a1208"/></svg>`;
+  return url(svg);
+}
+
 /** Seigaiha (blue ocean waves) pattern. Returns a CSS url(). */
 export function seigaihaURL(stroke = '#9fd6f5', bg = '#1d2a4a', R = 20) {
   const ring = (cx, cy) =>

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Pipeline, LAYER_MAIN_ONLY } from '../src/render/pipeline.js';
 import { toonMaterial } from '../src/render/materials.js';
-import { buildTanjiro, buildGiyu, buildAkaza, buildDemon } from '../src/actors/characters.js';
+import { buildTanjiro, buildGiyu, buildRengoku, buildObanai, buildAkaza, buildDemon } from '../src/actors/characters.js';
 import { createAnimator } from '../src/actors/animsets.js';
 
 const canvas = document.getElementById('c');
@@ -40,6 +40,8 @@ scene.add(sky);
 const builders = {
   tanjiro: () => buildTanjiro(T),
   giyu: () => buildGiyu(T),
+  rengoku: () => buildRengoku(T),
+  obanai: () => buildObanai(T),
   akaza: () => buildAkaza(T),
   grunt: () => buildDemon(T, 'grunt', 1),
   fast: () => buildDemon(T, 'fast', 2),

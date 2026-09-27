@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { JOINTS, J, JCOUNT } from './rig.js';
-import { DEG, ease as EASE, clamp } from '../core/math.js';
+import { DEG, ease as EASE, clamp, angleDiff } from '../core/math.js';
 
 // Pose buffer layout: [q(jointCount*4)] [hipX hipY hipZ] [lh] [bodyPitch] [bodyRoll]
 export const HP = JCOUNT * 4;
@@ -344,8 +344,11 @@ export class Animator {
     if (src.clip && src.weight > 0) {
       const ct = src.clip.loop ? src.clipTime : Math.min(src.clipTime, src.clip.dur);
       sampleClip(src.clip, ct, this.act);
+      // body yaw blends the short way round: a spin clip can sit whole turns away from its neighbours
+      // (coilChoke ends at -1080 deg), and a straight lerp would whirl the body through every one of them
       if (src.prevClip && src.fadeIn > 0) {
         sampleClip(src.prevClip, Math.min(src.prevTime, src.prevClip.dur), this.act2);
+        this.act2[BY] = this.act[BY] + angleDiff(this.act[BY], this.act2[BY]);
         blendPose(this.act, this.act2, this.act, clamp(src.blendIn / src.fadeIn));
       }
       const w = src.weight;
@@ -360,6 +363,7 @@ export class Animator {
         for (let i = HP; i < POSE_SIZE; i++) out[i] = this.loco[i];
         out[LH] = this.loco[LH] + (this.act[LH] - this.loco[LH]) * w;
       } else {
+        if (w < 1) this.act[BY] = this.loco[BY] + angleDiff(this.loco[BY], this.act[BY]);
         blendPose(out, this.loco, this.act, w);
       }
     } else {

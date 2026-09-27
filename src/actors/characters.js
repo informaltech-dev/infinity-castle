@@ -72,6 +72,7 @@ function solid(g, color) {
 /**
  * Spiky anime hair around a head centred at `c` with radius r.
  * opts: seed, count, len [min,max], rad [min,max], sweep (Vector3 bias), frontCut (skip spikes over face),
+ *       crown (spikes rooted higher than this over the face still grow; default 0.75),
  *       root, tip colours, bangs: [{u, len, rad}]
  */
 function spikyHair(c, r, opts) {
@@ -89,8 +90,8 @@ function spikyHair(c, r, opts) {
     const polar = Math.acos(1 - t * (opts.coverage ?? 1.25)); // 0 top .. ~1.8
     const az = i * 2.39996 + rnd() * 0.4;
     const dir = new THREE.Vector3(Math.sin(polar) * Math.sin(az), Math.cos(polar), Math.sin(polar) * Math.cos(az));
-    // skip the face region
-    if (dir.z > (opts.frontCut ?? 0.35) && dir.y < 0.75) continue;
+    // skip the face region (spikes rooted above it, on the crown, still grow)
+    if (dir.z > (opts.frontCut ?? 0.35) && dir.y < (opts.crown ?? 0.75)) continue;
     const base = c.clone().addScaledVector(dir, r * 0.92);
     const out = dir.clone().multiplyScalar(opts.outward ?? 0.8).add(opts.sweep ?? new THREE.Vector3(0, -0.5, -0.6));
     const len = THREE.MathUtils.lerp(opts.len[0], opts.len[1], rnd());
@@ -118,9 +119,22 @@ function mat(T, key, color, opts = {}) {
 // ---------------------------------------------------------------------------
 // Swords
 // ---------------------------------------------------------------------------
+/** Bend a blade (built along +Y) into a serpentine wave across its width, fading in from the guard. */
+function waveBlade(g, amp, waves, len) {
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const y = p.getY(i);
+    const t = THREE.MathUtils.clamp(y / len, 0, 1);
+    p.setZ(i, p.getZ(i) + Math.sin(t * Math.PI * 2 * waves) * amp * Math.min(1, t * 4) * (1 - t * 0.35));
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
 function buildSword(rig, T, style) {
   const grip = rig.socket('grip', 'handR', [0, -0.055, 0.012], [Math.PI / 2, 0, 0]);
   const blade = katanaBlade(0.9, 0.034, 0.009, 0.035);
+  if (style.wave) waveBlade(blade, style.wave, 3, 0.9);
   blade.translate(0, 0.135, 0);
   const bladeMat = toonMaterial({
     color: style.blade,
@@ -131,7 +145,9 @@ function buildSword(rig, T, style) {
   });
   const edgeMat = toonMaterial({ color: style.edge ?? 0xdfe8f0, unlit: true });
   const edge = katanaBlade(0.9, 0.012, 0.0095, 0.035);
-  edge.translate(0, 0.135, -0.012);
+  edge.translate(0, 0, -0.012);
+  if (style.wave) waveBlade(edge, style.wave, 3, 0.9);
+  edge.translate(0, 0.135, 0);
   const guardMat = toonMaterial({ color: style.guard, rim: 0.5, spec: 0.6 });
   const hiltMat = toonMaterial({ color: style.hilt, shade: 0x777777 });
   const tsuba = style.flame ? flameTsuba(0.052, 0.012) : hexTsuba(0.046, 0.012);
@@ -304,9 +320,12 @@ function buildSwordsman(T, cfg) {
 }
 
 // Haori: rigid shoulder shell + spring-driven skirt panels, open at the front.
+// opts.skirt / opts.sleeve: [left, right] fabrics for the skirt and the sleeves (default: the halves' own).
 function buildHaori(rig, T, matLeft, matRight, opts = {}) {
   const d = rig.d;
   const len = opts.length ?? 0.62;
+  const [skirtL, skirtR] = opts.skirt ?? [matLeft, matRight];
+  const [sleeveL, sleeveR] = opts.sleeve ?? [matLeft, matRight];
   // torso part: two halves so left/right can use different fabrics (Giyu)
   const gap = 0.55; // radians of front opening
   const half = (Math.PI * 2 - gap) / 2;
@@ -340,7 +359,7 @@ function buildHaori(rig, T, matLeft, matRight, opts = {}) {
     const g = shell(0.175, 0.24, len, th0 - 0.02, span + 0.04, 3, 3);
     g.scale(1, 1, 0.82);
     g.translate(-px, 0, -pz);
-    const m = mid < Math.PI ? matLeft : matRight;
+    const m = mid < Math.PI ? skirtL : skirtR;
     const mesh = new THREE.Mesh(g, m);
     mesh.frustumCulled = false;
     bone.add(mesh);
@@ -350,8 +369,9 @@ function buildHaori(rig, T, matLeft, matRight, opts = {}) {
   for (const s of ['L', 'R']) {
     const sl = shell(0.07, 0.12, 0.34, 0, Math.PI * 2, 10, 2);
     sl.translate(0, 0.02, 0);
-    rig.add('upperArm' + s, sl, s === 'L' ? matLeft : matRight);
+    rig.add('upperArm' + s, sl, s === 'L' ? sleeveL : sleeveR);
   }
+  for (const m of [skirtL, skirtR, sleeveL, sleeveR]) rig.materials.add(m);
   void d;
 }
 
@@ -458,6 +478,182 @@ export function buildGiyu(T) {
   scabbard(rig, T, 0x151515, 0x8a7a50);
   rig.build();
   return finalize(rig, { id: 'giyu', head, sword, faces, T });
+}
+
+export function buildRengoku(T) {
+  // a mane of gold that flares up and back like a flame, crimson at the tips, long locks framing the face
+  const hairOpts = {
+    seed: 31,
+    count: 42,
+    len: [0.12, 0.23],
+    rad: [0.042, 0.06],
+    root: 0xf2bf2c,
+    tip: 0xd4381a,
+    sweep: new THREE.Vector3(0, 0.45, -0.95),
+    outward: 0.62,
+    frontCut: 0.3,
+    crown: 0.9,
+    coverage: 1.45,
+    // the cap stops at a clean hairline (with the default fit the brow shows through it in streaks)
+    capTilt: -0.8,
+    capTheta: 1.62,
+    bangs: [
+      { u: 0.9, len: 0.21, rad: 0.036, dx: 0.02 },
+      { u: -0.9, len: 0.21, rad: 0.036, dx: -0.02 },
+      { u: 1.2, len: 0.23, rad: 0.034 },
+      { u: -1.2, len: 0.23, rad: 0.034 },
+    ],
+  };
+  const faces = { neutral: 'face_rengoku_neutral', fierce: 'face_rengoku_fierce', hurt: 'face_rengoku_hurt' };
+  const { rig, head } = buildSwordsman(T, {
+    hair: hairOpts, faces, skin: 0xf5d8c4, hairShade: 0xb0704a,
+    dims: { hipY: 0.99, upperArm: 0.3, foreArm: 0.26, thigh: 0.46, shin: 0.44, shoulderX: 0.188, headR: 0.119 },
+  });
+  // white haori with flames rising from the hem and the cuffs; the body of it samples only the plain upper half
+  const plain = mat(T, 'rengokuHaori', 0xefe9dc, { shade: 0x9c92a8, rim: 0.45, repeat: [2, 0.5], offset: [0, 0.5], side: THREE.DoubleSide });
+  const hem = mat(T, 'rengokuHaori', 0xe8e0d0, { shade: 0x9c92a8, rim: 0.45, repeat: [0.5, 1], side: THREE.DoubleSide });
+  // (a whole number of tiles round the closed sleeve, or the pattern breaks down its front)
+  const cuff = mat(T, 'rengokuHaori', 0xe8e0d0, { shade: 0x9c92a8, rim: 0.45, repeat: [2, 1], side: THREE.DoubleSide });
+  buildHaori(rig, T, plain, plain, { length: 0.66, skirt: [hem, hem], sleeve: [cuff, cuff] });
+  rig.materials.add(plain);
+  const sword = buildSword(rig, T, { blade: 0xc8321c, bladeShade: 0x6e1c1a, guard: 0xd87a22, hilt: 0x7e1a14, edge: 0xffe0bc, flame: true, bladeGlow: 0x1a0500 });
+  scabbard(rig, T, 0x1a1210, 0xc8561c);
+  rig.build();
+  return finalize(rig, { id: 'rengoku', head, sword, faces, T });
+}
+
+/** Kaburamaru: the white snake coiled round Obanai's neck, head raised by his right cheek (chest-joint space). */
+function kaburamaru(rig) {
+  const pts = [
+    [0.13, 0.215, 0.118], [0.168, 0.278, 0.03], [0.12, 0.312, -0.1], [-0.02, 0.322, -0.132], [-0.14, 0.305, -0.06],
+    [-0.13, 0.268, 0.085], [-0.03, 0.246, 0.14], [0.1, 0.262, 0.112], [0.165, 0.302, 0.0], [0.07, 0.338, -0.112],
+    [-0.07, 0.342, -0.11], [-0.155, 0.358, -0.02], [-0.176, 0.39, 0.035], [-0.166, 0.41, 0.086],
+  ].map(([x, y, z]) => new THREE.Vector3(x, y, z));
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const tube = new THREE.TubeGeometry(curve, 90, 1, 8, false);
+  const pos = tube.attributes.position, uv = tube.attributes.uv;
+  const c = new THREE.Vector3(), q = new THREE.Vector3();
+  const col = new Float32Array(pos.count * 3);
+  const belly = new THREE.Color(0xe8e2d8), back = new THREE.Color(0xfbfaff), band = new THREE.Color(0xcfc8dc), tmp = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    const u = uv.getX(i), v = uv.getY(i);
+    curve.getPointAt(Math.min(1, u), c);
+    q.fromBufferAttribute(pos, i).sub(c);
+    const r = 0.0155 * Math.min(1, 0.22 + u * 2.4) * (u > 0.94 ? 1.08 : 1);
+    q.multiplyScalar(r);
+    pos.setXYZ(i, c.x + q.x, c.y + q.y, c.z + q.z);
+    tmp.copy(back).lerp(belly, 0.5 + 0.5 * Math.cos(v * Math.PI * 2));
+    // faint scale bands along the back
+    if (Math.sin(u * 220) > 0.55) tmp.lerp(band, 0.35 * (0.5 - 0.5 * Math.cos(v * Math.PI * 2)));
+    col[i * 3] = tmp.r; col[i * 3 + 1] = tmp.g; col[i * 3 + 2] = tmp.b;
+  }
+  tube.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  tube.computeVertexNormals();
+  const skin = toonMaterial({ color: 0xffffff, vertexColors: true, shade: 0x9a90b8, rim: 0.55, spec: 0.3 });
+  rig.add('chest', tube, skin);
+  // head: a blunt wedge along the curve's end, red eyes, forked tongue
+  const end = curve.getPointAt(1), dir = curve.getTangentAt(1).normalize();
+  const hg = sphere(0.024, 12, 8);
+  hg.scale(0.9, 0.62, 1.5);
+  const basis = new THREE.Matrix4().lookAt(new THREE.Vector3(), dir, new THREE.Vector3(0, 1, 0));
+  // lookAt points -Z at the target: flip so the snout leads
+  hg.applyMatrix4(new THREE.Matrix4().makeRotationY(Math.PI));
+  hg.applyMatrix4(basis);
+  hg.translate(end.x + dir.x * 0.02, end.y + dir.y * 0.02, end.z + dir.z * 0.02);
+  solid(hg, 0xfbfaff);
+  rig.add('chest', hg, skin);
+  const eyeMat = toonMaterial({ color: 0xd8203a, unlit: true });
+  const side = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
+  const eyes = [];
+  for (const sgn of [1, -1]) {
+    const e = sphere(0.0065, 6, 4);
+    const p = end.clone().addScaledVector(dir, 0.03).addScaledVector(side, sgn * 0.016).add(new THREE.Vector3(0, 0.009, 0));
+    e.translate(p.x, p.y, p.z);
+    eyes.push(e);
+  }
+  const tongue = new THREE.ConeGeometry(0.004, 0.035, 4);
+  tongue.rotateX(Math.PI / 2);
+  tongue.applyMatrix4(new THREE.Matrix4().makeRotationY(Math.atan2(dir.x, dir.z)));
+  const tp = end.clone().addScaledVector(dir, 0.07).add(new THREE.Vector3(0, -0.005, 0));
+  tongue.translate(tp.x, tp.y, tp.z);
+  rig.add('chest', merge([...eyes, tongue]), eyeMat);
+  rig.materials.add(skin);
+  rig.materials.add(eyeMat);
+}
+
+/**
+ * Obanai's bandage beyond the face decal: under the chin and round the sides of the jaw (the decal paints the
+ * front, down to where it ends at the jaw). Same jaw deformation as the head so it hugs it.
+ */
+function jawBandage(rig, head) {
+  const R = rig.d.headR * 1.022;
+  const c = head.headCenter;
+  const pieces = [
+    new THREE.SphereGeometry(R, 30, 6, Math.PI / 2 - 2.2, 4.4, 2.02, 0.74), // under the chin, ear to ear
+    // the cheek wraps, which dip below the ears (phi 2.96-3.32 and -0.18-0.18) on their way round
+    new THREE.SphereGeometry(R, 3, 5, Math.PI / 2 + 1.02, 0.31, 1.66, 0.4), // his right cheek
+    new THREE.SphereGeometry(R, 6, 3, 2.9, 0.871, 1.86, 0.2), // under his right ear
+    new THREE.SphereGeometry(R, 3, 5, 0.24, 0.311, 1.66, 0.4), // his left cheek
+    new THREE.SphereGeometry(R, 6, 3, Math.PI / 2 - 2.2, 0.869, 1.86, 0.2), // under his left ear
+  ];
+  const cream = new THREE.Color(0xf1ebdf), fold = new THREE.Color(0xd2cbd8), tmp = new THREE.Color();
+  for (const g of pieces) {
+    const p = g.attributes.position;
+    const col = new Float32Array(p.count * 3);
+    for (let i = 0; i < p.count; i++) {
+      // polar angle of this vertex: faint lines where one wrap overlaps the next
+      const th = Math.acos(THREE.MathUtils.clamp(p.getY(i) / R, -1, 1));
+      const k = Math.max(0, 1 - Math.abs(th - 2.2) / 0.035) + Math.max(0, 1 - Math.abs(th - 2.46) / 0.035) * 0.8 + Math.max(0, 1 - Math.abs(th - 1.86) / 0.03) * 0.7;
+      tmp.copy(cream).lerp(fold, Math.min(1, k));
+      col[i * 3] = tmp.r; col[i * 3 + 1] = tmp.g; col[i * 3 + 2] = tmp.b;
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    deformHead(g, R);
+    g.translate(c.x, c.y, c.z);
+  }
+  const m = toonMaterial({ color: 0xffffff, vertexColors: true, shade: 0xa39bb5, rim: 0.2 });
+  rig.add('head', merge(pieces), m);
+  rig.materials.add(m);
+}
+
+export function buildObanai(T) {
+  // straight black hair to the jaw, a heavy fringe over the brow
+  const hairOpts = {
+    seed: 47,
+    count: 34,
+    len: [0.13, 0.22],
+    rad: [0.034, 0.05],
+    root: 0x131218,
+    tip: 0x24212e,
+    sweep: new THREE.Vector3(0, -0.95, -0.28),
+    outward: 0.4,
+    frontCut: 0.3,
+    coverage: 1.45,
+    capTilt: -0.55,
+    bangs: [
+      { u: 0.0, polar: 0.5, len: 0.075, rad: 0.036, dz: 0.1 },
+      { u: 0.3, polar: 0.52, len: 0.075, rad: 0.036, dx: 0.12 },
+      { u: -0.3, polar: 0.52, len: 0.075, rad: 0.036, dx: -0.12 },
+      { u: 0.72, len: 0.17, rad: 0.034, dx: 0.06 },
+      { u: -0.72, len: 0.17, rad: 0.034, dx: -0.06 },
+      { u: 1.02, len: 0.21, rad: 0.033 },
+      { u: -1.02, len: 0.21, rad: 0.033 },
+    ],
+  };
+  const faces = { neutral: 'face_obanai_neutral', fierce: 'face_obanai_fierce', hurt: 'face_obanai_hurt' };
+  const { rig, head } = buildSwordsman(T, {
+    hair: hairOpts, faces, skin: 0xf3d7c6, hairShade: 0x6a6480,
+    dims: { hipY: 0.88, spine: 0.105, chest: 0.18, upperArm: 0.265, foreArm: 0.235, thigh: 0.405, shin: 0.4, shoulderX: 0.165, headR: 0.114 },
+  });
+  jawBandage(rig, head);
+  const stripes = mat(T, 'obanaiStripes', 0xd8d4cc, { shade: 0x8a8298, rim: 0.45, repeat: [3, 2], side: THREE.DoubleSide });
+  buildHaori(rig, T, stripes, stripes, { length: 0.6 });
+  rig.materials.add(stripes);
+  kaburamaru(rig);
+  const sword = buildSword(rig, T, { blade: 0x7a52b8, bladeShade: 0x3c2a66, guard: 0x3a3148, hilt: 0x2a2440, edge: 0xeee6ff, flame: false, bladeGlow: 0x0d051a, wave: 0.009 });
+  scabbard(rig, T, 0x16141c, 0x7a5ab0);
+  rig.build();
+  return finalize(rig, { id: 'obanai', head, sword, faces, T });
 }
 
 export function buildAkaza(T) {

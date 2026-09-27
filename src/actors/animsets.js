@@ -7,6 +7,7 @@ import {
 } from './poses.js';
 
 const cache = new Map();
+const SWORDSMEN = new Set(['tanjiro', 'giyu', 'rengoku', 'obanai']);
 
 function compileSet(key, stance, clips) {
   if (cache.has(key)) return cache.get(key);
@@ -21,7 +22,7 @@ function compileSet(key, stance, clips) {
 export function createAnimator(model) {
   const id = model.id;
   let anim, clips;
-  if (id === 'tanjiro' || id === 'giyu') {
+  if (SWORDSMEN.has(id)) {
     anim = new Animator(model.rig, { stance: SWORD_STANCE, run: SWORD_RUN, sprint: SWORD_SPRINT, guard: SWORD_GUARD });
     clips = compileSet('sword', SWORD_STANCE, SWORD_CLIPS);
     const grip = model.sword.grip;

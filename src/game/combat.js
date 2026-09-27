@@ -96,7 +96,7 @@ export class Combat {
     let crit = !!h.crit;
     if (att.team === 'player') {
       dmg *= diff.toEnemy * (att.dmgMul ?? 1);
-      if (att.consumeCrit?.(victim)) crit = true;
+      if (att.consumeCrit?.(victim, h)) crit = true;
       if (crit) dmg *= 1.8;
       if (victim.staggered) dmg *= 1.3;
     } else {

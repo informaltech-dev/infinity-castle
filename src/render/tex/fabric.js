@@ -165,6 +165,204 @@ export function uniformBlack(seed) {
   return c;
 }
 
+// ---------------------------------------------------------------------------
+// Rengoku: white haori with flames rising from the hem. 512 x 512, seamless
+// left-right only (mapped once vertically; canvas top = shoulders, bottom =
+// hem). The top half is plain cream fabric -- the torso samples just that
+// half -- so every flame pixel stays below y = S / 2.
+// ---------------------------------------------------------------------------
+
+// Spine of a flame tongue: rises from (x, y) in a gentle S, then hooks over
+// towards dir (+1 right, -1 left) with growing curvature from curlAt onwards.
+// `extra` continues the curl for a few steps past the tip (for the ink point).
+function flameSpine(x, y, len, dir, o, extra = 0) {
+  const { n, sway, swayPh, curl, curlAt, lean } = o;
+  const pts = [[x, y]];
+  const ds = len / n;
+  let px = x, py = y;
+  for (let i = 0; i < n + extra; i++) {
+    const u = (i + 0.5) / n;
+    const k = u > curlAt ? (u - curlAt) / (1 - curlAt) : 0;
+    const th = -Math.PI / 2 + dir * (lean + sway * Math.cos(u * Math.PI * 1.15 + swayPh) + curl * k * k);
+    px += Math.cos(th) * ds;
+    py += Math.sin(th) * ds;
+    pts.push([px, py]);
+  }
+  return pts;
+}
+
+export function rengokuHaori(seed) {
+  const S = 512;
+  const rng = makeRng(seed);
+  const { c, ctx } = canvas2d(S, S);
+  // plain cream haori fabric; its folds carry on across the flames (same seed, flame-toned)
+  const foldSeed = rng.seed();
+  const FOLD = { count: 7, ang: 1.52, angJ: 0.18, widthK: 0.13 };
+  fabricBase(ctx, S, seed, '#efe9dc', '#dcd4c4', '#f9f6ef', 0.35);
+  brushWork(ctx, S, rng, 44, ['#f8f4ec', '#e0d8c8'], { ang: 1.5, angJ: 0.18, lenMin: 80, lenMax: 220, wMin: 8, wMax: 22, aMin: 0.08, aMax: 0.18 });
+  folds(ctx, S, makeRng(foldSeed), { ...FOLD, dark: '#5a4c48', light: '#ffffff', darkA: 0.18, lightA: 0.22 });
+
+  // flames are painted on their own layer (the painterly passes use source-atop)
+  const fl = canvas2d(S, S);
+  const f = fl.ctx;
+  f.lineJoin = 'round';
+  const INK = '#4a0906', INK2 = '#7c170c', CRIMSON = '#b3261a';
+  const BODY = '#e2521c', ORANGE = '#f28a24', GOLD = '#f9c440';
+  const ROOT = S * 0.955; // tongues grow out of the hem band from here
+  const N = 40;
+  const prof = (u) => Math.pow(Math.max(0, 1 - u), 1.1) * (1 + 0.22 * Math.sin(Math.PI * u));
+
+  // One tongue: ink (the body dilated by LW, running out to a sharp point past
+  // the tip), body, and orange + gold cores (shorter, straighter flames from the same root).
+  const tongues = [];
+  const LW = 10, LW2 = 3.6, EXTRA = 3;
+  const tongue = (x, top, w0, dir, layers = 2) => {
+    const o = { n: N, sway: rng.range(0.2, 0.32), swayPh: rng.range(-0.3, 0.3), curl: rng.range(2.5, 3.0), curlAt: rng.range(0.58, 0.66), lean: rng.range(-0.05, 0.08) };
+    const bodyW = (t, i) => (i === 0 ? w0 : w0 * prof((i - 1) / N));
+    const inkW = (t, i) => (i === 0 ? w0 + LW : i <= N + 1 ? w0 * prof((i - 1) / N) + LW : LW * Math.pow(1 - (i - N - 1) / EXTRA, 0.8));
+    let len = ROOT - top;
+    let spine, ink;
+    for (let it = 0; it < 4; it++) {
+      spine = [[x, S + 30], ...flameSpine(x, ROOT, len, dir, o, EXTRA)];
+      ink = ribbon(spine, inkW, { taperA: 0, taperB: 0 });
+      len *= (ROOT - top) / (ROOT - (ink.bbox[1] + 1));
+    }
+    const body = ribbon(spine.slice(0, N + 2), bodyW, { taperA: 0, taperB: 0 });
+    const inner = [[0.74, 0.6, 0], [0.48, 0.36, 1]].slice(0, layers).map(([k, kw, which]) => {
+      const pts = flameSpine(x, ROOT, len * k, dir, { ...o, curl: o.curl * 0.6 });
+      return { path: ribbon(pts, (t, i) => w0 * kw * prof(i / N), { taperA: 0, taperB: 0 }).path, which };
+    });
+    const bb = ink.bbox;
+    tongues.push({ ink: ink.path, path: body.path, inner, bb: [bb[0] - 2, bb[1] - 2, bb[2] + 2, bb[3] + 2] });
+  };
+
+  // back: tall main tongues (the tallest tip reaches ~55% of the canvas height)
+  const tops = [0.552, 0.66, 0.585, 0.69, 0.615];
+  const x0 = S * rng.range(0.26, 0.34); // keeps the tallest tongue off the wrap edge
+  for (let i = 0; i < 5; i++) tongue(x0 + (i + rng.range(-0.08, 0.08)) * (S / 5), tops[i] * S, rng.range(96, 112), rng.sign());
+  // middle: shorter tongues in the gaps
+  for (let i = 0; i < 5; i++) tongue(x0 + (i + 0.5 + rng.range(-0.08, 0.08)) * (S / 5), S * rng.range(0.74, 0.79), rng.range(72, 84), rng.sign());
+  // front: low flickers along the top of the hem band
+  for (let i = 0; i < 5; i++) tongue(x0 + (i + 0.25 + rng.range(-0.1, 0.1)) * (S / 5), S * rng.range(0.85, 0.88), rng.range(50, 58), rng.sign(), 1);
+
+  // low wavy flame mass under all tongues (periodic in x), so no valley ever opens onto the band
+  const massPts = [];
+  const mp1 = rng.range(0, TAU), mp2 = rng.range(0, TAU);
+  for (let x = 0; x <= S; x += 8) massPts.push([x, S * 0.872 + 6 * Math.sin((x / S) * TAU * 3 + mp1) + 3 * Math.sin((x / S) * TAU * 7 + mp2)]);
+  massPts.push([S, S + 4], [0, S + 4]);
+  const mass = pathOf(massPts, true);
+
+  // vertical gradients: everything melts into deep crimson towards the hem
+  const vg = (stops) => {
+    const g = f.createLinearGradient(0, 0, 0, S);
+    for (const [t, col] of stops) g.addColorStop(t, css(col));
+    return g;
+  };
+  const bodyG = vg([[0.86, BODY], [0.92, CRIMSON]]);
+  const inkG = vg([[0.885, INK], [0.92, CRIMSON]]);
+  const ink2G = vg([[0.88, INK2], [0.915, CRIMSON]]);
+  const coreG = [vg([[0.87, ORANGE], [0.918, CRIMSON]]), vg([[0.855, GOLD], [0.89, ORANGE], [0.918, CRIMSON]])];
+  const each = (fn) => { for (const t of tongues) wrapped(f, S, S, t.bb, () => fn(t), true, false); };
+  // 1) one bold ink contour around the whole flame mass
+  f.fillStyle = inkG;
+  f.strokeStyle = inkG;
+  f.lineWidth = LW;
+  f.stroke(mass);
+  each((t) => f.fill(t.ink));
+  f.fillStyle = bodyG;
+  f.fill(mass);
+  each((t) => f.fill(t.path));
+  // 2) back to front: thin contours where tongues overlap, then the orange and gold cores
+  each((t) => {
+    f.lineWidth = LW2;
+    f.strokeStyle = inkG;
+    f.stroke(t.path);
+    f.fillStyle = bodyG;
+    f.fill(t.path);
+    f.save();
+    f.clip(t.path);
+    f.lineWidth = LW2 * 0.8;
+    f.strokeStyle = ink2G;
+    for (const L of t.inner) {
+      f.stroke(L.path);
+      f.fillStyle = coreG[L.which];
+      f.fill(L.path);
+    }
+    f.restore();
+  });
+  // solid crimson band along the hem (bottom ~8%), its top edge laid in with ragged horizontal strokes
+  f.fillStyle = css(CRIMSON);
+  f.fillRect(0, S * 0.92, S, S * 0.08);
+  for (let i = 0; i < 12; i++) {
+    const y = S * rng.range(0.905, 0.925);
+    const pts = strokePts(rng.range(0, S), y, rng.range(-0.04, 0.04), rng.range(70, 150), rng.range(-0.3, 0.3), 12);
+    dryBrush(f, pts, rng.range(6, 12), CRIMSON, rng.range(0.55, 0.85), rng, { W: S, H: S, bristles: 2, bristleColor: '#c7351f' });
+  }
+
+  // hand-painted streaks, mottling and the fabric folds, only where there is paint
+  f.globalCompositeOperation = 'source-atop';
+  for (let i = 0; i < 70; i++) {
+    const y = rng.range(S * 0.55, S * 1.05);
+    const pts = strokePts(rng.range(0, S), y, -Math.PI / 2 + rng.range(-0.35, 0.35), rng.range(24, 80), rng.range(-0.6, 0.6), 10);
+    const col = y > S * 0.9 ? rng.pick(['#8c1409', '#c63a24']) : rng.pick(['#ff9a4a', '#8c1409', '#ffd27a']);
+    dryBrush(f, pts, rng.range(4, 12), col, rng.range(0.06, 0.15), rng, { W: S, H: S, bristles: 3 });
+  }
+  drawTiled(f, toneLayer(32, 32, fbmGrid(32, 32, { cx: 4, cy: 4, oct: 3, seed: (seed & 0xfff) + 31 }), '#6a0a05', '#ffb070', 0.18, 1.3), S, S, { op: 'source-atop' });
+  drawTiled(f, foldLayer(64, makeRng(foldSeed), { ...FOLD, dark: '#3a0502', light: '#ffc27a', darkA: 0.3, lightA: 0.1 }), S, S, { op: 'source-atop' });
+  f.globalCompositeOperation = 'source-over';
+  f.clearRect(0, 0, S, S / 2 + 4); // hard guarantee: no flame pixels in the upper half
+  ctx.drawImage(fl.c, 0, 0);
+
+  weave(ctx, S, S, 0.1, 'overlay', 2);
+  grain(ctx, S, S, 0.06);
+  return c;
+}
+
+// ---------------------------------------------------------------------------
+// Obanai: black / off-white vertical stripes (4 + 4 per tile), 256 x 256.
+// ---------------------------------------------------------------------------
+export function obanaiStripes(seed) {
+  const S = 256, N = 8, SW = S / N;
+  const rng = makeRng(seed);
+  const { c, ctx } = canvas2d(S, S);
+  fabricBase(ctx, S, seed, '#e9e5dc', '#d6d0c4', '#f6f3ed', 0.35);
+  brushWork(ctx, S, rng, 26, ['#f5f2eb', '#d6d0c3'], { ang: 1.55, angJ: 0.12, lenMin: 60, lenMax: 150, wMin: 4, wMax: 10, aMin: 0.1, aMax: 0.2 });
+  // black stripes on their own layer; edges wobble periodically in y so the tile wraps vertically
+  const bl = canvas2d(S, S);
+  const b = bl.ctx;
+  const edge = (x) => {
+    const k1 = rng.int(1, 3), k2 = rng.int(4, 7), p1 = rng.range(0, TAU), p2 = rng.range(0, TAU);
+    const a1 = rng.range(0.5, 1.0), a2 = rng.range(0.2, 0.45);
+    return (y) => x + a1 * Math.sin((y / S) * TAU * k1 + p1) + a2 * Math.sin((y / S) * TAU * k2 + p2);
+  };
+  for (let k = 0; k < N / 2; k++) {
+    // stripes are offset half a stripe, so the tile edge falls inside a white stripe
+    const xa = SW * (2 * k + 0.5);
+    const L = edge(xa), R = edge(xa + SW);
+    const pts = [];
+    for (let y = -4; y <= S + 4; y += 4) pts.push([L(y), y]);
+    for (let y = S + 4; y >= -4; y -= 4) pts.push([R(y), y]);
+    const p = pathOf(pts, true);
+    const tone = vary('#18171d', rng, 0.012, 4, 0.03);
+    b.fillStyle = css(tone);
+    b.fill(p);
+    b.save();
+    b.clip(p);
+    for (let s = 0; s < 9; s++) {
+      const sp = strokePts(xa + rng.range(0, SW), rng.range(0, S), Math.PI / 2 + rng.range(-0.12, 0.12), rng.range(40, 120), rng.range(-0.4, 0.4), 8);
+      const rib = ribbon(sp, rng.range(4, 11), { taperA: 0.3, taperB: 0.4, wobble: 0.3, rng });
+      fillWrapped(b, rib, S, S, css(rng.chance(0.5) ? lighten(tone, 0.08) : darken(tone, 0.4), rng.range(0.3, 0.6)));
+    }
+    b.restore();
+  }
+  drawTiled(b, toneLayer(32, 32, fbmGrid(32, 32, { cx: 2, cy: 2, oct: 4, seed: (seed & 0xfff) + 5 }), '#0b0a0e', '#2e2d38', 0.45, 1.3), S, S, { op: 'source-atop' });
+  ctx.drawImage(bl.c, 0, 0);
+  folds(ctx, S, rng, { count: 8, dark: '#34323f', light: '#d8d5e2', darkA: 0.16, lightA: 0.2, ang: 1.54, angJ: 0.1, widthK: 0.11 });
+  weave(ctx, S, S, 0.1);
+  grain(ctx, S, S, 0.06);
+  return c;
+}
+
 export function legWraps(seed) {
   const S = 256, SP = 32, SLOPE = 0.25;
   const rng = makeRng(seed);

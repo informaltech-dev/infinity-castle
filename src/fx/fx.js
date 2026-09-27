@@ -92,6 +92,10 @@ export class ScreenFX {
   chroma(amount = 0.6) {
     this.chromaV = Math.max(this.chromaV, amount);
   }
+  /** Let a running ripple die out quickly. */
+  endRipple() {
+    if (this.rippleT >= 0) this.rippleT = Math.max(this.rippleT, this.rippleLen * 0.9);
+  }
   ripple(len = 2.5, center = null) {
     this.rippleT = 0;
     this.rippleLen = len;
@@ -153,6 +157,7 @@ const STYLE_COL = {
   calm: 0xd8f4ff,
   demon: 0xff4a6a,
   akaza: 0x7fe6ff,
+  serpent: 0xc6a4ff,
 };
 
 export class FX {
@@ -209,6 +214,9 @@ export class FX {
     } else if (style === 'fire') {
       P.embers(pos, Math.round(12 + power * 20), 0xff8a2a, 3 + power * 3, 0.8);
       if (power > 0.35) this.effects.sprite(pos, { tex: 'flame', size: 0.5 + power * 0.9, life: 0.35, grow: 0.6, rise: 1.5, additive: true, add: 0.5 });
+    } else if (style === 'serpent') {
+      P.sparks(pos, _v, Math.round(6 + power * 10), 0xf2eaff, 10 + power * 6, 0.6);
+      if (power > 0.35) this.effects.sprite(pos, { tex: 'splash', size: 0.4 + power * 0.7, life: 0.26, rot: Math.random() * 6.28, grow: 0.8, color: 0xc6a4ff, alpha: 0.75 });
     } else if (style === 'demon') {
       P.sparks(pos, _v, 8, 0xff3050, 7, 1.2);
     }

@@ -93,13 +93,26 @@
   .ps-info {
     right: max(5vw, calc(env(safe-area-inset-right, 0px) + 12px));
   }
+  /* four swordsmen: narrow cards leave the middle of the screen to the preview model */
+  .sl-cards {
+    --cu: var(--u);
+    gap: calc(var(--u) * 1.1);
+  }
   .sl-card {
-    width: calc(var(--u) * 12);
+    width: calc(var(--u) * 9.4);
     height: 66vh;
   }
   .sl-card-name {
     top: 38%;
-    font-size: calc(var(--u) * 3.6);
+    font-size: calc(var(--u) * 3.3);
+  }
+  .sl-card-title {
+    right: calc(var(--u) * 0.5);
+    font-size: calc(var(--u) * 1.2);
+  }
+  .sl-card .ic-seal {
+    left: calc(var(--u) * 0.7);
+    width: calc(var(--u) * 3.1);
   }
   /* the detail sheet keeps its header and scrolls the rest */
   .sl-detail {
