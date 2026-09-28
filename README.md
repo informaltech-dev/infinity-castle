@@ -121,17 +121,25 @@ node tests/mobile.mjs bars          # iPhone Safari：向上滑動收起網址�
 
 ## 預告片
 
-`trailer/` 以遊戲本身逐格渲染約 80 秒的預告片：無頭 Chrome（使用顯示卡）載入 `/trailer/`，虛擬時鐘讓遊戲、介面動畫與計時器都只在擷取時前進一格，每格截圖（含 HUD 與字卡）直接送進 ffmpeg；音效在擷取時只記錄，事後以原本的音效引擎離線重播，與畫面同步到毫秒，再和剪好的配樂混音、響度正規化後封裝。
+`trailer/` 以遊戲本身逐格渲染預告片，目前有兩支：
+
+| 時間軸 | 長度 | 內容 | 配樂 |
+|---|---|---|---|
+| `main`（預設） | 約 80 秒 | 竈門炭治郎、富岡義勇對上弦之參 | 錄音（戰鬥曲、出場曲） |
+| `moon` | 約 99 秒 | 風柱、岩柱對上弦之壹，以及真劍難度 | 遊戲內即時合成的黑死牟戰曲，離線渲染；刀身變化時轉入第二段 |
+
+無頭 Chrome（使用顯示卡）載入 `/trailer/`，虛擬時鐘讓遊戲、介面動畫與計時器都只在擷取時前進一格，每格截圖（含 HUD 與字卡）直接送進 ffmpeg；音效在擷取時只記錄，事後以原本的音效引擎離線重播，與畫面同步到毫秒，再和配樂混音、響度正規化後封裝。正式擷取前會先把整段無聲預跑一遍：網頁字型的子集第一次畫出時需要一點真實時間，擷取的速度遠快於真實時間，不預跑的話，字卡與介面文字的頭幾格會是空白。
 
 ```bash
-pnpm dev                                   # 另開一個終端機
-node trailer/capture.mjs --scale 2         # 1080p60，兩倍解析度超取樣 → trailer/out/trailer.mp4
-node trailer/capture.mjs --preview         # 540p30 草稿（模擬結果相同）
-node trailer/capture.mjs --from 41 --to 56 # 只渲染一段
-node trailer/capture.mjs --sheet 0.5       # 縮圖總覽
+pnpm dev                                        # 另開一個終端機
+node trailer/capture.mjs --scale 2              # 第一支：1080p60，兩倍解析度超取樣 → trailer/out/trailer.mp4
+node trailer/capture.mjs --tl moon --scale 2    # 第二支 → trailer/out/moon.mp4
+node trailer/capture.mjs --tl moon --preview    # 540p30 草稿（模擬結果相同）
+node trailer/capture.mjs --from 41 --to 56      # 只渲染一段
+node trailer/capture.mjs --sheet 0.5            # 縮圖總覽
 ```
 
-鏡頭、字卡、配樂剪接與音效提示都在 `trailer/shots.js`，場景時間對齊戰鬥曲的小節線（132 BPM）；每個場景自行重建舞台並重設亂數種子，任何片段單獨渲染結果都與整段相同。`/trailer/?tl=survey` 是逐招巡覽，用來挑鏡頭。
+鏡頭、字卡、配樂剪接與音效提示在 `trailer/shots.js`（第一支，對齊戰鬥曲 132 BPM 的小節線）與 `trailer/moon.js`（第二支，對齊黑死牟戰曲 120 BPM，每小節 2 秒）；每個場景自行重建舞台並重設亂數種子，任何片段單獨渲染結果都與整段相同。`/trailer/?tl=survey` 是逐招巡覽（含黑死牟各型、真劍的格擋與處決），用來挑鏡頭。
 
 ## 目錄
 
@@ -143,4 +151,4 @@ node trailer/capture.mjs --sheet 0.5       # 縮圖總覽
 - `src/ui/` 選單與 HUD（`touch.js` 觸控按鈕、`compact.css` 手機精簡版面）；`src/core/device.js` 觸控偵測與輸入模式切換；`src/audio/` 音效與配樂（`music/files.js` 為錄音播放）
 - `public/music/` 主畫面、出場與首領戰錄音
 - `tests/` 動作實驗室（`pose.html`）、貼圖、介面、音效測試頁
-- `trailer/` 預告片：虛擬時鐘、場景腳本、字卡、音效記錄與離線混音、擷取程式
+- `trailer/` 預告片：虛擬時鐘、兩支預告片的場景腳本、字卡、音效記錄與離線混音、擷取程式

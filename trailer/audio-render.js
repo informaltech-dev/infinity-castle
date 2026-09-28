@@ -1,8 +1,10 @@
 // Offline soundtrack for the trailer, rendered as two stems (mixed and levelled by capture.mjs with ffmpeg):
-//   music: the edit of the recordings in public/music, with its gain automation;
+//   music: the edit of the recordings in public/music (or of the game's synthesized score, 'synth:<track>'),
+//          with its gain automation;
 //   sfx:   the game's sound effects, replayed from the capture log through the real audio engine, each call at
 //          the exact frame time that made it, plus the trailer's own cues.
 import { Engine } from '../src/audio/engine.js';
+import { MusicEngine } from '../src/audio/music/music.js';
 import { getSharedBank } from '../src/audio/debug.js';
 import { MUSIC_FILES } from '../src/audio/music/files.js';
 
@@ -13,6 +15,24 @@ async function decode(ctx, key) {
   const r = await fetch(BASE + MUSIC_FILES[key]);
   if (!r.ok) throw new Error(`${r.status} ${MUSIC_FILES[key]}`);
   return ctx.decodeAudioData(await r.arrayBuffer());
+}
+
+/**
+ * One of the game's synthesized tracks, rendered from its first bar through the real music engine (as it sounds
+ * in the fight) for `len` seconds. Its bar 0 falls at SYNTH_T0: a music entry's `from` counts from there.
+ */
+export const SYNTH_T0 = 0.05;
+async function renderSynth(name, len, sr, intensity = 0.7) {
+  // (the score's own choices -- which flute phrase, which variation -- come from Math.random: seeded, every
+  // render of the trailer plays the same notes)
+  window.__vclock?.seed(0x6d6f6f6e ^ [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7));
+  const ctx = new OfflineAudioContext(2, Math.ceil(sr * len), sr);
+  const eng = new Engine(ctx, await getSharedBank(sr), { offline: true });
+  const me = new MusicEngine(eng);
+  me.intensity = me.target = intensity;
+  me.play(name, 0.02);
+  me.tick(len);
+  return ctx.startRendering();
 }
 
 /** Piecewise-linear automation [[t, v], ...] written onto an AudioParam. */
@@ -28,7 +48,13 @@ async function renderMusic(TL, sr) {
   bus.connect(ctx.destination);
   if (TL.musicKeys?.length) automate(bus.gain, TL.musicKeys);
   const bufs = {};
-  for (const m of TL.music) if (!bufs[m.src]) bufs[m.src] = await decode(ctx, m.src);
+  for (const m of TL.music) {
+    if (bufs[m.src]) continue;
+    if (m.src.startsWith('synth:')) {
+      const len = Math.max(...TL.music.filter((x) => x.src === m.src).map((x) => x.to)) + 1;
+      bufs[m.src] = await renderSynth(m.src.slice(6), len, sr, m.intensity);
+    } else bufs[m.src] = await decode(ctx, m.src);
+  }
   for (const m of TL.music) {
     const len = m.to - m.from;
     const src = ctx.createBufferSource();

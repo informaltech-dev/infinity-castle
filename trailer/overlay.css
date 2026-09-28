@@ -202,6 +202,61 @@ body.tr-hud-cine #lock-hint {
   filter: brightness(1.25);
 }
 
+/* ---------------------------------------------------------------- feature beat */
+.tr-feat {
+  position: absolute;
+  top: 17vh;
+  left: 6.5vw;
+  display: flex;
+  align-items: center;
+  gap: 2.6vmin;
+}
+.tr-feat.is-right {
+  left: auto;
+  right: 6.5vw;
+  flex-direction: row-reverse;
+  text-align: right;
+}
+.tr-feat-no {
+  width: 9vmin;
+  height: 9vmin;
+  display: grid;
+  place-items: center;
+  background: var(--c);
+  -webkit-mask: var(--tex-seal) center / 100% 100% no-repeat;
+  mask: var(--tex-seal) center / 100% 100% no-repeat;
+}
+.tr-feat-no span {
+  font-weight: 900;
+  font-size: 4.6vmin;
+  line-height: 1;
+  color: #f7ecd8;
+}
+.tr-feat-main {
+  font-weight: 900;
+  font-size: 7.4vmin;
+  line-height: 1.1;
+  letter-spacing: 0.14em;
+  color: #f7f0e3;
+  text-shadow: 0.04em 0.04em 0 #0d0b0c, 0 0 0.3em rgba(0, 0, 0, 0.8);
+}
+.tr-feat-rule {
+  height: 1.5vmin;
+  width: 100%;
+  margin: 0.8vmin 0 1.2vmin;
+  background: var(--c);
+  -webkit-mask: var(--tex-stroke) center / 100% 100% no-repeat;
+  mask: var(--tex-stroke) center / 100% 100% no-repeat;
+}
+.tr-feat-sub {
+  font-family: var(--f-body);
+  font-weight: 700;
+  font-size: 2.7vmin;
+  letter-spacing: 0.3em;
+  color: var(--washi);
+  text-shadow: 0 0 0.4em #000, 0 0 0.1em #000;
+}
+
 /* ---------------------------------------------------------------- end card */
 .tr-logo {
   position: absolute;

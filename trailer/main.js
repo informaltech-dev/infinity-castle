@@ -8,9 +8,11 @@ import { Trailer } from './trailer.js';
 import { Overlay } from './overlay.js';
 import { TIMELINE as MAIN } from './shots.js';
 import { SURVEY } from './survey.js';
+import { TIMELINE as MOON } from './moon.js';
 import { renderSoundtrack } from './audio-render.js';
 
-const TIMELINE = new URLSearchParams(location.search).get('tl') === 'survey' ? SURVEY : MAIN;
+const TIMELINES = { main: MAIN, survey: SURVEY, moon: MOON };
+const TIMELINE = TIMELINES[new URLSearchParams(location.search).get('tl')] || MAIN;
 
 const game = new Game({
   canvas: document.getElementById('game-canvas'),

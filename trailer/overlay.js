@@ -177,6 +177,47 @@ const TYPES = {
     },
   },
 
+  // a feature beat: a numbered seal stamped down, a short line inked in over a brush rule, a note beneath
+  feature: {
+    make: (it) => {
+      const e = el('div', `tr-feat is-${it.side || 'left'}`);
+      e.style.setProperty('--c', it.color || 'var(--verm)');
+      e.innerHTML = `${it.no ? `<div class="tr-feat-no"><span>${esc(it.no)}</span></div>` : ''}
+        <div class="tr-feat-text">
+          <div class="tr-feat-main">${glyphSpans(it.text)}</div>
+          <div class="tr-feat-rule"></div>
+          ${it.sub ? `<div class="tr-feat-sub">${esc(it.sub)}</div>` : ''}
+        </div>`;
+      e._no = e.querySelector('.tr-feat-no');
+      e._g = [...e.querySelectorAll('.tr-feat-main i')];
+      e._rule = e.querySelector('.tr-feat-rule');
+      e._sub = e.querySelector('.tr-feat-sub');
+      return e;
+    },
+    update(n, it, lt) {
+      if (n._no) {
+        const a = lin(0, 0.14, lt);
+        n._no.style.opacity = a.toFixed(3);
+        n._no.style.transform = `rotate(-6deg) scale(${(1.9 - 0.9 * outC(a)).toFixed(3)})`;
+      }
+      n._g.forEach((g, i) => {
+        const a = outC((lt - 0.1 - i * 0.06) / 0.3);
+        g.style.opacity = a.toFixed(3);
+        g.style.transform = `translateX(${((1 - a) * -0.3).toFixed(3)}em)`;
+        g.style.filter = a < 0.999 ? `blur(${((1 - a) * 6).toFixed(2)}px)` : 'none';
+      });
+      n._rule.style.clipPath = `inset(0 ${((1 - outExpo((lt - 0.2) / 0.5)) * 100).toFixed(2)}% 0 0)`;
+      if (n._sub) {
+        const a = outC((lt - 0.45) / 0.5);
+        n._sub.style.opacity = a.toFixed(3);
+        n._sub.style.transform = `translateY(${((1 - a) * 0.5).toFixed(3)}em)`;
+      }
+      const out = it.fadeOut ?? 0.35;
+      const o = 1 - inC((lt - (it.dur - out)) / out);
+      n.style.opacity = o.toFixed(3);
+    },
+  },
+
   // end card
   logo: {
     make: (it) => {
@@ -240,7 +281,7 @@ export class Overlay {
   }
 
   glyphs() {
-    return this.items.map((it) => [it.text, it.sub, it.kicker, it.label, it.name, it.school, it.seal, it.url, it.note].filter(Boolean).join('')).join('');
+    return this.items.map((it) => [it.text, it.sub, it.kicker, it.label, it.name, it.school, it.seal, it.url, it.note, it.no].filter(Boolean).join('')).join('');
   }
 
   /** HUD mode: 'game' (full HUD), 'cine' (callouts, subtitles and cards only) or 'none'. */

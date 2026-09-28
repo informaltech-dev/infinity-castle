@@ -6,8 +6,9 @@
 // on its own and every render of it is identical.
 import * as THREE from 'three';
 import { ease as EASE, clamp, lerp } from '../src/core/math.js';
-import { buildAkaza, buildDemon } from '../src/actors/characters.js';
+import { buildAkaza, buildKokushibo, buildDemon } from '../src/actors/characters.js';
 import { Akaza } from '../src/actors/boss.js';
+import { Kokushibo, kokushiboTier } from '../src/actors/kokushibo.js';
 import { Enemy } from '../src/actors/enemy.js';
 
 export const FPS = 60;
@@ -180,6 +181,73 @@ class Scene {
     return b;
   }
 
+  /**
+   * Kokushibo, scripted: no forms of his own (cooldown), no phase change unless asked. `phase: 2` stands him in
+   * the second state already (the long blade out, the violet light). `seed` fixes his crescents' patterns.
+   */
+  kokushibo(pos = [0, 0, 8], yaw = Math.PI, o = {}) {
+    const g = this.g;
+    const model = buildKokushibo(g.T);
+    const b = new Kokushibo(g, model, kokushiboTier(1), o.seed ?? 7);
+    b.pos.copy(vec(pos));
+    b.yaw = yaw;
+    g.scene.add(model.root);
+    b.shadow = g.director._shadow(g);
+    g.enemies.push(b);
+    g.boss = b;
+    b.setState(o.state || 'idle');
+    b.cooldown = o.cooldown ?? 1e9;
+    if (o.phase === 2) {
+      b.phase = 2;
+      const s = model.sword;
+      for (const part of s.shortParts) part.visible = false;
+      s.long.group.visible = true;
+      b._setStance(true);
+      g.onBossPhase?.(2);
+    }
+    if (o.hp != null) b.hp = o.hp;
+    // (between his scripted forms he only turns to face his foe: no walking in, no circling)
+    if (o.still !== false) {
+      b._think = function (dt, p) {
+        this.anim.setLoco(0, 0, 0);
+        if (p) this.turnTowards(p.pos, 7, dt);
+      };
+    }
+    this.boss = b;
+    return b;
+  }
+
+  /**
+   * A second swordsman in the shot: the select screen's model of them, posed and animated (no body, no moves).
+   * `o.clip` holds a clip, `o.time` starts it part-way; `walk(x, speed)` walks it along its facing. Gone at the
+   * next scene.
+   */
+  extra(id, pos, yaw = 0, o = {}) {
+    const g = this.g;
+    const m = g.previews?.[id];
+    if (!m) return null;
+    m.root.visible = true;
+    m.root.position.copy(vec(pos));
+    m.root.rotation.y = yaw;
+    const a = m.anim.anim;
+    a.clip = null;
+    a.prevClip = null;
+    a.weight = 0;
+    a.setLoco(0, 0, 0);
+    if (o.clip) a.play(m.anim.clips[o.clip], { fade: 0, hold: o.hold ?? true, time: o.time ?? 0, speed: o.speed ?? 1 });
+    if (m.flail) m.flail.init = false;
+    m.setFace?.(o.face || 'neutral');
+    const sh = g.director._shadow(g);
+    const x = { id, m, a, clips: m.anim.clips, yaw, speed: 0, shadow: sh, radius: id === 'gyomei' ? 0.5 : 0.42 };
+    x.walk = (speed) => {
+      x.speed = speed;
+      a.setLoco(speed, 0, speed > 6 ? 1 : 0);
+    };
+    x.play = (clip, opts = {}) => a.play(m.anim.clips[clip], { fade: 0.08, ...opts });
+    this.tr.extras.push(x);
+    return x;
+  }
+
   // ------------------------------------------------------------ camera
   /** Point in `actor`'s frame: x = its right, y = up, z = its forward. `yaw` overrides the actor's facing. */
   rel(actor, [x, y, z], yaw, out = new THREE.Vector3()) {
@@ -254,6 +322,8 @@ export class Trailer {
     this.frame = -1;
     this.t = 0;
     this.cur = null;
+    /** Scene extras (see Scene.extra), cleared with each scene's stage. */
+    this.extras = [];
     this.audio.clock = () => this.t;
     const sc = timeline.scenes;
     for (let i = 0; i < sc.length; i++) sc[i].end = i + 1 < sc.length ? sc[i + 1].at : timeline.duration;
@@ -323,11 +393,44 @@ export class Trailer {
     }
     S.def.update?.(S, S.t);
     const g = this.g;
+    if (this.extras.length) this._extras(DT * (g.timeScale ?? 1));
     if (S.data.autoParry && S.p) this._autoParry(S);
+    if (S.data.autoRead && S.p) this._autoRead(S, S.data.autoRead);
     if (S.timeScale != null) {
       g.timeScale = g.slowTarget = S.timeScale;
       g.slowT = 0;
     }
+  }
+
+  _extras(dt) {
+    const g = this.g;
+    for (const x of this.extras) {
+      const m = x.m;
+      if (x.speed) {
+        m.root.position.x += Math.sin(x.yaw) * x.speed * dt;
+        m.root.position.z += Math.cos(x.yaw) * x.speed * dt;
+      }
+      m.root.rotation.y = x.yaw;
+      x.a.stepHz = g.stepHz;
+      x.a.update(dt);
+      x.a.apply();
+      m.rig.updateSprings(dt);
+      m.flail?.update(dt);
+      const s = x.radius * 2.6;
+      x.shadow.position.set(m.root.position.x, 0.025, m.root.position.z);
+      x.shadow.scale.set(s, s, 1);
+    }
+  }
+
+  _clearExtras() {
+    const g = this.g;
+    for (const x of this.extras) {
+      x.m.root.visible = false;
+      g.scene.remove(x.shadow);
+      x.shadow.geometry.dispose();
+      x.shadow.material.dispose();
+    }
+    this.extras.length = 0;
   }
 
   /** Raise the guard just before an incoming hit lands (perfect-parry window is the first 0.2 s of a block). */
@@ -343,6 +446,34 @@ export class Trailer {
           S.hold('block', 0.3);
           return;
         }
+      }
+    }
+  }
+
+  /**
+   * The same, reading each blow's real time to land (a boss's held wind-ups included): a blow that can be
+   * guarded is parried, one that cannot (危) is stepped off -- `o.dodge` names the keys to dodge along.
+   */
+  _autoRead(S, o) {
+    const p = S.p;
+    if (p.state === 'block' || p.curMove === 'dodge' || S.holds.some((h) => h.button === 2 || h.key === 'Space')) return;
+    for (const e of this.g.enemies) {
+      const r = e.alive && e.action;
+      if (!r) continue;
+      const clock = Math.max(0.05, (e.speedMul ?? 1) * (this.g.enemyTimeScale ?? 1));
+      for (const h of r.def.hits || []) {
+        if (r.t > h.t) continue;
+        const left = (r.timeTo ? r.timeTo(h.t) : (h.t - r.t) / Math.max(0.05, r.speed ?? 1)) / clock;
+        if (h.unblockable) {
+          if (!o.dodge || left > (o.dodgeLead ?? 0.14)) continue;
+          S.move(o.dodge);
+          S.tap('dodge');
+          S.at(S.t + 0.2, () => S.move(null));
+          return;
+        }
+        if (o.parry === false || left > (o.parryLead ?? 0.09)) continue;
+        S.hold('block', 0.3);
+        return;
       }
     }
   }
@@ -398,6 +529,7 @@ export class Trailer {
     d.bossDown = null;
     d.charId = char;
     g._clearActors();
+    this._clearExtras();
     g.fx.clear();
     g.fx.screen.tint.setRGB(1, 1, 1);
     g.boss = null;
@@ -420,6 +552,8 @@ export class Trailer {
     // every scene starts from the same state whatever was rendered before it
     g.time = def.at;
     g.realTime = def.at;
+    // (the difficulty's rules are read live: 真劍 scenes ask for them, every other scene is on normal)
+    g.settings.difficulty = st.diff || 'normal';
     d.seed = 1 + (hash(def.id) % 97);
     const hud = g.ui?.hud;
     if (hud) {
@@ -445,7 +579,8 @@ export class Trailer {
     if (world === 'arena') g.world.buildArena();
     else g.world.buildHall();
     g.world.time = 0;
-    if (world === 'arena') g._lightingArena();
+    if (st.light === 'moon') g._lightingMoon();
+    else if (world === 'arena') g._lightingArena();
     else g._lightingHall();
     g.mode = 'story';
     g.charId = char;
@@ -457,7 +592,9 @@ export class Trailer {
       const pl = st.player || {};
       const p = d.spawnPlayer(vec(pl.pos || [0, 0, 0]), pl.yaw ?? 0);
       p.god = pl.god ?? true;
-      if (pl.god === false) p.hp = p.maxHp = 9999;
+      // (unkillable: a huge pool of health; `real` keeps the character's own, `hp` sets the share left)
+      if (pl.god === false && !pl.real) p.hp = p.maxHp = 9999;
+      if (pl.hp != null) p.hp = Math.round(p.maxHp * pl.hp);
       p.conc = pl.conc ?? 0;
       p.breath = p.maxBreath;
       S.p = p;

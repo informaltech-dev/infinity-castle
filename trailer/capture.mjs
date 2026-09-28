@@ -10,6 +10,8 @@
 //   node trailer/capture.mjs --stills 3.2,10.5    PNG stills only
 //   node trailer/capture.mjs --sheet 0.5          contact sheets, one thumbnail every 0.5 s
 //   --scale 2                                     render at 2x and downscale (supersampled edges)
+//   --tl moon                                     another timeline (/trailer/?tl=moon → trailer/out/moon.mp4)
+//   --no-warm                                     skip the warm-up pass (see below)
 import { chromium } from 'playwright-core';
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -28,13 +30,14 @@ for (let i = 0; i < argv.length; i++) {
 const FPS = 60;
 const W = 1920;
 const H = 1080;
-const URL = args.url || 'http://localhost:5190/trailer/';
+const tl = typeof args.tl === 'string' ? args.tl : '';
+const URL = args.url || `http://localhost:5190/trailer/${tl ? `?tl=${encodeURIComponent(tl)}` : ''}`;
 const preview = !!args.preview;
 const scale = +(args.scale ?? (preview ? 0.5 : 1));
 const outFps = +(args.fps ?? (preview ? 30 : 60));
 const every = Math.max(1, Math.round(FPS / outFps));
 const outDir = path.resolve(args.dir || 'trailer/out');
-const name = args.name || (preview ? 'preview' : 'trailer');
+const name = args.name || (tl ? (preview ? `${tl}-preview` : tl) : preview ? 'preview' : 'trailer');
 fs.mkdirSync(outDir, { recursive: true });
 
 const log = (...m) => console.log(`[capture ${new Date().toLocaleTimeString()}]`, ...m);
@@ -59,6 +62,15 @@ page.on('console', (m) => {
 page.on('pageerror', (e) => console.log('  [page exception]', String(e).slice(0, 500)));
 await page.addInitScript(() => {
   window.__VCLOCK_MANUAL = true;
+  // (a headless page must never take the real pointer or a display: on macOS a pointer lock grabs the system
+  // cursor even from a headless browser)
+  const none = () => Promise.resolve();
+  Element.prototype.requestPointerLock = none;
+  Element.prototype.requestFullscreen = none;
+  Document.prototype.exitPointerLock = () => {};
+  try {
+    if (screen.orientation) screen.orientation.lock = none;
+  } catch (_) { /* read-only here */ }
 });
 log(`loading ${URL} (scale ${scale})`);
 await page.goto(URL, { waitUntil: 'domcontentloaded' });
@@ -91,6 +103,16 @@ const shot = async (format = 'jpeg', quality = 94) => {
 };
 const step = () => page.evaluate(() => window.__vclock.advance(1000 / 60));
 
+// Warm-up: the range is played through once, unrecorded, before the real pass. Text in a web-font subset the
+// page has not drawn before takes a moment of real time to appear (even with the font loaded), and the capture
+// steps far faster than real time: without this, a title card or a HUD label is blank for its first frames.
+const lastT = args.stills ? Math.max(...String(args.stills).split(',').map(Number)) : to / FPS;
+if (!args['no-warm']) {
+  await page.evaluate((f) => window.__trailer.begin(f), from);
+  for (let f = from; f <= Math.round(lastT * FPS); f++) await step();
+  await sleep(600);
+  log('warmed up');
+}
 await page.evaluate((f) => window.__trailer.begin(f), from);
 
 // ---------------------------------------------------------------- stills / contact sheets

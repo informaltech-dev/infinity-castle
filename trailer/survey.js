@@ -8,6 +8,7 @@ const orbit = (focus, r = 6.5, h = 2.0, a0 = 0.5, w = 0.25, fov = 48) => (S, t) 
   S.cam(new THREE.Vector3(f.x + Math.sin(a) * r, h, f.z + Math.cos(a) * r), new THREE.Vector3(f.x, 1.1, f.z), fov);
 };
 const mid = (S) => (S.boss ? S.p.pos.clone().lerp(S.boss.pos, 0.5) : S.p.pos.clone());
+const MOON = { world: 'arena', light: 'moon' };
 
 const list = [
   ['doors', { world: 'hall', char: 'tanjiro' }, (S) => {
@@ -126,11 +127,103 @@ const list = [
   ['boss-intro', { world: 'arena', char: 'tanjiro', player: { pos: [0, 0, -8] } }, (S) => {
     S.g.director.run(S.g.director.bossFight());
   }, () => false],
+  // ---- Kokushibo under the moon: his forms, the second state, 真劍, and the two Hashira against him
+  ['moon-intro', { ...MOON, char: 'gyomei', player: { pos: [0, 0, -8] } }, (S) => {
+    S.g.director.run(S.g.director.kokushiboFight());
+  }, () => false, { dur: 12 }],
+  ...[['combo', 'c3'], ['iai', 'iai'], ['pearl'], ['loathe'], ['cast'], ['eternal'], ['thrust', 'thrust']].map(([form, exec]) => [
+    'moon-' + form, { ...MOON, char: 'sanemi', player: { pos: [0, 0, -3.2] } }, (S) => {
+      const b = S.kokushibo([0, 0, 1.4], Math.PI);
+      S.at(0.2, () => (exec ? b._execute(exec) : b._chain([form])));
+    }, orbit(mid, 8, 2.2),
+  ]),
+  ['moon-transform', { ...MOON, char: 'gyomei', player: { pos: [0, 0, -4] } }, (S) => {
+    const b = S.kokushibo([0, 0, 1.5], Math.PI);
+    S.at(0.2, () => b._enterPhase(2));
+  }, orbit(mid, 7, 1.8, 0.2, 0.12), { dur: 5 }],
+  ...[['mirror'], ['dragon'], ['descend'], ['saw'], ['spiral'], ['sky'], ['iai2', 'iai'], ['dragonFall', 'dragonFall']].map(([form, exec]) => [
+    'moon2-' + form, { ...MOON, char: 'gyomei', player: { pos: [0, 0, -4] } }, (S) => {
+      const b = S.kokushibo([0, 0, 1.5], Math.PI, { phase: 2 });
+      S.at(0.2, () => (exec ? b._execute(exec) : b._chain([form])));
+    }, orbit(mid, 10, 3),
+  ]),
+  ['duel-parry', { ...MOON, diff: 'duel', char: 'sanemi', player: { pos: [0, 0, -1.4], god: false } }, (S) => {
+    const b = S.kokushibo([0, 0, 1.2], Math.PI);
+    S.data.autoRead = { parry: true };
+    S.p.lockTarget = b;
+    S.at(0.2, () => b._execute('c3'));
+  }, orbit(mid, 5), { hud: 'game' }],
+  ['duel-exec-gyomei', { ...MOON, diff: 'duel', char: 'gyomei', player: { pos: [0, 0, -1.5], god: false } }, (S) => {
+    const b = S.kokushibo([0, 0, 1.2], Math.PI);
+    S.data.autoRead = { parry: true };
+    S.p.lockTarget = b;
+    b.poise = 12;
+    S.at(0.2, () => b._execute('c2'));
+    for (let i = 0; i < 14; i++) S.at(1.2 + i * 0.12, () => S.p.execTarget() && S.tap('light'));
+  }, orbit(mid, 6), { hud: 'game', dur: 5 }],
+  ['duel-exec-sanemi', { ...MOON, diff: 'duel', char: 'sanemi', player: { pos: [0, 0, -1.5], god: false } }, (S) => {
+    const b = S.kokushibo([0, 0, 1.2], Math.PI);
+    S.data.autoRead = { parry: true };
+    S.p.lockTarget = b;
+    b.poise = 12;
+    S.at(0.2, () => b._execute('c2'));
+    for (let i = 0; i < 14; i++) S.at(1.2 + i * 0.12, () => S.p.execTarget() && S.tap('light'));
+  }, orbit(mid, 6), { hud: 'game', dur: 5 }],
+  ['duel-peril', { ...MOON, diff: 'duel', char: 'sanemi', player: { pos: [0, 0, -3], god: false } }, (S) => {
+    const b = S.kokushibo([0, 0, 1.5], Math.PI);
+    S.p.lockTarget = b;
+    S.at(0.2, () => b._execute('thrust'));
+    S.data.autoRead = { dodge: 'D' };
+  }, orbit(mid, 7), { hud: 'game' }],
+  ['sanemi-k-claws', { ...MOON, char: 'sanemi', player: { pos: [0, 0, -4] } }, (S) => {
+    S.kokushibo([0, 0, 3], Math.PI);
+    S.at(0.2, () => S.tap('skill1'));
+  }, orbit(mid, 8, 2.2, 1.1)],
+  ['sanemi-k-storm', { ...MOON, char: 'sanemi', player: { pos: [0, 0, -2] } }, (S) => {
+    const b = S.kokushibo([0, 0, 2.5], Math.PI);
+    S.at(0.1, () => b._chain(['loathe']));
+    S.at(0.3, () => S.tap('skill2'));
+  }, orbit(mid, 8, 2.6)],
+  ['sanemi-k-ult', { ...MOON, char: 'sanemi', player: { pos: [0, 0, -3], conc: 100 } }, (S) => {
+    S.kokushibo([0, 0, 2], Math.PI, { phase: 2 });
+    S.at(0.2, () => S.tap('ult'));
+  }, orbit(mid, 11, 4), { dur: 5 }],
+  ['gyomei-k-poles', { ...MOON, char: 'gyomei', player: { pos: [0, 0, -3.5] } }, (S) => {
+    S.kokushibo([0, 0, 1.5], Math.PI);
+    S.at(0.2, () => S.tap('skill1'));
+  }, orbit(mid, 8, 2.4, 1.2)],
+  ['gyomei-k-skin', { ...MOON, char: 'gyomei', player: { pos: [0, 0, -4] } }, (S) => {
+    const b = S.kokushibo([0, 0, 2], Math.PI);
+    S.at(0.1, () => b._chain(['pearl']));
+    S.at(0.3, () => S.tap('skill2'));
+  }, orbit(mid, 9, 3)],
+  ['gyomei-k-charged', { ...MOON, char: 'gyomei', player: { pos: [0, 0, -3.5] } }, (S) => {
+    S.kokushibo([0, 0, 1.5], Math.PI);
+    S.at(0.1, () => S.hold('heavy', 1.0));
+  }, orbit(mid, 9, 3, 1.3)],
+  ['gyomei-k-ult', { ...MOON, char: 'gyomei', player: { pos: [0, 0, -3], conc: 100 } }, (S) => {
+    S.kokushibo([0, 0, 2.5], Math.PI, { phase: 2 });
+    S.at(0.2, () => S.tap('ult'));
+  }, orbit(mid, 12, 4.4), { dur: 5 }],
+  ['moon-finisher', { ...MOON, char: 'gyomei', player: { pos: [0, 0, -2.6] } }, (S) => {
+    const b = S.kokushibo([0, 0, 0.6], Math.PI, { phase: 2 });
+    b.die(S.p, {});
+    S.at(0.4, () => S.g.director.run(S.g.director.kokushiboFinisher(b)));
+    S.at(1.4, () => S.tap('light'));
+  }, () => false, { dur: 16 }],
 ];
 
+// (an entry may carry { dur, hud } after its camera)
+let at = 0;
+const scenes = list.map(([id, stage, setup, camera, o = {}]) => {
+  const sc = { id, at, stage, hud: o.hud || 'cine', setup, camera };
+  at += o.dur || D;
+  return sc;
+});
+
 export const SURVEY = {
-  duration: list.length * D,
-  scenes: list.map(([id, stage, setup, camera], i) => ({ id, at: i * D, stage, hud: 'cine', setup, camera })),
+  duration: at,
+  scenes,
   overlays: [],
   music: [],
   cues: [],
