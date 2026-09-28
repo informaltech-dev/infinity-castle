@@ -783,3 +783,175 @@ export const hairAkaza = (seed) => hair(seed, {
   sheen: ['#ffe2e8', 66, 14, 0.55],
   tipGlow: '#fff0f2',
 });
+
+// ---------------------------------------------------------------------------
+// Sanemi: a plain white haori; scarred skin where his open jacket and rolled
+// sleeves leave him bare; 殺 on the back of the haori.
+// ---------------------------------------------------------------------------
+export function sanemiHaori(seed) {
+  const S = 256;
+  const rng = makeRng(seed);
+  const { c, ctx } = canvas2d(S, S);
+  fabricBase(ctx, S, seed, '#f1efe8', '#dedbd2', '#fbfaf6', 0.3);
+  brushWork(ctx, S, rng, 24, ['#fcfbf7', '#dcd8cf'], { ang: 1.5, angJ: 0.18, aMin: 0.08, aMax: 0.18 });
+  folds(ctx, S, rng, { count: 7, dark: '#8a86a2', light: '#ffffff', darkA: 0.2, lightA: 0.22, ang: 1.5, angJ: 0.15, widthK: 0.14 });
+  weave(ctx, S, S, 0.08);
+  grain(ctx, S, S, 0.05);
+  return c;
+}
+
+/** One healed wound: a raised pink welt, pale down its middle, now and then with the stitch marks either side. */
+function scar(ctx, pts, w, rng, W, H, stitches = false) {
+  const outer = ribbon(pts, w, { taperA: 0.3, taperB: 0.3, pow: 0.8, wobble: 0.35, rng });
+  const inner = ribbon(offsetPts(pts, w * 0.08), w * 0.36, { taperA: 0.35, taperB: 0.35, pow: 0.8 });
+  const rim = ribbon(pts, w * 1.5, { taperA: 0.3, taperB: 0.3, pow: 0.8 });
+  fillWrapped(ctx, rim, W, H, css('#c98a80', 0.35));
+  fillWrapped(ctx, outer, W, H, css('#df9f95'));
+  fillWrapped(ctx, inner, W, H, css('#f6d6cb', 0.9));
+  if (!stitches) return;
+  for (let i = 2; i < pts.length - 2; i += 2) {
+    const [x, y] = pts[i], [x2, y2] = pts[i + 1];
+    const a = Math.atan2(y2 - y, x2 - x) + Math.PI / 2 + rng.range(-0.2, 0.2);
+    const l = w * rng.range(0.9, 1.3);
+    const tick = ribbon([[x - Math.cos(a) * l, y - Math.sin(a) * l], [x + Math.cos(a) * l, y + Math.sin(a) * l]], w * 0.28, { taperA: 0.3, taperB: 0.3 });
+    fillWrapped(ctx, tick, W, H, css('#c47c74', 0.8));
+  }
+}
+
+function skinBase(ctx, S, seed, rng) {
+  fabricBase(ctx, S, seed, '#efcdb8', '#e2b9a4', '#f8dccb', 0.3);
+  for (let i = 0; i < 10; i++) wash(ctx, rng.range(0, S), rng.range(0, S), rng.range(20, 60), rng.range(20, 60), rng.pick(['#e8b8a6', '#f6d8c8']), 0.12, S, S);
+}
+
+/**
+ * His torso, 512 x 512, seamless left-right (u = 0 is the middle of his chest). The bottom third is the
+ * abdomen (the spine joint samples it), the top two thirds the chest up to the collarbones. The open jacket
+ * shows only the front, so the anatomy is painted round x = 0; scars cross it every way.
+ */
+export function sanemiChest(seed) {
+  const S = 512;
+  const rng = makeRng(seed);
+  const { c, ctx } = canvas2d(S, S);
+  skinBase(ctx, S, seed, rng);
+  const LINE = '#c9907f';
+  const line = (pts, w, a = 0.55) => fillWrapped(ctx, ribbon(pts, w, { taperA: 0.3, taperB: 0.3, pow: 0.8 }), S, S, css(LINE, a));
+  // (mirrored about x = 0, drawn once at each side of the seam)
+  const both = (pts, w, a) => {
+    line(pts, w, a);
+    line(pts.map(([x, y]) => [-x, y]), w, a);
+  };
+  // down the middle, the chest to the navel
+  line([[0, S * 0.26], [1, S * 0.45], [0, S * 0.66], [0, S * 0.9]], 3, 0.45);
+  // collarbones
+  both([[S * 0.018, S * 0.05], [S * 0.07, S * 0.035], [S * 0.13, S * 0.05]], 3.2, 0.5);
+  // the lower edge of each pectoral, curving up to the armpit
+  both([[S * 0.006, S * 0.3], [S * 0.06, S * 0.325], [S * 0.12, S * 0.29], [S * 0.16, S * 0.2]], 5, 0.6);
+  // the ribs' edge and the rows of the abdomen
+  both([[S * 0.03, S * 0.44], [S * 0.07, S * 0.47], [S * 0.1, S * 0.52]], 3.5, 0.45);
+  for (const y of [0.56, 0.72, 0.84]) both([[S * 0.008, S * y], [S * 0.035, S * (y + 0.008)], [S * 0.058, S * (y - 0.004)]], 3.4, 0.5);
+  both([[S * 0.06, S * 0.5], [S * 0.064, S * 0.7], [S * 0.056, S * 0.92]], 3.2, 0.35);
+  // scars: long cuts slanting across the chest and belly, a few short ones, a stitched one
+  const cut = (x, y, ang, len, w, bend = 0.2, st = false) => scar(ctx, strokePts(x, y, ang, len, bend, 14), w, rng, S, S, st);
+  cut(-S * 0.14, S * 0.12, 0.62, S * 0.36, 9, 0.25);
+  cut(S * 0.13, S * 0.2, 2.45, S * 0.3, 8, -0.2, true);
+  cut(-S * 0.1, S * 0.5, -0.35, S * 0.22, 7, 0.15);
+  cut(S * 0.02, S * 0.62, 0.3, S * 0.16, 6.5, 0.3);
+  cut(-S * 0.05, S * 0.78, -0.1, S * 0.13, 6, 0.2, true);
+  cut(S * 0.09, S * 0.36, 1.9, S * 0.12, 6, 0.1);
+  for (let i = 0; i < 6; i++) cut(rng.range(S * 0.2, S * 0.8), rng.range(0, S), rng.range(0, TAU), rng.range(S * 0.08, S * 0.2), rng.range(5, 8), rng.range(-0.3, 0.3), rng.chance(0.3));
+  grain(ctx, S, S, 0.05);
+  return c;
+}
+
+/** His forearms, 256 x 256 tileable: skin crossed by old cuts. */
+export function sanemiArm(seed) {
+  const S = 256;
+  const rng = makeRng(seed);
+  const { c, ctx } = canvas2d(S, S);
+  skinBase(ctx, S, seed, rng);
+  for (let i = 0; i < 5; i++) {
+    const pts = strokePts(rng.range(0, S), rng.range(0, S), rng.range(-0.6, 0.6) + (i % 2 ? Math.PI : 0), rng.range(S * 0.25, S * 0.5), rng.range(-0.3, 0.3), 12);
+    scar(ctx, pts, rng.range(5, 7.5), rng, S, S, i === 1);
+  }
+  grain(ctx, S, S, 0.05);
+  return c;
+}
+
+/**
+ * 殺 in black brush ink, for the back of his haori (transparent elsewhere). The decal it lies on is wider
+ * than it is tall on his back (about 0.72 : 1 once wrapped round it), so the glyph is drawn that much wider.
+ */
+export function sanemiKill(seed) {
+  const S = 256;
+  const rng = makeRng(seed);
+  const { c, ctx } = canvas2d(S, S);
+  const ink = canvas2d(S, S);
+  const k = ink.ctx;
+  k.textAlign = 'center';
+  k.textBaseline = 'middle';
+  k.font = `700 ${Math.round(S * 0.8)}px "LXGW WenKai TC", "Kaiti TC", "STKaiti", "BiauKai", "DFKai-SB", "Noto Serif TC", serif`;
+  k.save();
+  k.translate(S / 2, S * 0.53);
+  k.scale(1.3, 1);
+  // a few passes a pixel or two apart: a loaded brush, heavier than the font's stroke
+  for (let i = 0; i < 7; i++) {
+    k.fillStyle = css('#121012', i ? 0.5 : 1);
+    k.fillText('殺', rng.range(-2.5, 2.5), rng.range(-2.5, 2.5));
+  }
+  k.restore();
+  // dry-brush breaks: streaks of bare cloth dragged through the ink along the strokes' length
+  k.globalCompositeOperation = 'destination-out';
+  for (let i = 0; i < 70; i++) {
+    const pts = strokePts(rng.range(0, S), rng.range(0, S), rng.pick([0, Math.PI / 2, 0.8, -0.8]) + rng.range(-0.15, 0.15), rng.range(10, 40), rng.range(-0.3, 0.3), 6);
+    k.fillStyle = css('#000', rng.range(0.25, 0.7));
+    k.fill(ribbon(pts, rng.range(0.8, 2.2), { taperA: 0.4, taperB: 0.4 }).path);
+  }
+  k.globalCompositeOperation = 'source-over';
+  ctx.drawImage(ink.c, 0, 0);
+  return c;
+}
+
+// ---------------------------------------------------------------------------
+// Gyomei: an olive haori with the nembutsu, 南無阿彌陀佛, written down it in
+// columns of brush ink. 512 x 512, seamless; four columns a tile.
+// ---------------------------------------------------------------------------
+export function gyomeiHaori(seed) {
+  const S = 512;
+  const rng = makeRng(seed);
+  const { c, ctx } = canvas2d(S, S);
+  fabricBase(ctx, S, seed, '#6f6c3e', '#5a5830', '#83804c', 0.4);
+  brushWork(ctx, S, rng, 40, ['#7c7946', '#5c5a32'], { ang: 1.5, angJ: 0.2, lenMin: 80, lenMax: 220, wMin: 8, wMax: 20, aMin: 0.1, aMax: 0.2 });
+  // the sutra: each column starts at its own height and runs off the tile's foot onto the next tile's head
+  const ink = canvas2d(S, S);
+  const k = ink.ctx;
+  const TEXT = '南無阿彌陀佛';
+  const size = S / 6.4;
+  k.textAlign = 'center';
+  k.textBaseline = 'middle';
+  k.font = `700 ${Math.round(size * 0.86)}px "LXGW WenKai TC", "Kaiti TC", "STKaiti", "BiauKai", "DFKai-SB", "Noto Serif TC", serif`;
+  for (let col = 0; col < 4; col++) {
+    const x = (col + 0.5) * (S / 4);
+    const y0 = rng.range(0, S);
+    for (let i = 0; i < 7; i++) {
+      const ch = TEXT[(i + col * 2) % TEXT.length];
+      const y = (y0 + i * size) % S;
+      for (const oy of [0, -S]) {
+        k.fillStyle = css('#1f1e0c', rng.range(0.55, 0.75));
+        k.fillText(ch, x + rng.range(-3, 3), y + oy + size / 2);
+      }
+    }
+  }
+  // dry brush: the ink breaks where the weave shows through
+  k.globalCompositeOperation = 'destination-out';
+  for (let i = 0; i < 160; i++) {
+    const pts = strokePts(rng.range(0, S), rng.range(0, S), Math.PI / 2 + rng.range(-0.2, 0.2), rng.range(12, 50), rng.range(-0.3, 0.3), 6);
+    k.fillStyle = css('#000', rng.range(0.2, 0.55));
+    k.fill(ribbon(pts, rng.range(1, 2.6), { taperA: 0.4, taperB: 0.4 }).path);
+  }
+  k.globalCompositeOperation = 'source-over';
+  ctx.drawImage(ink.c, 0, 0);
+  folds(ctx, S, rng, { count: 8, dark: '#2c2a16', light: '#a9a670', darkA: 0.28, lightA: 0.18, ang: 1.5, angJ: 0.15, widthK: 0.12 });
+  weave(ctx, S, S, 0.1);
+  grain(ctx, S, S, 0.06);
+  return c;
+}

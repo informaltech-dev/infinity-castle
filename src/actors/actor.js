@@ -348,6 +348,22 @@ export class Actor {
     return dt;
   }
 
+  /**
+   * Sanemi's 稀血: a demon that has smelled his blood reels as if drunk for a while (drunkT seconds of real
+   * time, its clock at drunkK). Returns the factor for this frame's clock.
+   */
+  drunkScale(realDt) {
+    if (!(this.drunkT > 0)) return 1;
+    this.drunkT -= realDt;
+    if (this.alive && Math.random() < realDt * 5) {
+      this.head(_v);
+      _v.x += (Math.random() - 0.5) * 0.4;
+      _v.z += (Math.random() - 0.5) * 0.4;
+      this.game.fx.particles.smoke(_v, 1, 0xb83a52, 0.28, 0.5, 0.9);
+    }
+    return this.drunkK ?? 0.6;
+  }
+
   /** Called after behaviour: writes transform, animates the rig, updates effects. */
   present(dt, sampleCb) {
     this.root.position.set(this.pos.x, this.pos.y + this.posY, this.pos.z);

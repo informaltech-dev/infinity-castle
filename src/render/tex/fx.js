@@ -397,6 +397,70 @@ export function waveCurl(seed) {
 }
 
 // ---------------------------------------------------------------------------
+// Wind swirl (alpha blend): a gust sweeping in from the left and curling into a
+// spiral, two thinner streaks riding alongside, jade under a dark green ink line
+// ---------------------------------------------------------------------------
+export function windCurl(seed) {
+  const S = 512;
+  const rng = makeRng(seed);
+  const { c, ctx } = canvas2d(S, S);
+  const INK = '#0c3322';
+  /** A gust: a gentle sweep from (x0, y0) that winds into a spiral round (cx, cy), `turns` times, r0 -> r1. */
+  const gust = (x0, y0, cx, cy, r0, r1, turns) => {
+    const pts = [];
+    const lead = 10;
+    const a0 = Math.PI / 2;
+    const sx = cx + Math.cos(a0) * r0, sy = cy + Math.sin(a0) * r0;
+    for (let i = 0; i < lead; i++) {
+      const t = i / lead;
+      pts.push([lerp(x0, sx, t), lerp(y0, sy, t) + Math.sin(t * Math.PI) * 0.03 * S]);
+    }
+    const n = Math.round(40 * turns);
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const a = a0 - t * turns * TAU;
+      const r = lerp(r0, r1, Math.pow(t, 0.8));
+      pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]);
+    }
+    return pts;
+  };
+  const strokes = [
+    { pts: gust(0.0 * S, 0.66 * S, 0.66 * S, 0.44 * S, 0.19 * S, 0.035 * S, 1.2), w: 0.085 * S },
+    { pts: gust(0.12 * S, 0.9 * S, 0.8 * S, 0.76 * S, 0.1 * S, 0.02 * S, 0.9), w: 0.045 * S },
+    { pts: gust(0.2 * S, 0.3 * S, 0.44 * S, 0.17 * S, 0.1 * S, 0.02 * S, 0.8), w: 0.04 * S },
+  ];
+  for (const st of strokes) {
+    const width = (t) => st.w * Math.sin(Math.min(1, t * 1.25) * Math.PI * 0.5) * (1 - 0.72 * t);
+    const rib = ribbon(st.pts, width, { taperA: 0.12, taperB: 0.1, pow: 0.7 });
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = css(INK);
+    ctx.lineWidth = 7;
+    ctx.stroke(rib.path);
+    ctx.fillStyle = css('#bff2d8');
+    ctx.fill(rib.path);
+    ctx.save();
+    ctx.clip(rib.path);
+    ctx.fillStyle = css('#5cc896');
+    ctx.fill(ribbon(offsetPts(st.pts, (t) => -width(t) * 0.3), (t) => width(t) * 0.42, { taperA: 0.2, taperB: 0.2 }).path);
+    ctx.fillStyle = css('#ffffff', 0.9);
+    ctx.fill(ribbon(offsetPts(st.pts, (t) => width(t) * 0.22), (t) => width(t) * 0.2, { taperA: 0.3, taperB: 0.4 }).path);
+    ctx.restore();
+  }
+  // loose flecks torn off the gusts
+  for (let i = 0; i < 16; i++) {
+    const x = rng.range(0.1, 0.95) * S, y = rng.range(0.1, 0.95) * S;
+    const a = rng.range(-0.4, 0.4), l = rng.range(10, 26);
+    const rib = ribbon([[x, y], [x + Math.cos(a) * l, y + Math.sin(a) * l]], rng.range(3, 6), { taperA: 0.4, taperB: 0.5 });
+    ctx.strokeStyle = css(INK);
+    ctx.lineWidth = 3;
+    ctx.stroke(rib.path);
+    ctx.fillStyle = css('#dff8ea');
+    ctx.fill(rib.path);
+  }
+  return c;
+}
+
+// ---------------------------------------------------------------------------
 // Radial water splash (alpha blend)
 // ---------------------------------------------------------------------------
 export function splash(seed) {

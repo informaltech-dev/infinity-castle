@@ -165,3 +165,23 @@ export function hexTsuba(r = 0.05, thick = 0.01) {
   const g = new THREE.CylinderGeometry(r, r, thick, 6, 1, false);
   return g;
 }
+
+/** Two overlapping squares: an eight-pointed star guard (Sanemi's), lying flat like the others. */
+export function starTsuba(r = 0.05, thick = 0.011) {
+  const shape = new THREE.Shape();
+  // outer points on r, the notches where the squares' edges cross on r * cos(45deg) / cos(22.5deg)
+  const inner = (r * Math.SQRT1_2) / Math.cos(Math.PI / 8);
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2 + Math.PI / 8;
+    const rr = i % 2 ? inner : r;
+    if (i === 0) shape.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    else shape.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+  }
+  const hole = new THREE.Path();
+  hole.absellipse(0, 0, 0.012, 0.02, 0, Math.PI * 2, true);
+  shape.holes.push(hole);
+  const g = new THREE.ExtrudeGeometry(shape, { depth: thick, bevelEnabled: false, curveSegments: 4 });
+  g.translate(0, 0, -thick / 2);
+  g.rotateX(Math.PI / 2);
+  return g;
+}

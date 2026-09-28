@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { Rig, J } from './rig.js';
 import { toonMaterial } from '../render/materials.js';
-import { limb, shell, box, sphere, cone, merge, smoothSeams, katanaBlade, flameTsuba, hexTsuba } from '../render/geo.js';
+import { limb, shell, box, sphere, cone, merge, smoothSeams, katanaBlade, flameTsuba, hexTsuba, starTsuba } from '../render/geo.js';
 import { mulberry32 } from '../core/math.js';
+import { Flail } from './flail.js';
 
 // Same formula as textures.js deformHead (kept local so geometry never depends on texture generation).
 export function deformHead(geometry, R) {
@@ -151,7 +152,7 @@ function buildSword(rig, T, style) {
   edge.translate(0, 0.135, 0);
   const guardMat = toonMaterial({ color: style.guard, rim: 0.5, spec: 0.6, dissolve: style.dissolve });
   const hiltMat = toonMaterial({ color: style.hilt, shade: 0x777777, dissolve: style.dissolve });
-  const tsuba = style.flame ? flameTsuba(0.052, 0.012) : hexTsuba(0.046, 0.012);
+  const tsuba = style.flame ? flameTsuba(0.052, 0.012) : style.star ? starTsuba(0.052, 0.011) : hexTsuba(0.046, 0.012);
   tsuba.translate(0, 0.118, 0);
   const hilt = new THREE.CylinderGeometry(0.017, 0.019, 0.25, 8);
   hilt.translate(0, -0.005, 0);
@@ -236,114 +237,192 @@ function buildHead(rig, T, cfg) {
   face.visible = !!faceTex;
   // hair
   const hair = spikyHair(c, R, cfg.hair);
-  const hairMat = toonMaterial({ color: 0xffffff, vertexColors: true, shade: cfg.hairShade ?? 0x8a7a9a, rim: 0.5, spec: 0.08, side: THREE.DoubleSide });
+  // (short hair leaves the smooth cap bare: no highlight on it then, or it shows as a pale disc)
+  const hairMat = toonMaterial({ color: 0xffffff, vertexColors: true, shade: cfg.hairShade ?? 0x8a7a9a, rim: 0.5, spec: cfg.hairSpec ?? 0.08, side: THREE.DoubleSide });
   rig.add(head, hair, hairMat);
   // neck
-  const neck = new THREE.CylinderGeometry(0.045, 0.05, 0.12, 10);
+  const nk = cfg.neckK ?? 1;
+  const neck = new THREE.CylinderGeometry(0.045 * nk, 0.05 * nk, 0.12, 10);
   neck.translate(0, 0.03, 0);
   rig.add('neck', neck, skinMat);
   return { face, faceMat, headCenter: c, hairMat };
 }
 
+/**
+ * An open-fronted jacket round the torso, hanging from y = h down to y = 0 on its joint: two halves whose front
+ * edges part wider toward the collar (gapBot at the waist, gapTop at the neck, radians of opening).
+ */
+function openJacket(rBot, rTop, h, gapBot, gapTop, radial = 10, hSeg = 4) {
+  const halves = [];
+  for (const side of [1, -1]) {
+    const pos = [], uv = [], idx = [];
+    for (let j = 0; j <= hSeg; j++) {
+      const v = j / hSeg;
+      const r = rBot + (rTop - rBot) * v;
+      // (the lapels fall open fastest near the collar)
+      const a0 = (gapBot + (gapTop - gapBot) * v * v) / 2;
+      for (let i = 0; i <= radial; i++) {
+        const u = i / radial;
+        const th = side * (a0 + (Math.PI - a0) * u);
+        pos.push(Math.sin(th) * r, v * h, Math.cos(th) * r);
+        uv.push(side > 0 ? u * 0.5 : 1 - u * 0.5, v);
+      }
+    }
+    const row = radial + 1;
+    for (let j = 0; j < hSeg; j++) {
+      for (let i = 0; i < radial; i++) {
+        const a = j * row + i, b = a + 1, c = a + row, dd = c + 1;
+        if (side > 0) idx.push(a, b, c, b, dd, c);
+        else idx.push(a, c, b, b, c, dd);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    halves.push(g);
+  }
+  return merge(halves);
+}
+
+/**
+ * cfg: dims, hair, faces, skin, hairShade, and for the ones who wear it their own way:
+ *   bulk (girth of the torso and limbs, Gyomei's frame), uniTint (tint of the black uniform), tabi / strap colours,
+ *   bare: { chest, abdomen, arm } materials for an open jacket and rolled-up sleeves (Sanemi).
+ */
 function buildSwordsman(T, cfg) {
   const rig = new Rig(cfg.dims);
   const d = rig.d;
+  const k = cfg.bulk ?? 1;
+  const ts = cfg.torsoH ?? 1; // torso height (Gyomei's frame)
+  const bare = cfg.bare;
   const skinMat = mat(null, null, cfg.skin ?? 0xf3d6c2, { shade: 0xc98f86, rim: 0.3 });
-  const uniMat = mat(T, 'uniformBlack', 0x1b1d26, { shade: 0x6a6f90, rim: 0.55, repeat: [2, 2] });
+  const uniMat = mat(T, 'uniformBlack', 0x1b1d26, { shade: 0x6a6f90, rim: 0.55, repeat: [2, 2], tint: cfg.uniTint });
   const wrapMat = mat(T, 'legWraps', 0xe9e4d8, { shade: 0x9c95a8, repeat: [1, 2] });
   const beltMat = toonMaterial({ color: cfg.belt ?? 0xe8e2d4, shade: 0x9a92a6 });
   const sandalMat = toonMaterial({ color: 0x5a4030, shade: 0x6e5a6a });
-  const tabiMat = toonMaterial({ color: 0xf0ece4, shade: 0xa6a0b0 });
+  const tabiMat = toonMaterial({ color: cfg.tabi ?? 0xf0ece4, shade: 0xa6a0b0 });
   const goldMat = toonMaterial({ color: 0xc9a45c, rim: 0.4, spec: 0.8 });
 
   // torso & hips (uniform)
-  const pelvis = sphere(0.16, 14, 10);
+  const pelvis = sphere(0.16 * k, 14, 10);
   pelvis.scale(1, 0.75, 0.78);
   pelvis.translate(0, -0.01, 0);
   rig.add('hips', pelvis, uniMat);
-  const abdomen = new THREE.CylinderGeometry(0.13, 0.145, 0.16, 12);
+  const abdomen = new THREE.CylinderGeometry(0.13 * k, 0.145 * k, 0.16 * ts, 12);
   abdomen.scale(1, 1, 0.78);
-  abdomen.translate(0, 0.07, 0);
-  rig.add('spine', abdomen, uniMat);
-  rig.add('chest', torso(0.135, 0.175, 0.24, 0.7), uniMat);
-  // gakuran collar + buttons
-  const collar = new THREE.CylinderGeometry(0.06, 0.075, 0.05, 12, 1, true);
-  collar.translate(0, 0.245, 0.005);
-  rig.add('chest', collar, uniMat);
-  for (let i = 0; i < 3; i++) {
+  abdomen.translate(0, 0.07 * ts, 0);
+  rig.add('spine', abdomen, bare ? bare.abdomen : uniMat);
+  rig.add('chest', torso(0.135 * k, 0.175 * k, 0.24 * ts, 0.7), bare ? bare.chest : uniMat);
+  if (bare) {
+    // the jacket left open to the belt, only its lowest button done up
+    const jl = openJacket(0.143 * k, 0.172 * k, 0.24 * ts, 0.5, 1.22, 12, 5);
+    jl.scale(1, 1, 0.74);
+    jl.translate(0, -0.02, 0);
+    rig.add('chest', jl, uniMat);
+    const jb = openJacket(0.15 * k, 0.143 * k, 0.15 * ts, 0.3, 0.5, 12, 2);
+    jb.scale(1, 1, 0.8);
+    jb.translate(0, 0.02, 0);
+    rig.add('spine', jb, uniMat);
     const b = sphere(0.009, 6, 4);
-    b.translate(0, 0.19 - i * 0.07, 0.122 - i * 0.004);
-    rig.add('chest', b, goldMat);
+    b.translate(0, 0.05, 0.121 * k);
+    rig.add('spine', b, goldMat);
+  } else {
+    // gakuran collar + buttons
+    const collar = new THREE.CylinderGeometry(0.06 * k, 0.075 * k, 0.05, 12, 1, true);
+    collar.translate(0, 0.245 * ts, 0.005);
+    rig.add('chest', collar, uniMat);
+    for (let i = 0; i < 3; i++) {
+      const b = sphere(0.009 * k, 6, 4);
+      b.translate(0, (0.19 - i * 0.07) * ts, (0.122 - i * 0.004) * k);
+      rig.add('chest', b, goldMat);
+    }
   }
   // belt
-  const belt = new THREE.CylinderGeometry(0.15, 0.15, 0.045, 14, 1, true);
+  const belt = new THREE.CylinderGeometry(0.15 * k, 0.15 * k, 0.045, 14, 1, true);
   belt.scale(1, 1, 0.8);
   belt.translate(0, 0.02, 0);
   rig.add('spine', belt, beltMat);
 
   // arms
   for (const s of ['L', 'R']) {
-    rig.add('upperArm' + s, limb(0.056, 0.047, d.upperArm), uniMat);
-    rig.add('foreArm' + s, limb(0.047, 0.037, d.foreArm - 0.03), uniMat);
-    const cuff = new THREE.CylinderGeometry(0.041, 0.041, 0.03, 10, 1, true);
-    cuff.translate(0, -d.foreArm + 0.04, 0);
-    rig.add('foreArm' + s, cuff, uniMat);
-    const hand = sphere(0.043, 10, 8);
+    rig.add('upperArm' + s, limb(0.056 * k, 0.047 * k, d.upperArm), uniMat);
+    rig.add('foreArm' + s, limb(0.047 * k, 0.037 * k, d.foreArm - 0.03), bare ? bare.arm : uniMat);
+    if (bare) {
+      // the sleeve rolled up above the elbow
+      const roll = new THREE.TorusGeometry(0.05 * k, 0.018, 6, 12);
+      roll.rotateX(Math.PI / 2);
+      roll.translate(0, -0.012, 0);
+      rig.add('foreArm' + s, roll, uniMat);
+    } else {
+      const cuff = new THREE.CylinderGeometry(0.041 * k, 0.041 * k, 0.03, 10, 1, true);
+      cuff.translate(0, -d.foreArm + 0.04, 0);
+      rig.add('foreArm' + s, cuff, uniMat);
+    }
+    const hand = sphere(0.043 * k, 10, 8);
     hand.scale(0.85, 1.15, 1.0);
-    hand.translate(0, -0.045, 0.008);
+    hand.translate(0, -0.045 * k, 0.008);
     rig.add('hand' + s, hand, skinMat);
-    const thumb = limb(0.014, 0.012, 0.035, 6, 2);
+    const thumb = limb(0.014 * k, 0.012 * k, 0.035 * k, 6, 2);
     thumb.rotateZ(s === 'L' ? -0.9 : 0.9);
-    thumb.translate(s === 'L' ? -0.03 : 0.03, -0.02, 0.02);
+    thumb.translate((s === 'L' ? -0.03 : 0.03) * k, -0.02 * k, 0.02 * k);
     rig.add('hand' + s, thumb, skinMat);
   }
   // legs: baggy hakama pants + wraps
   for (const s of ['L', 'R']) {
-    const x = s === 'L' ? 1 : -1;
-    rig.add('thigh' + s, limb(0.095, 0.085, d.thigh - 0.02, 12), uniMat);
-    const pants = shell(0.11, 0.1, d.thigh + 0.06, 0, Math.PI * 2, 12, 2);
+    rig.add('thigh' + s, limb(0.095 * k, 0.085 * k, d.thigh - 0.02, 12), uniMat);
+    const pants = shell(0.11 * k, 0.1 * k, d.thigh + 0.06, 0, Math.PI * 2, 12, 2);
     pants.translate(0, 0.03, 0);
     rig.add('thigh' + s, pants, uniMat);
-    rig.add('shin' + s, limb(0.066, 0.045, d.shin - 0.02, 10), wrapMat);
-    const knee = sphere(0.075, 10, 8);
+    rig.add('shin' + s, limb(0.066 * k, 0.045 * k, d.shin - 0.02, 10), wrapMat);
+    const knee = sphere(0.075 * k, 10, 8);
     knee.scale(1, 0.85, 1);
     rig.add('shin' + s, knee, uniMat);
-    const foot = box(0.085, 0.05, 0.2, 0, -0.035, 0.045);
+    const foot = box(0.085 * k, 0.05, 0.2 * k, 0, -0.035, 0.045 * k);
     rig.add('foot' + s, foot, tabiMat);
-    const sole = box(0.095, 0.018, 0.23, 0, -0.065, 0.045);
+    const sole = box(0.095 * k, 0.018, 0.23 * k, 0, -0.065, 0.045 * k);
     rig.add('foot' + s, sole, sandalMat);
-    void x;
+    if (cfg.strap) {
+      const strap = box(0.092 * k, 0.012, 0.02, 0, -0.03, 0.1 * k);
+      strap.rotateX(0.3);
+      rig.add('foot' + s, strap, toonMaterial({ color: cfg.strap, shade: 0x5a6a60 }));
+    }
   }
 
   const head = buildHead(rig, T, { ...cfg, skinMat });
   const materials = [skinMat, uniMat, wrapMat, beltMat, sandalMat, tabiMat, goldMat];
+  if (bare) materials.push(bare.chest, bare.abdomen, bare.arm);
   for (const m of materials) rig.materials.add(m);
   return { rig, skinMat, uniMat, head };
 }
 
 // Haori: rigid shoulder shell + spring-driven skirt panels, open at the front.
 // opts.skirt / opts.sleeve: [left, right] fabrics for the skirt and the sleeves (default: the halves' own).
+// opts.gap: radians of the front opening; opts.bulk / opts.torsoH: girth and torso height of a bigger frame.
 function buildHaori(rig, T, matLeft, matRight, opts = {}) {
   const d = rig.d;
   const len = opts.length ?? 0.62;
+  const k = opts.bulk ?? 1, ts = opts.torsoH ?? 1;
   const [skirtL, skirtR] = opts.skirt ?? [matLeft, matRight];
   const [sleeveL, sleeveR] = opts.sleeve ?? [matLeft, matRight];
   // torso part: two halves so left/right can use different fabrics (Giyu)
-  const gap = 0.55; // radians of front opening
+  const gap = opts.gap ?? 0.55; // radians of front opening
   const half = (Math.PI * 2 - gap) / 2;
   // CylinderGeometry theta: 0 at +Z, increasing toward +X
-  const upperL = shell(0.15, 0.19, 0.34, gap / 2, half, 10, 2);
+  const upperL = shell(0.15 * k, 0.19 * k, 0.34 * ts, gap / 2, half, 10, 2);
   upperL.scale(1, 1, 0.8);
-  upperL.translate(0, 0.27, -0.005);
-  const upperR = shell(0.15, 0.19, 0.34, gap / 2 + half, half, 10, 2);
+  upperL.translate(0, 0.27 * ts, -0.005);
+  const upperR = shell(0.15 * k, 0.19 * k, 0.34 * ts, gap / 2 + half, half, 10, 2);
   upperR.scale(1, 1, 0.8);
-  upperR.translate(0, 0.27, -0.005);
+  upperR.translate(0, 0.27 * ts, -0.005);
   rig.add('chest', upperL, matLeft);
   rig.add('chest', upperR, matRight);
-  // shoulder yoke
-  const yoke = new THREE.SphereGeometry(0.19, 14, 6, 0, Math.PI * 2, 0, 0.9);
+  // shoulder yoke (worn wide open, it parts at the front too: phi = PI / 2 faces +Z)
+  const yg = opts.yokeGap ?? 0;
+  const yoke = new THREE.SphereGeometry(0.19 * k, 14, 6, yg ? Math.PI / 2 + yg / 2 : 0, Math.PI * 2 - yg, 0, 0.9);
   yoke.scale(1.05, 0.55, 0.8);
-  yoke.translate(0, 0.21, -0.005);
+  yoke.translate(0, 0.21 * ts, -0.005);
   rig.add('chest', yoke, matRight);
   // skirt panels on springs
   const panels = opts.panels ?? 6;
@@ -351,14 +430,14 @@ function buildHaori(rig, T, matLeft, matRight, opts = {}) {
   for (let i = 0; i < panels; i++) {
     const th0 = gap / 2 + i * span;
     const mid = th0 + span / 2;
-    const px = Math.sin(mid) * 0.17, pz = Math.cos(mid) * 0.17 * 0.82;
-    const bone = rig.spring('haori' + i, 'hips', [px, 0.12, pz], len, {
+    const px = Math.sin(mid) * 0.17 * k, pz = Math.cos(mid) * 0.17 * k * 0.82;
+    const bone = rig.spring('haori' + i, 'hips', [px, 0.12 * ts, pz], len, {
       stiffness: 0.16,
       damping: 0.8,
       gravity: 0.03,
       maxAngle: 1.1,
     });
-    const g = shell(0.175, 0.24, len, th0 - 0.02, span + 0.04, 3, 3);
+    const g = shell(0.175 * k, 0.24 * k, len, th0 - 0.02, span + 0.04, 3, 3);
     g.scale(1, 1, 0.82);
     g.translate(-px, 0, -pz);
     const m = mid < Math.PI ? skirtL : skirtR;
@@ -369,7 +448,9 @@ function buildHaori(rig, T, matLeft, matRight, opts = {}) {
   }
   // wide sleeves
   for (const s of ['L', 'R']) {
-    const sl = shell(0.07, 0.12, 0.34, 0, Math.PI * 2, 10, 2);
+    // (a bigger frame's sleeves are longer, not that much wider)
+    const sk = Math.sqrt(k);
+    const sl = shell(0.07 * sk, 0.12 * sk, opts.sleeveLen ?? 0.34, 0, Math.PI * 2, 10, 2);
     sl.translate(0, 0.02, 0);
     rig.add('upperArm' + s, sl, s === 'L' ? sleeveL : sleeveR);
   }
@@ -656,6 +737,256 @@ export function buildObanai(T) {
   scabbard(rig, T, 0x16141c, 0x7a5ab0);
   rig.build();
   return finalize(rig, { id: 'obanai', head, sword, faces, T });
+}
+
+/**
+ * 殺 on the back of Sanemi's haori: a curved decal a hair outside the haori's upper back (chest-joint space).
+ * The texture reads upright and left to right from behind him.
+ */
+function backMark(rig, T, key, opts = {}) {
+  const tex = T?.[key];
+  if (!tex) return;
+  const k = opts.bulk ?? 1, ts = opts.torsoH ?? 1;
+  const span = opts.span ?? 1.25;
+  const g = shell(0.153 * k, 0.194 * k, 0.3 * ts, Math.PI - span / 2, span, 10, 3);
+  g.scale(1, 1, 0.8);
+  g.translate(0, 0.25 * ts, -0.009);
+  const m = toonMaterial({ color: 0xffffff, map: tex, alphaTest: 0.35, transparent: true, shade: 0xb8b2c6, rim: 0.2, side: THREE.DoubleSide });
+  const mesh = rig.add('chest', g, m, { name: 'backMark' });
+  mesh.renderOrder = 1;
+}
+
+export function buildSanemi(T) {
+  // a shock of silver-white hair, long spikes flung back and out every which way, ragged over the brow
+  const hairOpts = {
+    seed: 53,
+    count: 48,
+    len: [0.12, 0.22],
+    rad: [0.034, 0.05],
+    root: 0xd9dee6,
+    tip: 0xf7f8fa,
+    sweep: new THREE.Vector3(0, 0.05, -0.85),
+    outward: 1.0,
+    frontCut: 0.3,
+    crown: 0.86,
+    coverage: 1.42,
+    capTilt: -0.72,
+    capTheta: 1.66,
+    bangs: [
+      { u: 0.08, polar: 0.4, len: 0.1, rad: 0.03, dx: 0.28, dz: 0.2 },
+      { u: -0.22, polar: 0.42, len: 0.1, rad: 0.03, dx: -0.3, dz: 0.2 },
+      { u: 0.42, polar: 0.52, len: 0.12, rad: 0.032, dx: 0.35 },
+      { u: -0.46, polar: 0.52, len: 0.12, rad: 0.032, dx: -0.35 },
+      { u: 0.86, len: 0.16, rad: 0.034, dx: 0.3 },
+      { u: -0.86, len: 0.16, rad: 0.034, dx: -0.3 },
+      { u: 1.18, len: 0.18, rad: 0.034 },
+      { u: -1.18, len: 0.18, rad: 0.034 },
+    ],
+  };
+  const faces = { neutral: 'face_sanemi_neutral', fierce: 'face_sanemi_fierce', hurt: 'face_sanemi_hurt' };
+  // scarred skin where the open jacket and the rolled sleeves leave him bare
+  const skinOpts = { shade: 0xc58c84, rim: 0.32 };
+  const bare = {
+    chest: mat(T, 'sanemiChest', 0xefcdb8, { ...skinOpts, repeat: [1, 0.66], offset: [0, 0.34] }),
+    abdomen: mat(T, 'sanemiChest', 0xefcdb8, { ...skinOpts, repeat: [1, 0.34] }),
+    arm: mat(T, 'sanemiArm', 0xefcdb8, { ...skinOpts, repeat: [1, 1] }),
+  };
+  const { rig, head } = buildSwordsman(T, {
+    hair: hairOpts, faces, skin: 0xf2d3bf, hairShade: 0x8a90aa, bare,
+    uniTint: 0xb4d6c0, tabi: 0x2c4a36, strap: 0x3e8a5c, bulk: 1.04,
+    dims: { hipY: 0.98, upperArm: 0.3, foreArm: 0.26, thigh: 0.46, shin: 0.44, shoulderX: 0.19, headR: 0.117 },
+  });
+  // a white haori worn open, 殺 across its back
+  const white = mat(T, 'sanemiHaori', 0xf1efe8, { shade: 0x9d9ab2, rim: 0.45, repeat: [2, 1.5], side: THREE.DoubleSide });
+  buildHaori(rig, T, white, white, { length: 0.64, gap: 1.62, yokeGap: 1.3, bulk: 1.04 });
+  rig.materials.add(white);
+  backMark(rig, T, 'sanemiKill', { bulk: 1.04 });
+  const sword = buildSword(rig, T, { blade: 0x2f9a60, bladeShade: 0x1a5038, guard: 0x26282c, hilt: 0xe4e0d4, edge: 0xe6fff0, star: true, bladeGlow: 0x031a0c });
+  scabbard(rig, T, 0x131715, 0x3e8a5c);
+  rig.build();
+  return finalize(rig, { id: 'sanemi', head, sword, faces, T });
+}
+
+// ---------------------------------------------------------------------------
+// Gyomei (Stone Hashira): a hand axe chained to a spiked iron ball
+// ---------------------------------------------------------------------------
+/** The axe's parts, handle along +Y from where the hand holds it, the edge of the head toward -Z (like a blade's). */
+function axeGeometries() {
+  // the head in (u toward the edge, v up the handle): a broad bearded blade, a spike behind
+  const sh = new THREE.Shape();
+  sh.moveTo(0.0, 0.34);
+  sh.lineTo(0.05, 0.35);
+  sh.quadraticCurveTo(0.13, 0.33, 0.2, 0.28);
+  sh.quadraticCurveTo(0.25, 0.41, 0.22, 0.57);
+  sh.quadraticCurveTo(0.14, 0.53, 0.05, 0.51);
+  sh.lineTo(0.0, 0.52);
+  sh.lineTo(-0.04, 0.49);
+  sh.lineTo(-0.11, 0.45);
+  sh.lineTo(-0.04, 0.41);
+  sh.lineTo(0.0, 0.34);
+  const head = new THREE.ExtrudeGeometry(sh, { depth: 0.024, bevelEnabled: true, bevelThickness: 0.005, bevelSize: 0.006, bevelSegments: 1, curveSegments: 6 });
+  head.translate(0, 0, -0.012);
+  head.rotateY(Math.PI / 2);
+  // the bright cutting edge along the curve
+  const edge = [];
+  const ec = new THREE.QuadraticBezierCurve(new THREE.Vector2(0.2, 0.28), new THREE.Vector2(0.25, 0.41), new THREE.Vector2(0.22, 0.57));
+  for (let i = 0; i < 8; i++) {
+    const a = ec.getPoint(i / 8), b = ec.getPoint((i + 1) / 8);
+    const len = a.distanceTo(b);
+    const g = new THREE.BoxGeometry(0.032, len * 1.08, 0.014);
+    g.rotateX(0);
+    const ang = Math.atan2(b.x - a.x, b.y - a.y);
+    g.rotateX(ang);
+    g.translate(0, (a.y + b.y) / 2, -(a.x + b.x) / 2 + 0.004);
+    edge.push(g);
+  }
+  const handle = new THREE.CylinderGeometry(0.019, 0.022, 0.68, 8);
+  handle.translate(0, 0.2, 0);
+  const collar = new THREE.CylinderGeometry(0.03, 0.03, 0.07, 8);
+  collar.translate(0, 0.43, 0);
+  const wrap = new THREE.CylinderGeometry(0.025, 0.025, 0.2, 8);
+  wrap.translate(0, -0.01, 0);
+  const cap = sphere(0.028, 8, 6);
+  cap.translate(0, -0.14, 0);
+  const ring = new THREE.TorusGeometry(0.024, 0.007, 5, 10);
+  ring.rotateY(Math.PI / 2);
+  ring.translate(0, -0.18, 0);
+  return { head, edge: merge(edge), handle: merge([handle, collar]), wrap, iron: merge([cap, ring]) };
+}
+
+function axeGroup(geos, mats) {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(geos.head, mats.head));
+  g.add(new THREE.Mesh(geos.edge, mats.edge));
+  g.add(new THREE.Mesh(geos.handle, mats.iron));
+  g.add(new THREE.Mesh(geos.wrap, mats.wrap));
+  g.add(new THREE.Mesh(geos.iron, mats.iron));
+  g.traverse((o) => (o.frustumCulled = false));
+  const pommel = new THREE.Object3D();
+  pommel.position.set(0, -0.18, 0);
+  g.add(pommel);
+  g.userData.pommel = pommel;
+  return g;
+}
+
+/**
+ * The axe in his right hand (the model's `sword`: base / mid / tip mark its head for the trail and the sparks, the
+ * pommel is where the chain is fixed), a copy of it for when he throws it, the spiked ball and the chain's links.
+ */
+function buildFlail(rig, k) {
+  const mats = {
+    head: toonMaterial({ color: 0x5c5e66, shade: 0x2a2b31, rim: 0.6, spec: 1.1, emissive: 0x000000 }),
+    edge: toonMaterial({ color: 0xe4e6ec, unlit: true }),
+    iron: toonMaterial({ color: 0x33343a, shade: 0x1c1c22, rim: 0.55, spec: 0.8 }),
+    wrap: toonMaterial({ color: 0x3a2c22, shade: 0x2a2024, rim: 0.3 }),
+  };
+  const geos = axeGeometries();
+  const grip = rig.socket('grip', 'handR', [0, -0.055 * k, 0.012 * k], [Math.PI / 2, 0, 0]);
+  const g = axeGroup(geos, mats);
+  g.name = 'sword';
+  grip.add(g);
+  const at = (y) => {
+    const o = new THREE.Object3D();
+    o.position.set(0, y, 0);
+    g.add(o);
+    return o;
+  };
+  const sword = { group: g, grip, base: at(0.3), mid: at(0.44), tip: at(0.57), offhand: at(-0.09), pommel: g.userData.pommel, bladeMat: mats.head };
+  const axe = axeGroup(geos, mats);
+  axe.matrixAutoUpdate = false;
+  axe.visible = false;
+  rig.root.add(axe);
+  // the ball: dark iron studded with spikes, a ring on top for the chain
+  const R = 0.17;
+  // (a soft sheen only: a hard toon highlight on a sphere reads as an eye)
+  const ballMat = toonMaterial({ color: 0x3e3f46, shade: 0x1c1c22, rim: 0.6, spec: 0.12 });
+  const spikeMat = toonMaterial({ color: 0x5a5b63, shade: 0x26262c, rim: 0.6, spec: 0.6 });
+  const spikes = [];
+  const n = 22;
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n;
+    const pol = Math.acos(1 - 2 * t);
+    if (pol < 0.45) continue; // (the ring is there)
+    const az = i * 2.39996;
+    const dir = new THREE.Vector3(Math.sin(pol) * Math.cos(az), Math.cos(pol), Math.sin(pol) * Math.sin(az));
+    spikes.push(spike(dir.clone().multiplyScalar(R * 0.9), dir, 0.034, 0.11, 6));
+  }
+  const ring = new THREE.TorusGeometry(0.032, 0.009, 5, 10);
+  ring.rotateY(Math.PI / 2);
+  ring.translate(0, R + 0.018, 0);
+  const ball = new THREE.Group();
+  ball.add(new THREE.Mesh(merge([sphere(R, 16, 12), ring]), ballMat));
+  ball.add(new THREE.Mesh(merge(spikes), spikeMat));
+  ball.traverse((o) => (o.frustumCulled = false));
+  ball.matrixAutoUpdate = false;
+  rig.root.add(ball);
+  // the chain: oval links, laid out along it every frame
+  const link = new THREE.TorusGeometry(0.019, 0.0055, 4, 8);
+  link.scale(1, 1.5, 1);
+  const linkMat = toonMaterial({ color: 0x62646c, shade: 0x2a2a30, rim: 0.5, spec: 0.9 });
+  const LINKS = 280;
+  const chain = new THREE.InstancedMesh(link, linkMat, LINKS);
+  chain.count = 0;
+  chain.frustumCulled = false;
+  chain.matrixAutoUpdate = false;
+  rig.root.add(chain);
+  for (const m of [...Object.values(mats), ballMat, spikeMat, linkMat]) rig.materials.add(m);
+  return { sword, parts: { ball, axe, chain, ballR: R, links: LINKS } };
+}
+
+/** Juzu: a string of big wooden prayer beads round his neck, hanging down onto his chest (chest-joint space). */
+function juzu(rig, k, ts) {
+  const m = toonMaterial({ color: 0x7a3526, shade: 0x3a1a16, rim: 0.45, spec: 0.9 });
+  const beads = [];
+  const N = 22;
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2;
+    // round the back of the neck high, dipping low over the chest in front
+    const front = Math.max(0, Math.cos(a));
+    const x = Math.sin(a) * 0.15 * k, z = Math.cos(a) * 0.125 * k + 0.012;
+    const y = 0.265 * ts - front * front * 0.13 * ts;
+    const b = sphere(i === 0 ? 0.036 : 0.026, 10, 8);
+    b.translate(x, y, z + (i === 0 ? 0.01 : 0));
+    beads.push(b);
+  }
+  rig.add('chest', merge(beads), m);
+  rig.materials.add(m);
+}
+
+export function buildGyomei(T) {
+  // short black hair standing up in spikes, a bare forehead with the scar across it
+  const hairOpts = {
+    seed: 67,
+    count: 64,
+    len: [0.035, 0.065],
+    rad: [0.022, 0.03],
+    root: 0x121214,
+    tip: 0x2c2c32,
+    sweep: new THREE.Vector3(0, 0.45, -0.35),
+    outward: 1.0,
+    frontCut: 0.42,
+    crown: 0.66,
+    coverage: 1.3,
+    capTilt: -0.42,
+    capTheta: 1.58,
+    bangs: [],
+  };
+  const faces = { neutral: 'face_gyomei_neutral', fierce: 'face_gyomei_fierce', hurt: 'face_gyomei_hurt' };
+  const k = 1.32, ts = 1.2;
+  const { rig, head } = buildSwordsman(T, {
+    hair: hairOpts, faces, skin: 0xe9c6ad, hairShade: 0x6a6878, hairSpec: 0, bulk: k, torsoH: ts, neckK: 1.55,
+    dims: { hipY: 1.14, spine: 0.13, chest: 0.23, neck: 0.27, head: 0.08, headR: 0.128, shoulderX: 0.24, shoulderY: 0.24, upperArm: 0.36, foreArm: 0.31, hipX: 0.12, thigh: 0.53, shin: 0.51 },
+  });
+  // an olive haori written all over with the nembutsu
+  const olive = mat(T, 'gyomeiHaori', 0x6f6c3e, { shade: 0x5a5a6a, rim: 0.4, repeat: [2, 1], side: THREE.DoubleSide });
+  buildHaori(rig, T, olive, olive, { length: 0.84, bulk: k, torsoH: ts, sleeveLen: 0.4 });
+  rig.materials.add(olive);
+  juzu(rig, k, ts);
+  const { sword, parts } = buildFlail(rig, k);
+  rig.build();
+  const model = finalize(rig, { id: 'gyomei', head, sword, faces, T });
+  model.flail = new Flail(model, parts);
+  return model;
 }
 
 export function buildAkaza(T) {

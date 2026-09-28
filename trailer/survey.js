@@ -61,6 +61,30 @@ const list = [
     for (let i = 0; i < 5; i++) S.demon(i === 2 ? 'brute' : 'grunt', [Math.sin(i * 1.26) * 3.2, 0, 2.5 + Math.cos(i * 1.26) * 3.2], { cooldown: 9 });
     S.at(0.2, () => S.tap('ult'));
   }, orbit([0, 0, 2.5], 9.5, 3.6)],
+  ['sanemi-claws', { world: 'hall', char: 'sanemi' }, (S) => {
+    for (let i = 0; i < 4; i++) S.demon(i === 1 ? 'brute' : 'grunt', [(i % 2 ? 0.7 : -0.7), 0, 3 + i * 2], { cooldown: 9 });
+    S.at(0.2, () => S.tap('skill1'));
+  }, orbit([0, 0, 4], 9, 2.4, 1.2)],
+  ['sanemi-storm', { world: 'hall', char: 'sanemi' }, (S) => {
+    for (let i = 0; i < 5; i++) S.demon(i % 2 ? 'fast' : 'grunt', [Math.sin(i * 1.26) * 2.6, 0, Math.cos(i * 1.26) * 2.6], { cooldown: 9 });
+    S.at(0.3, () => S.tap('skill2'));
+  }, orbit([0, 0, 0], 8, 3)],
+  ['sanemi-ult', { world: 'hall', char: 'sanemi', player: { conc: 100 } }, (S) => {
+    for (let i = 0; i < 5; i++) S.demon(i === 2 ? 'brute' : 'grunt', [Math.sin(i * 1.26) * 3.2, 0, 2.5 + Math.cos(i * 1.26) * 3.2], { cooldown: 9 });
+    S.at(0.2, () => S.tap('ult'));
+  }, orbit([0, 0, 2.5], 11, 4.2)],
+  ['gyomei-poles', { world: 'hall', char: 'gyomei' }, (S) => {
+    for (let i = 0; i < 4; i++) S.demon(i === 0 ? 'brute' : 'grunt', [(i - 1.5) * 1.3, 0, 3.6 + (i % 2) * 0.8], { cooldown: 9 });
+    S.at(0.2, () => S.tap('skill1'));
+  }, orbit([0, 0, 2.5], 9, 3.2, 1.2)],
+  ['gyomei-skin', { world: 'hall', char: 'gyomei' }, (S) => {
+    for (let i = 0; i < 5; i++) S.demon(i % 2 ? 'fast' : 'grunt', [Math.sin(i * 1.26) * 2.7, 0, Math.cos(i * 1.26) * 2.7], { cooldown: 9 });
+    S.at(0.3, () => S.tap('skill2'));
+  }, orbit([0, 0, 0], 8.5, 3.4)],
+  ['gyomei-ult', { world: 'hall', char: 'gyomei', player: { conc: 100 } }, (S) => {
+    for (let i = 0; i < 5; i++) S.demon(i === 2 ? 'brute' : 'grunt', [Math.sin(i * 1.26) * 3.4, 0, 3 + Math.cos(i * 1.26) * 3.4], { cooldown: 9 });
+    S.at(0.2, () => S.tap('ult'));
+  }, orbit([0, 0, 3], 12, 4.4)],
   ['akaza-air', { world: 'arena', char: 'tanjiro', player: { pos: [0, 0, -6] } }, (S) => {
     const b = S.akaza([0, 0, 4], Math.PI);
     S.at(0.2, () => b._execute('airType'));

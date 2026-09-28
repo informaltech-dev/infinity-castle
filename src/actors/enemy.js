@@ -86,7 +86,7 @@ export class Enemy extends Actor {
   }
 
   update(dt, realDt) {
-    dt = this.tick(dt * this.game.enemyTimeScale, realDt);
+    dt = this.tick(dt * this.game.enemyTimeScale * this.drunkScale(realDt), realDt);
     if (!this.alive) {
       this._deadUpdate(dt);
       this.present(dt);

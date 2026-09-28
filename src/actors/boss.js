@@ -325,7 +325,7 @@ export class BossBase extends Actor {
 
   update(dt, realDt) {
     const gdt = dt;
-    dt = this.tick(dt * this.game.enemyTimeScale * this.speedMul, realDt);
+    dt = this.tick(dt * this.game.enemyTimeScale * this.speedMul * this.drunkScale(realDt), realDt);
     if (gdt > 0) this.clock.rate = dt / gdt;
     this._hazards(dt);
     this.tickExtra?.(dt);

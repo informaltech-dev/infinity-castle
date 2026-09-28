@@ -59,18 +59,18 @@
 }
 .sl-cards {
   /* card unit: follows the viewport's width as well, so on narrower screens (4:3, tablets)
-     the four cards still end short of the preview model in the middle */
+     the six cards -- slim strips, like tanzaku -- still end short of the preview model in the middle */
   --cu: min(var(--u), 0.5625vw);
   position: absolute;
   left: 4vw;
   top: 17vh;
   display: flex;
-  gap: calc(var(--cu) * 2);
+  gap: calc(var(--cu) * 1.2);
 }
 .sl-card {
   --acc: var(--gold);
   position: relative;
-  width: calc(var(--cu) * 13.5);
+  width: calc(var(--cu) * 9.4);
   height: min(60vh, calc(var(--cu) * 62));
   cursor: pointer;
   color: var(--ink);
@@ -124,12 +124,45 @@
 .sl-card.is-obanai .sl-card-pat {
   background: repeating-linear-gradient(90deg, #18171d 0 calc(var(--cu) * 1.1), #e9e5dc 0 calc(var(--cu) * 2.2));
 }
+/* Sanemi: 殺, as on the back of his white haori, over streaks of wind */
+.sl-card.is-sanemi .sl-card-pat {
+  background: repeating-linear-gradient(-32deg, #f3f1ea 0 calc(var(--cu) * 1.4), #b3dcc4 0 calc(var(--cu) * 1.6), #f3f1ea 0 calc(var(--cu) * 2.8));
+}
+.sl-card.is-sanemi .sl-card-pat::before {
+  content: '殺';
+  position: absolute;
+  inset: 0 0 calc(var(--cu) * 1) 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--f-body);
+  font-weight: 700;
+  font-size: calc(var(--cu) * 8);
+  line-height: 1;
+  color: #141214;
+}
+/* Gyomei: the sutra written all over his olive haori */
+.sl-card.is-gyomei .sl-card-pat {
+  background: #6f6c3e;
+}
+.sl-card.is-gyomei .sl-card-pat::before {
+  content: '南無阿彌陀佛南無阿彌陀佛南無阿彌陀佛南無阿彌陀佛南無阿彌陀佛南無阿彌陀佛南無阿彌陀佛南無阿彌陀佛';
+  position: absolute;
+  inset: calc(var(--cu) * 0.6);
+  overflow: hidden;
+  writing-mode: vertical-rl;
+  font-family: var(--f-body);
+  font-weight: 700;
+  font-size: calc(var(--cu) * 1.5);
+  line-height: 1.5;
+  color: rgba(24, 22, 10, 0.62);
+}
 .sl-card-name {
   position: absolute;
   left: 50%;
-  top: 40%;
+  /* (in a short, wide window the strip is short too: the name rises clear of the seal) */
+  top: min(40%, calc(100% - var(--cu) * 26));
   transform: translateX(-50%);
-  font-size: calc(var(--cu) * 4.4);
+  font-size: calc(var(--cu) * 4);
   line-height: 1;
   letter-spacing: 0.06em;
   color: #16100e;
@@ -148,9 +181,9 @@
 }
 .sl-card .ic-seal {
   position: absolute;
-  left: calc(var(--cu) * 1);
+  left: calc(var(--cu) * 0.8);
   bottom: calc(var(--cu) * 1.2);
-  width: calc(var(--cu) * 3.6);
+  width: calc(var(--cu) * 3.2);
 }
 .sl-card .ic-seal > span {
   font-size: calc(var(--cu) * 2.2);
@@ -173,6 +206,8 @@
 .sl-card.is-giyu { --acc: var(--water); }
 .sl-card.is-rengoku { --acc: var(--flame); }
 .sl-card.is-obanai { --acc: var(--serpent); }
+.sl-card.is-sanemi { --acc: var(--wind); }
+.sl-card.is-gyomei { --acc: var(--stone); }
 
 .sl-detail {
   --acc: var(--flame);
@@ -188,6 +223,12 @@
 }
 .sl-detail.is-obanai {
   --acc: #7a52c4;
+}
+.sl-detail.is-sanemi {
+  --acc: #2a9a62;
+}
+.sl-detail.is-gyomei {
+  --acc: #9a7a3e;
 }
 .sd-body.is-swap {
   animation: sd-swap 0.42s var(--ease-out) both;
@@ -338,6 +379,12 @@
 }
 .sd-tech li.is-serpent .t-name {
   color: #5e3aa0;
+}
+.sd-tech li.is-wind .t-name {
+  color: #1d7a4a;
+}
+.sd-tech li.is-stone .t-name {
+  color: #7a5a26;
 }
 .sd-tech li.is-ult .t-name {
   color: var(--verm);

@@ -14,13 +14,24 @@ const _mv = { x: 0, y: 0 };
 
 const WALK = 5.2;
 const SPRINT = 8.4;
-const HP = { tanjiro: 115, giyu: 125, rengoku: 130, obanai: 105 };
-const DMG = { tanjiro: 1.08, rengoku: 1.1 };
+const HP = { tanjiro: 115, giyu: 125, rengoku: 130, obanai: 105, sanemi: 110, gyomei: 150 };
+const DMG = { tanjiro: 1.08, rengoku: 1.1, sanemi: 1.06, gyomei: 1.12 };
+// damage taken (Gyomei's 岩軀: a tenth of every blow, guarded or not, is turned by his body)
+const DEF = { gyomei: 0.9 };
+// (Gyomei stands 2.2 m tall: a wider body, and the camera stands back and higher to take him in)
+const BODY = { gyomei: { radius: 0.5, height: 2.2, cam: 1.72, camDist: 0.6 } };
 
 export class Player extends Actor {
   constructor(game, charId, model) {
-    super(game, model, { team: 'player', hp: HP[charId] ?? 115, radius: 0.42, height: 1.8, poise: 40 });
+    const body = BODY[charId] || {};
+    super(game, model, { team: 'player', hp: HP[charId] ?? 115, radius: body.radius ?? 0.42, height: body.height ?? 1.8, poise: 40 });
     this.charId = charId;
+    /** Gyomei's ball and chain (see Flail): the moves' `flail` keys steer them. */
+    this.flail = model.flail || null;
+    if (game.cameraRig) {
+      game.cameraRig.height = body.cam ?? 1.45;
+      game.cameraRig.distAdd = body.camDist ?? 0;
+    }
     this.palette = CHAR_FX[charId] || CHAR_FX.tanjiro;
     this.heart = false; // Rengoku's 燃燒心靈
     this.moves = playerMoves(charId);
@@ -47,6 +58,7 @@ export class Player extends Actor {
     this.critT = 0;
     this.counterT = 0;
     this.baseDmg = this.dmgMul = DMG[charId] ?? 1.0;
+    this.defMul = DEF[charId] ?? 1.0;
     this.control = true;
     this.state = 'move';
     this.trail = new SwordTrail(game.scene, { style: 'steel' });
@@ -74,6 +86,7 @@ export class Player extends Actor {
   setState(s) {
     // super armor belongs to the action that granted it (_action re-reads it from the running move each frame)
     this.armor = false;
+    this.ghost = false;
     super.setState(s);
   }
 
@@ -297,6 +310,12 @@ export class Player extends Actor {
     this._updateThread();
     // present with sword sampling for the trail
     this.present(dt, () => this._sampleSword(dt));
+    if (this.flail) {
+      // (the ball whirls overhead while a charged heavy winds up)
+      this.flail.setWhirl((this.state === 'charge' && this._charging) || !!this.ult?.whirl);
+      this.flail.update(dt);
+      this._sampleFlail();
+    }
     this.trail.update(this.game.time, this.trailOn);
   }
 
@@ -482,6 +501,7 @@ export class Player extends Actor {
     }
     this.setState('action');
     this.run(def, { target: tgt, motionScale });
+    if (this.flail && def.flail) this.flail.play(def.flail, this.action, this);
     this.curMove = name;
     this.velXZ.multiplyScalar(0.2);
     this.model.setFace('fierce');
@@ -577,6 +597,8 @@ export class Player extends Actor {
       this.anim.play(this.clips.thrustCharge, { fade: 0.1, hold: true });
       if (kind === 'fire') this.game.audio?.play('fireWhoosh', { volume: 0.4, pitch: 1.2 });
       else if (kind === 'serpent') this.game.audio?.play('serpentHiss', { volume: 0.45 });
+      else if (kind === 'wind') this.game.audio?.play('windGust', { volume: 0.4, pitch: 1.3 });
+      else if (kind === 'stone') this.game.audio?.play('flailWhirl', { volume: 0.6, pitch: 0.8 });
       else this.game.audio?.play('waterWave', { volume: 0.35, pitch: 1.3 });
     }
     if (this._charging && Math.random() < dt * 30) {
@@ -584,12 +606,14 @@ export class Player extends Actor {
       const P = this.game.fx.particles;
       if (kind === 'fire') P.embers(_v, 2, 0xff8a2a, 1.4, 0.4);
       else if (kind === 'serpent') P.sparks(_v, _v2.set(0, 1, 0), 1, 0xd9c6ff, 1.6, 1.2);
+      else if (kind === 'wind') P.sparks(_v, _v2.set(Math.random() - 0.5, 0.4, Math.random() - 0.5), 1, 0xdfffea, 3, 1.4);
+      else if (kind === 'stone') P.smoke(this.flail ? this.flail.p : _v, 1, 0x8a7c68, 0.3, 0.6, 0.5);
       else P.droplets(_v, _v2.set(0, 1, 0), 1, 0x7ad0ff, 1.5, 0.05);
     }
     if (this.chargeT > 0.6 && !this._chargedFx) {
       this._chargedFx = true;
       this.model.sword.tip.getWorldPosition(_v);
-      this.game.fx.particles.flash(_v, kind === 'fire' ? 0xffc080 : kind === 'serpent' ? 0xe6d8ff : 0xbfe8ff, 1.0, 0.18);
+      this.game.fx.particles.flash(kind === 'stone' && this.flail ? this.flail.p : _v, kind === 'fire' ? 0xffc080 : kind === 'serpent' ? 0xe6d8ff : kind === 'wind' ? 0xdfffea : kind === 'stone' ? 0xf4ead4 : 0xbfe8ff, 1.0, 0.18);
       this.game.audio?.play('gaugeFull', { volume: 0.4, pitch: 1.5 });
     }
     const released = !input.down('heavy') || !this.control;
@@ -618,6 +642,7 @@ export class Player extends Actor {
     const iw = this.duel && d.cost ? d.duelIframes : d.iframes;
     this.invuln = r.inWindow(iw) ? Math.max(this.invuln, 0.02) : this.invuln;
     this.armor = r.inWindow(d.armor);
+    this.ghost = !!r.inWindow(d.pass);
     r.update(dt);
     // 真劍: parry after parry -- a fresh press turns the next blow of the string aside too; a guard simply held on
     // through the parry blocks the next blow if it comes before the parry is over (only a fresh press parries it)
@@ -737,12 +762,13 @@ export class Player extends Actor {
         this.parry(att, h);
         return 'parry';
       }
-      // regular block: chip damage + stamina
-      const dmg = Math.round((h.dmg ?? 10) * g.combat.diff.toPlayer * 0.2);
+      // regular block: chip damage + stamina (Gyomei's guard gives half as much of either)
+      const firm = this.charId === 'gyomei' ? 0.5 : 1;
+      const dmg = Math.round((h.dmg ?? 10) * g.combat.diff.toPlayer * 0.2 * firm * this.defMul);
       this.hp -= dmg;
       this.stats.damageTaken += dmg;
       g.stats.damageTaken += dmg;
-      this.stamina -= (h.dmg ?? 10) * 1.6;
+      this.stamina -= (h.dmg ?? 10) * 1.6 * firm;
       this.staminaDelay = 0.8;
       const d = _v.set(this.pos.x - src.x, 0, this.pos.z - src.z).normalize();
       this.knock.copy(d).multiplyScalar(2 + (h.knock ?? 1) * 0.5);
@@ -861,6 +887,7 @@ export class Player extends Actor {
       this.rallyT = R.hold;
     }
     g.audio?.play('playerHurt', { pos: this.pos });
+    if (this.charId === 'sanemi') this._marechi();
     if (this.state === 'ult') return;
     if ((this.armor && h.stun !== 'down') || (this.heart && (h.stun || 'light') === 'light')) {
       this.anim.hitJolt = 0.6;
@@ -908,6 +935,7 @@ export class Player extends Actor {
     const d = this.distTo(e);
     this.setState('action');
     this.run(this.moves.execute, { target: e, motionScale: clamp((d - e.radius - 1.1) / 1.6, 0.05, 2.4) });
+    if (this.flail && this.moves.execute.flail) this.flail.play(this.moves.execute.flail, this.action, this);
     this.curMove = 'execute';
     this.invuln = 1.0;
     this.velXZ.set(0, 0, 0);
@@ -1326,6 +1354,248 @@ export class Player extends Actor {
     g.fx.light(p.clone().setY(1.2), 0xc6a4ff, 4, 8, 0.3);
   }
 
+  // ---------------------------------------------------------------- 風之呼吸 fx
+  /** A burst of wind where the blade lands: a ring along the floor, gusts curling off it, dust kicked up. */
+  windGust(size = 1.3) {
+    const g = this.game;
+    const p = _v.copy(this.pos).addScaledVector(this.forward(_v2), 1.4);
+    p.y = 0.1;
+    g.fx.effects.ring(p.clone(), { color: 0xbff2d8, from: 0.3, to: size * 1.9, life: 0.4, thick: 0.25 });
+    for (let i = 0; i < 3; i++) {
+      _v3.set(p.x + (Math.random() - 0.5) * size, 0.5 + Math.random() * 0.6, p.z + (Math.random() - 0.5) * size);
+      g.fx.effects.sprite(_v3.clone(), { tex: 'windCurl', size: 0.8 + Math.random() * 0.5, life: 0.45, rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 5, grow: 0.6, alpha: 0.9 });
+    }
+    g.fx.particles.smoke(p.clone(), 5, 0x857866, 0.45, 2.2, 0.6);
+    g.fx.particles.sparks(p.clone().setY(0.6), _v3.set(0, 1, 0), 12, 0xe8fff0, 7, 1.2);
+    g.fx.light(p.clone().setY(0.9), 0x9ff0c4, 2.5, 6, 0.3);
+  }
+
+  /** 塵旋風・削斬: two gusts wound round the line of the dash, and the floor scraped up along it. */
+  dustWhirl(runner) {
+    const g = this.game;
+    const f = this.forward(new THREE.Vector3());
+    const r = this.right(new THREE.Vector3());
+    const from = this.pos.clone();
+    const to = from.clone().addScaledVector(f, 6.2 * (runner?.motionScale ?? 1));
+    g.world?.constrain(to, this.radius);
+    const len = Math.hypot(to.x - from.x, to.z - from.z);
+    for (const ph of [0, Math.PI]) {
+      const pts = [];
+      for (let i = 0; i <= 16; i++) {
+        const t = i / 16;
+        const a = ph + t * Math.PI * 5;
+        const rr = 0.35 + 0.4 * Math.sin(Math.min(1, t * 1.3) * Math.PI * 0.5);
+        pts.push(from.clone().addScaledVector(f, -0.4 + t * (len + 0.8)).addScaledVector(r, Math.cos(a) * rr).setY(0.85 + Math.sin(a) * rr));
+      }
+      g.fx.effects.dragon(pts, { style: 'wind', radius: 0.32, life: 0.62, grow: 0.22, seg: 90 });
+    }
+    for (let i = 0; i <= 8; i++) {
+      const t = i / 8;
+      const p = from.clone().lerp(to, t).setY(0.1);
+      g.fx.effects.timer(0.02 + t * 0.24, null, () => g.fx.particles.smoke(p, 3, 0x7a6c5a, 0.5, 1.6, 0.7));
+    }
+    this.afterimage(0.4, 0.3);
+    g.fx.screen.speed(0.9, 0.14);
+  }
+
+  /**
+   * 爪爪・科戶風: four claws of wind fly off the cut, through everything in their way. Each claw is a thin
+   * crescent standing square to its flight -- a slash mark slanting like the cut that threw it, which is how the
+   * camera behind him sees it -- and the four ride side by side.
+   */
+  windClaws() {
+    const g = this.game;
+    const f = this.forward(new THREE.Vector3());
+    const r = this.right(new THREE.Vector3());
+    const up = new THREE.Vector3(0, 1, 0);
+    // (the marks run from his upper right down to his lower left; each bows out toward his upper left)
+    const diag = r.clone().add(up).normalize();
+    const bow = up.clone().sub(r).normalize();
+    const h = 0.5, R = 1.4;
+    const start = bow.clone().multiplyScalar(Math.cos(-h)).addScaledVector(diag, Math.sin(-h));
+    const sweep = bow.clone().multiplyScalar(Math.sin(h)).addScaledVector(diag, Math.cos(h));
+    const speed = 19, life = 0.48;
+    for (let i = 0; i < 4; i++) {
+      const at = this.pos.clone().addScaledVector(f, 1.0).addScaledVector(bow, (i - 1.5) * 0.42).setY(1.15 + (i - 1.5) * 0.42 * bow.y);
+      g.fx.effects.timer(i * 0.03, null, () => {
+        const claw = g.fx.effects.arc({ center: at.clone().addScaledVector(bow, -R), f: start, s: sweep, radius: R, width: 0.46, arc: h * 2, style: 'wind', life: life + 0.1, wipe: 0.05 });
+        // (and a thin streak of wind drawn out behind it as it goes)
+        g.fx.effects.dragon([at.clone(), at.clone().addScaledVector(f, speed * life * 0.5), at.clone().addScaledVector(f, speed * life)], { style: 'wind', radius: 0.07, life: life + 0.08, grow: 0.86, seg: 24 });
+        g.combat.spawn({
+          pos: at.clone(),
+          vel: f.clone().multiplyScalar(speed),
+          radius: 0.55,
+          life,
+          owner: this,
+          pierce: true,
+          hit: { dmg: 17, poise: 15, knock: 2, hitstop: 0.04, shake: 0.14, power: 0.55, stun: 'light', style: 'wind', unparryable: true },
+          fx: (pr) => {
+            if (claw) claw.obj.position.copy(pr.pos).addScaledVector(bow, -R);
+          },
+        });
+      });
+    }
+    g.fx.particles.sparks(this.chest(_v).addScaledVector(f, 1), f, 16, 0xe8fff0, 10, 0.6);
+    g.fx.screen.speed(0.6, 0.12);
+  }
+
+  /** 昇上砂塵嵐: a column of wind and dust climbing round him. */
+  risingStormFx() {
+    const g = this.game;
+    const c = this.pos.clone();
+    for (let j = 0; j < 2; j++) {
+      const pts = [];
+      const a0 = this.yaw + j * Math.PI;
+      for (let k = 0; k <= 22; k++) {
+        const t = k / 22;
+        const a = a0 - t * Math.PI * 4;
+        const rr = 2.2 - t * 0.9;
+        pts.push(new THREE.Vector3(c.x + Math.cos(a) * rr, 0.2 + t * 4.2, c.z + Math.sin(a) * rr));
+      }
+      g.fx.effects.timer(j * 0.1, null, () => g.fx.effects.dragon(pts, { style: 'wind', radius: 0.45, life: 0.9, grow: 0.45, seg: 100 }));
+    }
+    g.fx.effects.ring(c.clone().setY(0.08), { color: 0xbff2d8, from: 3.6, to: 1.0, life: 0.5, thick: 0.3 });
+    g.fx.particles.smoke(c.clone().setY(0.1), 14, 0x7a6c5a, 0.8, 2.6, 0.9);
+    for (let i = 0; i < 4; i++) {
+      const a = Math.random() * Math.PI * 2;
+      g.fx.effects.timer(i * 0.08, null, () => g.fx.effects.sprite(new THREE.Vector3(c.x + Math.cos(a) * 1.8, 0.6 + i * 0.7, c.z + Math.sin(a) * 1.8), { tex: 'windCurl', size: 1.1, life: 0.5, rot: Math.random() * 6.28, spin: 4, grow: 0.5, alpha: 0.9, rise: 2 }));
+    }
+    g.fx.light(c.clone().setY(1.2), 0x9ff0c4, 3, 7, 0.5);
+  }
+
+  /** Blows away anything thrown at him within R (projectiles only). */
+  gustProjectiles(R) {
+    const g = this.game;
+    for (const p of g.combat.projectiles) {
+      if (p.owner === this || p.age >= p.life) continue;
+      if (Math.hypot(p.pos.x - this.pos.x, p.pos.z - this.pos.z) < R) {
+        p.life = 0;
+        g.fx.particles.sparks(p.pos, _v2.set(p.pos.x - this.pos.x, 0.5, p.pos.z - this.pos.z).normalize(), 10, 0xe8fff0, 8, 0.8);
+        g.fx.effects.sprite(p.pos.clone(), { tex: 'windCurl', size: 0.7, life: 0.3, rot: Math.random() * 6.28, grow: 0.6, alpha: 0.85 });
+      }
+    }
+  }
+
+  /** 木枯颪: turning in the air, rings of wind cut round him on the way down. */
+  kogarashiSpin() {
+    const g = this.game;
+    for (let i = 0; i < 3; i++) {
+      g.fx.effects.timer(i * 0.08, null, () => {
+        if (this.state !== 'action' || this.curMove !== 'kogarashi') return;
+        const y = this.pos.y + 1.6 - i * 0.45;
+        const a0 = Math.random() * Math.PI * 2;
+        g.fx.effects.arc({
+          center: new THREE.Vector3(this.pos.x, y, this.pos.z),
+          f: new THREE.Vector3(Math.cos(a0), -0.12, Math.sin(a0)),
+          s: new THREE.Vector3(-Math.sin(a0), 0, Math.cos(a0)),
+          radius: 1.9 + i * 0.25, width: 0.75, arc: Math.PI * 1.85, style: 'wind', life: 0.4, wipe: 0.18,
+        });
+      });
+    }
+  }
+
+  /** ...and where he lands, the gale bursts out across the floor. */
+  kogarashiLand() {
+    const g = this.game;
+    const p = this.pos.clone().addScaledVector(this.forward(_v2), 0.8);
+    g.fx.ground(p, { size: 2.6, color: 0xbff2d8, crack: true });
+    g.fx.effects.ring(p.clone().setY(0.1), { color: 0xe8fff0, from: 0.5, to: 5.2, life: 0.5, thick: 0.22 });
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      g.fx.effects.sprite(p.clone().add(_v3.set(Math.cos(a) * 1.6, 0.5, Math.sin(a) * 1.6)), { tex: 'windCurl', size: 1.0, life: 0.45, rot: a, spin: 3, grow: 0.7, alpha: 0.9 });
+    }
+    g.fx.light(p.clone().setY(1), 0x9ff0c4, 5, 9, 0.4);
+  }
+
+  // ---------------------------------------------------------------- 岩之呼吸 fx
+  /** The iron ball lands: the floor cracks and heaves up round it. `big`: the heaviest blows, rocks flung high. */
+  ballImpact(size = 1.4, big = false) {
+    const g = this.game;
+    const fl = this.flail;
+    const p = (fl ? fl.p : this.pos).clone().setY(0.05);
+    g.fx.ground(p, { size, color: 0xe6d2a6, crack: true });
+    g.fx.particles.debris(p.clone().setY(0.3), Math.round(10 + size * 8), 0x6e6252, 6 + size * 2);
+    g.fx.particles.smoke(p.clone(), Math.round(6 + size * 3), 0x8a7c68, 0.6 + size * 0.2, 2 + size * 0.5, 1);
+    g.audio?.play('stoneSmash', { pos: p, volume: big ? 1 : 0.7, pitch: big ? 0.85 : 1 });
+    g.cameraRig.shake(big ? 0.55 : 0.3);
+    if (big) {
+      g.fx.effects.ring(p.clone().setY(0.1), { color: 0xf4ead4, from: 0.4, to: size * 2.6, life: 0.5, thick: 0.22 });
+      g.fx.particles.debris(p.clone().setY(0.5), 24, 0x5a5044, 11);
+      g.freeze?.(0.05);
+    }
+  }
+
+  /** 天面碎: his foot comes down on the chain. */
+  stompFx() {
+    const g = this.game;
+    const p = this.pos.clone().addScaledVector(this.forward(_v2), 0.5).setY(0.05);
+    g.fx.effects.ring(p, { color: 0xe6d2a6, from: 0.2, to: 1.6, life: 0.3, thick: 0.3 });
+    g.fx.particles.smoke(p, 6, 0x8a7c68, 0.5, 1.8, 0.7);
+    g.cameraRig.shake(0.25);
+  }
+
+  /** 蛇紋岩・雙極: the ball and the axe meet on the foe. */
+  pincerFx() {
+    const g = this.game;
+    const fl = this.flail;
+    const c = (fl ? fl.p.clone().lerp(fl.axeP, 0.5) : this.chest(new THREE.Vector3())).setY(1.1);
+    g.fx.particles.flash(c, 0xf4ead4, 1.8, 0.14);
+    g.fx.effects.ring(c.clone(), { color: 0xf4ead4, from: 0.2, to: 2.4, life: 0.3, normal: this.forward(new THREE.Vector3()), thick: 0.2 });
+    g.fx.particles.debris(c.clone(), 18, 0x6e6252, 8);
+    g.fx.particles.sparks(c.clone(), _v2.set(0, 1, 0), 20, 0xfff0d0, 9, 1.4);
+    g.fx.light(c, 0xf4ead4, 3, 7, 0.25);
+    g.cameraRig.shake(0.35);
+  }
+
+  /** 岩軀之膚: dust whirled up off the floor round him. */
+  stoneSkinFx() {
+    const g = this.game;
+    const c = this.pos.clone().setY(0.08);
+    g.fx.effects.ring(c.clone(), { color: 0xe6d2a6, from: 0.6, to: 3.8, life: 0.6, thick: 0.3 });
+    for (let i = 0; i < 3; i++) {
+      g.fx.effects.timer(i * 0.25, null, () => {
+        if (this.state !== 'action' || this.curMove !== 'stoneSkin') return;
+        g.fx.particles.smoke(this.pos.clone().setY(0.2), 10, 0x8a7c68, 0.7, 2.6, 0.8);
+        g.fx.effects.ring(this.pos.clone().setY(0.08), { color: 0xd8c49a, from: 1.0, to: 3.6, life: 0.4, thick: 0.25 });
+      });
+    }
+  }
+
+  /** Beats down anything thrown at him within R (projectiles only). */
+  shatterProjectiles(R) {
+    const g = this.game;
+    for (const p of g.combat.projectiles) {
+      if (p.owner === this || p.age >= p.life) continue;
+      if (Math.hypot(p.pos.x - this.pos.x, p.pos.z - this.pos.z) < R) {
+        p.life = 0;
+        g.fx.particles.debris(p.pos, 8, 0x6e6252, 5);
+        g.fx.particles.flash(p.pos, 0xf4ead4, 1, 0.1);
+        g.audio?.play('clang', { pos: p.pos, volume: 0.5 });
+      }
+    }
+  }
+
+  /**
+   * Sanemi's 稀血: blood so rare the demons that smell it reel as if drunk. A wound on him leaves the demons
+   * round him sluggish for a while (the Upper Moons shake it off sooner).
+   */
+  _marechi() {
+    const g = this.game;
+    this.chest(_v);
+    g.fx.particles.droplets(_v.clone(), _v2.set(0, 1, 0), 14, 0xa8121c, 3.5, 0.06);
+    let any = false;
+    for (const e of g.enemies) {
+      if (!e.alive || this.distTo(e) > 7) continue;
+      e.drunkT = Math.max(e.drunkT || 0, e.isBoss ? 1.5 : 2.6);
+      e.drunkK = e.isBoss ? 0.8 : 0.55;
+      any = true;
+    }
+    if (any && g.time - (this._marechiT ?? -9) > 4) {
+      this._marechiT = g.time;
+      g.hud?.toast('稀血', 'counter');
+    }
+  }
+
   dodgeFx(ang) {
     this.game.fx.effects.afterimage(this.model, { color: this.palette.dodge, life: 0.25, alpha: 0.3 });
     this.game.fx.particles.smoke(_v.set(this.pos.x, 0.1, this.pos.z), 3, 0x3a2e2a, 0.35, 1.0, 0.5);
@@ -1338,6 +1608,18 @@ export class Player extends Actor {
     sw.base.getWorldPosition(this._base);
     if (dt > 0) this.swordVel.subVectors(this._tip, this._prevTip).divideScalar(dt);
     this._prevTip.copy(this._tip);
+    if (this.trailOn && !this.flail) this.trail.push(this._base, this._tip, this.game.time);
+  }
+
+  /** Gyomei: the trail follows the ball while it flies (the last stretch of its chain), else the axe. */
+  _sampleFlail() {
+    const fl = this.flail;
+    if (fl.ballFlying) {
+      _v.subVectors(fl.p, fl.hand).normalize();
+      this._base.copy(fl.p).addScaledVector(_v, -0.42);
+      this._tip.copy(fl.p).addScaledVector(_v, 0.16);
+      this.swordVel.copy(fl.vel);
+    }
     if (this.trailOn) this.trail.push(this._base, this._tip, this.game.time);
   }
 
@@ -1384,6 +1666,10 @@ export class Player extends Actor {
       this._purgatoryStart();
     } else if (this.charId === 'obanai') {
       this._serpentStart();
+    } else if (this.charId === 'sanemi') {
+      this._typhoonStart();
+    } else if (this.charId === 'gyomei') {
+      this._garinStart();
     } else {
       this.anim.play(this.clips.ultReady, { fade: 0.08, hold: true });
       g.enemyTimeScale = 0.15;
@@ -1408,6 +1694,8 @@ export class Player extends Actor {
     if (this.charId === 'giyu') return this._calmUpdate(dt, realDt);
     if (this.charId === 'rengoku') return this._purgatoryUpdate(dt);
     if (this.charId === 'obanai') return this._serpentUpdate(dt);
+    if (this.charId === 'sanemi') return this._typhoonUpdate(dt);
+    if (this.charId === 'gyomei') return this._garinUpdate(dt);
     if (u.phase === 'ready') {
       if (Math.random() < dt * 40) {
         this.model.sword.tip.getWorldPosition(_v);
@@ -1809,6 +2097,355 @@ export class Player extends Actor {
     }
   }
 
+  // 玖之型・韋馱天颱風: the wind gathers round him, he springs high into the air, falls on them as a typhoon --
+  // whirling round each foe in turn -- and comes down in one last spinning plunge.
+  _typhoonStart() {
+    const g = this.game;
+    this.anim.play(this.clips.typhoonReady, { fade: 0.08, hold: true });
+    g.enemyTimeScale = 0.15;
+    g.fx.screen.tintTarget.setRGB(0.95, 1.04, 0.98);
+    g.audio?.play('windHowl', { volume: 0.8, pitch: 0.85 });
+    this.model.sword.bladeMat.uniforms.uEmissive.value.setRGB(0.22, 0.7, 0.42);
+    this.ult.air = true;
+    g.cameraRig.play(
+      [
+        { t: 0, pos: [1.7, 0.5, 1.8], look: [0, 1.0, 0.4], fov: 44 },
+        { t: 0.8, pos: [1.2, 0.45, 2.3], look: [0, 1.2, 0.4], fov: 38, e: 'inOut' },
+      ],
+      { anchor: this.pos.clone(), relYaw: this.yaw },
+    );
+  }
+
+  _typhoonUpdate(dt) {
+    const u = this.ult;
+    const g = this.game;
+    if (u.phase === 'ready') {
+      if (Math.random() < dt * 60) {
+        // grit and wind drawn in toward him
+        const a = Math.random() * Math.PI * 2, r = 2 + Math.random() * 1.5;
+        _v.set(this.pos.x + Math.cos(a) * r, 0.2 + Math.random() * 1.4, this.pos.z + Math.sin(a) * r);
+        g.fx.particles.sparks(_v, _v2.set(-Math.cos(a), 0.1, -Math.sin(a)), 1, 0xe8fff0, 5, 0.2);
+      }
+      if (!u.ring && u.t > 0.3) {
+        u.ring = true;
+        g.fx.effects.ring(this.pos.clone().setY(0.06), { color: 0xbff2d8, from: 3.2, to: 0.6, life: 0.5, thick: 0.35 });
+        g.fx.particles.smoke(this.pos.clone().setY(0.1), 10, 0x7a6c5a, 0.6, 1.8, 0.8);
+      }
+      if (u.t > 0.8) {
+        g.cameraRig.stopCine();
+        g.cameraRig._syncFromCamera();
+        const list = g.enemies.filter((e) => e.alive && e.targetable !== false).sort((a, b) => this.distTo(a) - this.distTo(b));
+        u.targets = list.slice(0, 6);
+        if (!u.targets.length) u.targets = [null, null, null, null];
+        while (u.targets.length < 5 && list.length) u.targets.push(list[u.targets.length % list.length]);
+        u.main = list[0] || null;
+        u.phase = 'rise';
+        u.t = 0;
+        u.next = 0;
+        this.anim.play(this.clips.kogarashi, { fade: 0.04, time: 0.36, hold: true });
+        this.setTrail('wind');
+        // a pillar of wind hurls him up
+        const c = this.pos.clone();
+        for (let j = 0; j < 2; j++) {
+          const pts = [];
+          for (let k = 0; k <= 20; k++) {
+            const t = k / 20, a = this.yaw + j * Math.PI - t * Math.PI * 4;
+            pts.push(new THREE.Vector3(c.x + Math.cos(a) * (1.4 - t * 0.6), t * 6.5, c.z + Math.sin(a) * (1.4 - t * 0.6)));
+          }
+          g.fx.effects.dragon(pts, { style: 'wind', radius: 0.5, life: 0.9, grow: 0.3, seg: 90 });
+        }
+        g.fx.particles.smoke(c.clone().setY(0.1), 16, 0x7a6c5a, 0.9, 3, 1);
+        g.audio?.play('windHowl');
+        g.audio?.play('swingWind', { pitch: 0.8 });
+        g.fx.screen.speed(1, 0.35);
+        g.cameraRig.kick(10);
+      }
+      return;
+    }
+    if (u.phase === 'rise') {
+      const k = Math.min(1, u.t / 0.32);
+      this.posY = 5 * (1 - (1 - k) * (1 - k));
+      this.camLift = this.posY * 0.55;
+      if (k >= 1) {
+        u.phase = 'storm';
+        u.t = 0;
+        u.next = 0;
+      }
+      return;
+    }
+    if (u.phase === 'storm') {
+      if (u.t >= u.next) {
+        if (u.i >= u.targets.length) {
+          u.phase = 'plunge';
+          u.t = 0;
+          this._typhoonPlunge();
+          return;
+        }
+        const tgt = u.targets[u.i];
+        const from = this.pos.clone();
+        let to, at;
+        if (tgt && tgt.alive) {
+          // round to the far side of it: the cut circles the foe
+          at = tgt.pos;
+          const a = Math.atan2(from.x - at.x, from.z - at.z) + (u.i % 2 ? 2.3 : -2.3);
+          to = at.clone().add(_v.set(Math.sin(a), 0, Math.cos(a)).multiplyScalar(tgt.radius + 1.3));
+        } else {
+          const a = this.yaw + (u.i % 2 ? 1.1 : -1.1);
+          to = from.clone().add(_v.set(Math.sin(a) * 3.5, 0, Math.cos(a) * 3.5));
+          at = from.clone().lerp(to, 0.5);
+        }
+        g.world?.constrain(to, this.radius);
+        const y0 = this.posY, y1 = Math.max(0.7, y0 - 0.85);
+        u.dash = { from, to, at: at.clone(), t: 0, y0, y1 };
+        this.faceInstant(at);
+        this.anim.play(this.clips.typhoonSpin, { fade: 0.02 });
+        g.audio?.play('swingWind', { pitch: 1 + u.i * 0.04 });
+        g.fx.screen.speed(0.7, 0.1);
+        // the wind wheels round the foe as he passes
+        const c = at.clone().setY(1.1);
+        const a0 = Math.random() * Math.PI * 2;
+        g.fx.effects.arc({ center: c, f: new THREE.Vector3(Math.cos(a0), 0.15, Math.sin(a0)), s: new THREE.Vector3(-Math.sin(a0), 0, Math.cos(a0)), radius: 1.6, width: 0.8, arc: Math.PI * 1.8, style: 'wind', life: 0.45, wipe: 0.14 });
+        g.fx.effects.dragon([from.clone().setY(y0 + 1), c.clone().setY(1.6), to.clone().setY(y1 + 1)], { style: 'wind', radius: 0.4, life: 0.55, grow: 0.15, seg: 40 });
+        u.i++;
+        u.next = u.t + 0.18;
+        u.hitDone = false;
+      }
+      if (u.dash) {
+        u.dash.t += dt / 0.12;
+        const k = Math.min(1, u.dash.t);
+        const e = 1 - Math.pow(1 - k, 3);
+        this.pos.lerpVectors(u.dash.from, u.dash.to, e);
+        this.posY = u.dash.y0 + (u.dash.y1 - u.dash.y0) * e;
+        this.camLift = this.posY * 0.55;
+        if (k > 0.5 && !u.hitDone) {
+          u.hitDone = true;
+          for (const en of g.enemies) {
+            if (!en.alive) continue;
+            const d = Math.min(distToSegment(en.pos, u.dash.from, u.dash.to), Math.hypot(en.pos.x - u.dash.at.x, en.pos.z - u.dash.at.z));
+            if (d < 1.9 + en.radius) g.combat.applyHit(this, en, { dmg: en.isBoss ? 32 : 40, poise: 55, knock: 2, hitstop: 0.04, shake: 0.25, power: 0.8, style: 'wind', stun: 'heavy' });
+          }
+          g.fx.particles.sparks(this.chest(_v), _v2.set(0, 1, 0), 12, 0xe8fff0, 7, 1.2);
+        }
+      }
+      return;
+    }
+    if (u.phase === 'plunge') {
+      const d = u.dive;
+      const k = Math.min(1, u.t / 0.26);
+      const e = k * k;
+      this.pos.lerpVectors(d.from, d.to, 1 - (1 - k) * (1 - k));
+      this.posY = d.y0 * (1 - e);
+      this.camLift = this.posY * 0.55;
+      if (!u.blasted && k >= 1) {
+        u.blasted = true;
+        this.posY = 0;
+        this._typhoonBlast();
+      }
+      if (u.t > 1.15) this._endUlt();
+    }
+  }
+
+  _typhoonPlunge() {
+    const u = this.ult;
+    const g = this.game;
+    const main = u.main && u.main.alive ? u.main : null;
+    const from = this.pos.clone();
+    let to = from.clone();
+    if (main) {
+      const d = _v.set(from.x - main.pos.x, 0, from.z - main.pos.z);
+      const len = Math.max(0.01, d.length());
+      to = main.pos.clone().addScaledVector(d.multiplyScalar(1 / len), main.radius + 1.1);
+      this.faceInstant(main.pos);
+    }
+    g.world?.constrain(to, this.radius);
+    u.dive = { from, to, y0: this.posY };
+    this.anim.play(this.clips.typhoonDive, { fade: 0.03, hold: true });
+    g.audio?.play('windHowl', { pitch: 1.1 });
+    g.fx.screen.speed(1, 0.3);
+  }
+
+  /** The plunge lands: a typhoon tears up out of the floor and everything near is caught in it. */
+  _typhoonBlast() {
+    const g = this.game;
+    const c = this.pos.clone().addScaledVector(this.forward(_v2), 1.0);
+    g.fx.screen.impact(0.14, 0x04140c, 0xe8fff0);
+    g.fx.screen.radial(0.8);
+    g.audio?.play('impactFrame');
+    g.audio?.play('windHowl', { volume: 1, pitch: 0.75 });
+    g.cameraRig.shake(0.85);
+    g.cameraRig.kick(12);
+    g.fx.ground(c.clone(), { size: 3.6, color: 0xbff2d8, crack: true });
+    g.fx.effects.ring(c.clone().setY(0.1), { color: 0xe8fff0, from: 0.5, to: 8, life: 0.6, thick: 0.2 });
+    for (let j = 0; j < 3; j++) {
+      const pts = [];
+      const a0 = j * (Math.PI * 2 / 3);
+      for (let k = 0; k <= 26; k++) {
+        const t = k / 26, a = a0 - t * Math.PI * 5;
+        const r = 2.6 - t * 1.2 + Math.sin(t * Math.PI) * 0.6;
+        pts.push(new THREE.Vector3(c.x + Math.cos(a) * r, 0.1 + t * 7.5, c.z + Math.sin(a) * r));
+      }
+      g.fx.effects.timer(j * 0.06, null, () => g.fx.effects.dragon(pts, { style: 'wind', radius: 0.7, life: 1.3, grow: 0.4, seg: 120 }));
+    }
+    g.fx.particles.smoke(c.clone().setY(0.2), 24, 0x7a6c5a, 1.1, 3.6, 1.3);
+    g.fx.light(c.clone().setY(1.5), 0x9ff0c4, 8, 14, 0.6);
+    for (const e of g.enemies) {
+      if (!e.alive) continue;
+      if (Math.hypot(e.pos.x - c.x, e.pos.z - c.z) < 6.5 + e.radius) {
+        g.combat.applyHit(this, e, { dmg: e.isBoss ? 150 : 190, poise: 260, knock: 8, launch: e.isBoss ? 0 : 7, hitstop: 0.12, shake: 0.7, power: 1, style: 'wind', stun: 'down', crit: true, impact: 0.12, impactA: 0x04140c, impactB: 0xe8fff0, radial: 0.7 });
+      }
+    }
+  }
+
+  // 伍之型・瓦輪刑部: gathered low while the flail whirls, then up into the air, hurling the ball and the axe down
+  // on four places in turn -- each lands like a falling boulder -- and down onto the floor in a last shock.
+  _garinStart() {
+    const g = this.game;
+    this.anim.play(this.clips.garinReady, { fade: 0.08, hold: true });
+    g.enemyTimeScale = 0.12;
+    g.fx.screen.tintTarget.setRGB(1.04, 1.0, 0.92);
+    g.audio?.play('flailWhirl', { volume: 0.9, pitch: 0.7 });
+    this.ult.air = true;
+    this.ult.whirl = true;
+    g.cameraRig.play(
+      [
+        { t: 0, pos: [1.9, 0.9, 2.6], look: [0, 1.5, 0.3], fov: 46 },
+        { t: 0.8, pos: [1.4, 0.8, 3.1], look: [0, 1.6, 0.3], fov: 40, e: 'inOut' },
+      ],
+      { anchor: this.pos.clone(), relYaw: this.yaw },
+    );
+  }
+
+  _garinUpdate(dt) {
+    const u = this.ult;
+    const g = this.game;
+    const fl = this.flail;
+    if (u.phase === 'ready') {
+      if (Math.random() < dt * 30) g.fx.particles.smoke(this.pos.clone().setY(0.1).add(_v.set((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2)), 1, 0x8a7c68, 0.5, 1, 0.8);
+      if (u.t > 0.8) {
+        g.cameraRig.stopCine();
+        g.cameraRig._syncFromCamera();
+        u.whirl = false;
+        // four places: the nearest foes, then round the first (or round him, with nobody near)
+        const list = g.enemies.filter((e) => e.alive && e.targetable !== false).sort((a, b) => this.distTo(a) - this.distTo(b)).slice(0, 4);
+        const main = list[0] || null;
+        u.spots = list.map((e) => ({ at: e.pos.clone(), foe: e }));
+        const c = main ? main.pos : this.pos.clone().addScaledVector(this.forward(_v), 4);
+        for (let i = u.spots.length; i < 4; i++) {
+          const a = this.yaw + (i - 1.5) * 1.1;
+          u.spots.push({ at: c.clone().add(_v.set(Math.sin(a) * 2.6, 0, Math.cos(a) * 2.6)), foe: null });
+        }
+        for (const sp of u.spots) g.world?.constrain(sp.at, 0.5);
+        u.phase = 'leap';
+        u.t = 0;
+        u.i = 0;
+        u.next = 0.3;
+        this.anim.play(this.clips.garinThrowA, { fade: 0.05, hold: true });
+        this.setTrail('stone');
+        g.fx.particles.smoke(this.pos.clone().setY(0.1), 14, 0x8a7c68, 0.9, 2.6, 1);
+        g.fx.effects.ring(this.pos.clone().setY(0.08), { color: 0xe6d2a6, from: 0.5, to: 3, life: 0.4, thick: 0.3 });
+        g.audio?.play('groundSlam', { volume: 0.6 });
+        g.cameraRig.kick(8);
+      }
+      return;
+    }
+    if (u.phase === 'leap' || u.phase === 'throws') {
+      if (u.phase === 'leap') {
+        const k = Math.min(1, u.t / 0.3);
+        this.posY = 3.2 * (1 - (1 - k) * (1 - k));
+        if (k >= 1) {
+          u.phase = 'throws';
+          u.t = 0;
+          u.next = 0;
+        }
+      } else {
+        this.posY = Math.max(2.4, this.posY - dt * 0.8);
+        // each throw: the ball, the axe, the ball, the axe -- flung down on a place, landing 0.16 s later
+        if (u.i < u.spots.length && u.t >= u.next) {
+          const sp = u.spots[u.i];
+          const which = u.i % 2 ? 'axe' : 'ball';
+          if (sp.foe?.alive) sp.at.copy(sp.foe.pos);
+          this.faceInstant(sp.at);
+          fl?.throwTo(which, sp.at.clone().setY(which === 'ball' ? 0.18 : 0.35), 0.16, 0.5);
+          this.anim.play(u.i % 2 ? this.clips.garinThrowB : this.clips.garinThrowA, { fade: 0.02 });
+          g.audio?.play('flailWhirl', { pitch: 1 + u.i * 0.05 });
+          sp.land = u.t + 0.16;
+          sp.which = which;
+          u.i++;
+          u.next = u.t + 0.26;
+        }
+        let all = true;
+        for (const sp of u.spots) {
+          if (sp.land != null && !sp.done && u.t >= sp.land) {
+            sp.done = true;
+            this._garinImpact(sp);
+            g.fx.effects.timer(0.14, null, () => this.ult && fl?.recall(sp.which, 0.18));
+          }
+          if (!sp.done) all = false;
+        }
+        if (all && u.t >= u.next) {
+          u.phase = 'land';
+          u.t = 0;
+          u.y0 = this.posY;
+          this.anim.play(this.clips.garinLand, { fade: 0.04, time: 0, hold: true });
+        }
+      }
+      this.camLift = this.posY * 0.5;
+      return;
+    }
+    if (u.phase === 'land') {
+      const k = Math.min(1, u.t / 0.2);
+      this.posY = u.y0 * (1 - k * k);
+      this.camLift = this.posY * 0.5;
+      if (!u.shock && k >= 1) {
+        u.shock = true;
+        this.posY = 0;
+        this._garinShock();
+      }
+      if (u.t > 1.0) this._endUlt();
+    }
+  }
+
+  /** One of the four: it comes down like a boulder, and everything round it is crushed. */
+  _garinImpact(sp) {
+    const g = this.game;
+    const p = sp.at.clone().setY(0.05);
+    g.fx.ground(p, { size: 3, color: 0xe6d2a6, crack: true });
+    g.fx.effects.ring(p.clone().setY(0.1), { color: 0xf4ead4, from: 0.4, to: 5, life: 0.5, thick: 0.22 });
+    g.fx.particles.debris(p.clone().setY(0.4), 30, 0x5a5044, 12);
+    g.fx.particles.smoke(p.clone(), 12, 0x8a7c68, 1, 3, 1.1);
+    g.fx.light(p.clone().setY(1), 0xf4ead4, 5, 9, 0.3);
+    g.audio?.play('stoneSmash', { pos: p, pitch: 0.8 });
+    g.cameraRig.shake(0.6);
+    g.fx.screen.radial(0.5);
+    g.freeze?.(0.05);
+    for (const e of g.enemies) {
+      if (!e.alive) continue;
+      if (Math.hypot(e.pos.x - p.x, e.pos.z - p.z) < 3.0 + e.radius) {
+        g.combat.applyHit(this, e, { dmg: e.isBoss ? 55 : 70, poise: 120, knock: 5, hitstop: 0.08, shake: 0.4, power: 1, style: 'stone', stun: 'down', blunt: true, sfx: 'stoneHit', from: p });
+      }
+    }
+  }
+
+  /** ...and he lands among them: the floor bucks under everything round him. */
+  _garinShock() {
+    const g = this.game;
+    const c = this.pos.clone().setY(0.05);
+    g.fx.screen.impact(0.14, 0x100c08, 0xf4ead4);
+    g.fx.screen.radial(0.8);
+    g.audio?.play('impactFrame');
+    g.audio?.play('groundSlam');
+    g.cameraRig.shake(0.85);
+    g.cameraRig.kick(10);
+    g.fx.ground(c.clone(), { size: 4, color: 0xe6d2a6, crack: true });
+    g.fx.effects.ring(c.clone().setY(0.1), { color: 0xf4ead4, from: 0.5, to: 9, life: 0.7, thick: 0.2 });
+    g.fx.particles.debris(c.clone().setY(0.4), 40, 0x5a5044, 14);
+    g.fx.particles.smoke(c.clone(), 24, 0x8a7c68, 1.2, 4, 1.3);
+    for (const e of g.enemies) {
+      if (!e.alive) continue;
+      if (this.distTo(e) < 8 + e.radius) g.combat.applyHit(this, e, { dmg: e.isBoss ? 50 : 60, poise: 200, knock: 7, launch: e.isBoss ? 0 : 6, hitstop: 0.12, shake: 0.6, power: 1, style: 'stone', stun: 'down', crit: true, blunt: true, sfx: 'stoneSmash', impact: 0.12, impactA: 0x100c08, impactB: 0xf4ead4 });
+    }
+  }
+
   /** A cutscene takes over mid-ultimate: put the world back the way the ultimate found it. */
   interruptUlt() {
     if (!this.ult) return;
@@ -1822,6 +2459,15 @@ export class Player extends Actor {
 
   _endUlt() {
     const g = this.game;
+    // (the ball and the axe come back to his hands)
+    this.flail?.release();
+    // (Sanemi's typhoon and Gyomei's leap are fought in the air: whatever cut them short, he comes back down)
+    if (this.ult?.air) {
+      this.posY = 0;
+      this.yVel = 0;
+      this.onGround = true;
+      this.camLift = 0;
+    }
     this.ult = null;
     this.invuln = 0.4;
     g.enemyTimeScale = 1;

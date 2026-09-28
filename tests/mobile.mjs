@@ -156,7 +156,7 @@ if (cmd === 'shots') {
     await ev(() => window.__game.ui.showCharacterSelect('story'));
     await sleep(1200);
     await shot('select');
-    for (const [i, id] of [[1, 'giyu'], [2, 'rengoku'], [3, 'obanai']]) {
+    for (const [i, id] of [[1, 'giyu'], [2, 'rengoku'], [3, 'obanai'], [4, 'sanemi'], [5, 'gyomei']]) {
       await ev((k) => window.__game.ui.screens.select.select(k, null), i);
       await sleep(700);
       await shot('select-' + id);

@@ -3,7 +3,7 @@ import { Player } from '../actors/player.js';
 import { Enemy } from '../actors/enemy.js';
 import { Akaza } from '../actors/boss.js';
 import { Kokushibo, kokushiboTier } from '../actors/kokushibo.js';
-import { buildTanjiro, buildGiyu, buildRengoku, buildObanai, buildAkaza, buildKokushibo, buildDemon } from '../actors/characters.js';
+import { buildTanjiro, buildGiyu, buildRengoku, buildObanai, buildSanemi, buildGyomei, buildAkaza, buildKokushibo, buildDemon } from '../actors/characters.js';
 import { CHAR_FX } from './moves.js';
 import { LAYER_FX } from '../render/pipeline.js';
 
@@ -38,6 +38,18 @@ const LINES = {
     kokushibo: ['伊黑小芭內', '上弦之壹……就算是你，我也會取下你的頸。'],
     victory: ['伊黑小芭內', '……哼。不過如此。'],
   },
+  sanemi: {
+    intro: ['不死川實彌', '哈！到處都是鬼的臭味。全部給我出來，一隻不剩地剁碎！'],
+    boss: ['不死川實彌', '上弦之參是吧……你這傢伙的頸，我收下了！'],
+    kokushibo: ['不死川實彌', '上弦之壹……好啊，就讓你嘗嘗我這身血的滋味！'],
+    victory: ['不死川實彌', '……哼。鬼就該死在這裡。'],
+  },
+  gyomei: {
+    intro: ['悲鳴嶼行冥', '南無阿彌陀佛……這座城裡，到處都是可憐的東西。'],
+    boss: ['悲鳴嶼行冥', '上弦之參……南無阿彌陀佛。今日，便在此處了結你。'],
+    kokushibo: ['悲鳴嶼行冥', '上弦之壹……好沉的氣息。南無阿彌陀佛——我會將你的頸，擊碎在此。'],
+    victory: ['悲鳴嶼行冥', '……南無阿彌陀佛。願你來世，安然往生。'],
+  },
 };
 
 /** What Akaza says to each of them as the fight begins. */
@@ -46,6 +58,8 @@ const AKAZA_GREETS = {
   giyu: '好強的鬥氣……你是柱吧。成為鬼吧！',
   rengoku: '杏壽郎！又見面了。這一次，你一定要成為鬼！',
   obanai: '蛇一般的劍氣……你也是柱吧。成為鬼吧！',
+  sanemi: '好兇暴的鬥氣！這股血的氣味……你也是柱吧。成為鬼吧！',
+  gyomei: '這鬥氣……簡直是至高之境！你就是鬼殺隊最強之人吧。成為鬼吧，與我永遠戰下去！',
 };
 
 /** What Kokushibo says to each of them. (Tanjiro wears the hanafuda earrings his brother wore.) */
@@ -54,9 +68,11 @@ const KOKUSHIBO_GREETS = {
   giyu: '水之呼吸……鍛鍊得不錯。可惜，在月光之下，不過是一圈漣漪。',
   rengoku: '炎之呼吸……燒了數百年的火焰。讓我看看，它還能燒到什麼地步。',
   obanai: '蛇之呼吸……自水分出的一支。區區旁支，也想觸及明月嗎。',
+  sanemi: '這氣味……是稀血。而且是極其罕見的稀血。你以為，這種東西能令我醉倒嗎。',
+  gyomei: '如此鍛鍊至極的肉體……這三百年來，我從未見過能與你匹敵之人。',
 };
 
-const BUILDERS = { tanjiro: buildTanjiro, giyu: buildGiyu, rengoku: buildRengoku, obanai: buildObanai };
+const BUILDERS = { tanjiro: buildTanjiro, giyu: buildGiyu, rengoku: buildRengoku, obanai: buildObanai, sanemi: buildSanemi, gyomei: buildGyomei };
 export const isPlayable = (id) => Object.hasOwn(BUILDERS, id);
 
 export class Director {

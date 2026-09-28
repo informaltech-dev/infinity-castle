@@ -9,7 +9,7 @@ import { Director, isPlayable } from './director.js';
 import { FX } from '../fx/fx.js';
 import { World } from '../world/castle.js';
 import { HudAdapter } from './hud.js';
-import { buildTanjiro, buildGiyu, buildRengoku, buildObanai } from '../actors/characters.js';
+import { buildTanjiro, buildGiyu, buildRengoku, buildObanai, buildSanemi, buildGyomei } from '../actors/characters.js';
 import { createAnimator } from '../actors/animsets.js';
 import { clamp } from '../core/math.js';
 import { rulesFor, isDifficulty } from './rules.js';
@@ -164,7 +164,7 @@ export class Game {
     this.world.buildHall();
     this._lightingHall();
     // preview models for the select screen
-    this.previews = { tanjiro: buildTanjiro(T), giyu: buildGiyu(T), rengoku: buildRengoku(T), obanai: buildObanai(T) };
+    this.previews = { tanjiro: buildTanjiro(T), giyu: buildGiyu(T), rengoku: buildRengoku(T), obanai: buildObanai(T), sanemi: buildSanemi(T), gyomei: buildGyomei(T) };
     for (const k in this.previews) {
       const m = this.previews[k];
       m.anim = createAnimator(m);
@@ -176,7 +176,7 @@ export class Game {
     await new Promise((r) => setTimeout(r, 250));
     this.ui?.hideLoading();
     this.toTitle();
-    // debug shortcut: ?play=tanjiro|giyu|rengoku|obanai&mode=story|boss
+    // debug shortcut: ?play=tanjiro|giyu|rengoku|obanai|sanemi|gyomei&mode=story|boss|kokushibo
     const q = new URLSearchParams(location.search);
     // (&diff= tries a difficulty for this visit only: the settings screen shows it, the saved setting is left alone,
     // and choosing a difficulty there ends it)
@@ -380,10 +380,13 @@ export class Game {
       const m = this.previews[k];
       const show = k === id && (this.screen === 'select');
       if (show && !m.root.visible) {
-        m.root.position.set(0, 0, 0);
+        // (Gyomei stands a head taller than the rest: a step further back keeps him in the frame)
+        m.root.position.set(0, 0, k === 'gyomei' ? -0.9 : 0);
         m.root.rotation.y = 0.35;
         m.anim.anim.play(m.anim.clips.victory, { fade: 0, hold: true });
         m.anim.anim.clipTime = 1.2;
+        // (his ball starts hanging still under his hand, not swinging in from wherever it last was)
+        if (m.flail) m.flail.init = false;
         this._previewT = 0;
         this.fx?.particles.smoke(new THREE.Vector3(0, 0.3, 0), 10, 0x1a1016, 0.7, 1.4, 0.8);
       }
@@ -642,6 +645,7 @@ export class Game {
         m.anim.anim.update(realDt);
         m.anim.anim.apply();
         m.rig.updateSprings(realDt);
+        m.flail?.update(realDt);
       }
       this.camera.position.set(0.08, 1.3, 4.1);
       this.camera.lookAt(0.08, 1.02, 0);
@@ -748,6 +752,8 @@ export class Game {
     for (let i = 0; i < all.length; i++) {
       for (let j = i + 1; j < all.length; j++) {
         const a = all[i], b = all[j];
+        // (a move that passes through foes -- Sanemi's whirlwind -- is not stopped by them)
+        if (a.ghost || b.ghost) continue;
         const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z;
         const d = Math.hypot(dx, dz);
         const min = a.radius + b.radius;

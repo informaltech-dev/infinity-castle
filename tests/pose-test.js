@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Pipeline, LAYER_MAIN_ONLY } from '../src/render/pipeline.js';
 import { toonMaterial } from '../src/render/materials.js';
-import { buildTanjiro, buildGiyu, buildRengoku, buildObanai, buildAkaza, buildKokushibo, buildDemon } from '../src/actors/characters.js';
+import { buildTanjiro, buildGiyu, buildRengoku, buildObanai, buildSanemi, buildGyomei, buildAkaza, buildKokushibo, buildDemon } from '../src/actors/characters.js';
 import { createAnimator } from '../src/actors/animsets.js';
 
 const canvas = document.getElementById('c');
@@ -42,6 +42,8 @@ const builders = {
   giyu: () => buildGiyu(T),
   rengoku: () => buildRengoku(T),
   obanai: () => buildObanai(T),
+  sanemi: () => buildSanemi(T),
+  gyomei: () => buildGyomei(T),
   akaza: () => buildAkaza(T),
   kokushibo: () => buildKokushibo(T),
   grunt: () => buildDemon(T, 'grunt', 1),
@@ -121,6 +123,8 @@ window.__pose = {
         if (clipName) { clipSel.value = clipName; setClip(); anim.clipTime = t; anim.update(0); anim._snap(); }
         camera.position.set(...v[0]); controls.target.set(...v[1]); controls.update();
         anim.apply(); model.rig.updateSprings(0);
+        // (Gyomei's ball: let it settle on its chain under the posed hand)
+        for (let k = 0; k < 40; k++) model.flail?.update(1 / 60);
         pipe.render(scene, camera, 1);
         ctx.drawImage(pipe.renderer.domElement, 0, 0, cw, ch, c * cw, r * ch, cw, ch);
         ctx.fillStyle = '#fff'; ctx.font = '12px monospace';
@@ -156,6 +160,8 @@ window.__pose = {
         anim.clipTime = t; anim.update(0); anim._snap();
         camera.position.set(...view[0]); controls.target.set(...view[1]); controls.update();
         anim.apply(); model.rig.updateSprings(0);
+        // (Gyomei's ball: let it settle on its chain under the posed hand)
+        for (let k = 0; k < 40; k++) model.flail?.update(1 / 60);
         pipe.render(scene, camera, 1);
         ctx.drawImage(pipe.renderer.domElement, 0, 0, cw, ch, c * cw, r * ch, cw, ch);
         ctx.fillStyle = '#fff'; ctx.font = '11px monospace';
@@ -202,6 +208,7 @@ function tick(dt) {
   }
   anim.apply();
   model.rig.updateSprings(dt);
+  model.flail?.update(Math.max(dt, 1 / 60));
   controls.update();
   info.textContent = anim.clip ? `${anim.clip.name}  t=${anim.clipTime.toFixed(3)} / ${anim.clip.dur}` : 'stance';
   pipe.render(scene, camera, performance.now() / 1000);

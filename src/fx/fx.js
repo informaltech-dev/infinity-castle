@@ -159,6 +159,8 @@ const STYLE_COL = {
   akaza: 0x7fe6ff,
   serpent: 0xc6a4ff,
   moon: 0xd8b8ff,
+  wind: 0x9ff0c4,
+  stone: 0xe6d2a6,
 };
 
 export class FX {
@@ -222,6 +224,13 @@ export class FX {
       P.sparks(pos, _v, 8, 0xff3050, 7, 1.2);
     } else if (style === 'moon') {
       P.sparks(pos, _v, Math.round(6 + power * 8), 0xffe6a8, 9 + power * 6, 0.9);
+    } else if (style === 'wind') {
+      P.sparks(pos, _v, Math.round(8 + power * 10), 0xe8fff0, 12 + power * 6, 0.7);
+      if (power > 0.35) this.effects.sprite(pos, { tex: 'windCurl', size: 0.5 + power * 0.8, life: 0.3, rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 6, grow: 0.8, alpha: 0.9 });
+    } else if (style === 'stone') {
+      // (a blow of the iron ball: chips and grit, and a puff of dust)
+      P.debris(pos, Math.round(6 + power * 12), 0x6e6252, 4 + power * 4);
+      P.smoke(pos, Math.round(2 + power * 5), 0x8a7c68, 0.35 + power * 0.3, 1.2, 0.6);
     }
     if (blunt || power > 0.7) this.effects.ring(pos, { color: col, from: 0.2, to: 1.2 + power * 1.5, life: 0.25, normal: _v, thick: 0.2 });
     // dark demon blood-ash puff

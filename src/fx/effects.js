@@ -2,10 +2,10 @@ import * as THREE from 'three';
 import { LAYER_FX } from '../render/pipeline.js';
 
 // Style ids shared by trails / arcs / dragons
-export const STYLE = { STEEL: 0, WATER: 1, FIRE: 2, CALM: 3, DEMON: 4, COMPASS: 5, SERPENT: 6, MOON: 7 };
+export const STYLE = { STEEL: 0, WATER: 1, FIRE: 2, CALM: 3, DEMON: 4, COMPASS: 5, SERPENT: 6, MOON: 7, WIND: 8, STONE: 9 };
 export const styleId = (s) => (typeof s === 'number' ? s : STYLE[(s || 'steel').toUpperCase()] ?? 0);
 /** Ink-painted styles (dark outlines) are drawn with normal blending; the glowing ones add light. */
-const inked = (sid) => sid === STYLE.WATER || sid === STYLE.SERPENT;
+const inked = (sid) => sid === STYLE.WATER || sid === STYLE.SERPENT || sid === STYLE.WIND || sid === STYLE.STONE;
 
 const commonGLSL = /* glsl */ `
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
@@ -74,6 +74,35 @@ vec4 styleColor(int style, float u, float v, float t, float alpha) {
     col = mix(col, vec3(1.0, 0.93, 0.7), smoothstep(0.78, 0.95, band));
     float a = smoothstep(0.0, 0.18, v) * (1.0 - smoothstep(0.93, 1.0, v)) * (1.0 - smoothstep(0.35, 1.0, u + n * 0.25));
     c = vec4(col * 1.55, a * alpha);
+  } else if (style == 8) {
+    // wind: jade gusts, white streaks racing along the stroke, dark green ink at the edges; the tail tears apart
+    float n = fbm(vec2(u * 5.0 - t * 7.0, v * 3.0));
+    float streak = smoothstep(0.62, 0.92, noise(vec2(u * 3.0 - t * 9.0, v * 26.0)));
+    float band = v + (n - 0.5) * 0.36;
+    vec3 deep = vec3(0.09, 0.4, 0.28), mid = vec3(0.42, 0.8, 0.6), light = vec3(0.9, 1.0, 0.94);
+    vec3 col = band < 0.3 ? deep : band < 0.68 ? mid : light;
+    col = mix(col, vec3(1.0), streak * 0.75 * step(0.3, band));
+    float inkO = smoothstep(0.9, 0.97, v + (n - 0.5) * 0.1);
+    float inkI = 1.0 - smoothstep(0.02, 0.07, v);
+    col = mix(col, vec3(0.02, 0.11, 0.07), max(inkO, inkI) * 0.85);
+    float edge = 1.0 - smoothstep(0.97, 1.0, v + (n - 0.5) * 0.12);
+    float rag = (noise(vec2(v * 11.0, t * 4.0)) - 0.5) * 0.3;
+    float tail = 1.0 - smoothstep(0.32 + n * 0.45, 1.0, u + rag);
+    c = vec4(col * 1.2, edge * tail * alpha);
+  } else if (style == 9) {
+    // stone: grey-ochre rock with dark cracks through it and a dusty pale crest, ink at the edges
+    float n = fbm(vec2(u * 6.0 - t * 2.5, v * 4.0));
+    float band = v + (n - 0.5) * 0.3;
+    vec3 deep = vec3(0.2, 0.16, 0.13), mid = vec3(0.5, 0.44, 0.36), light = vec3(0.86, 0.8, 0.67);
+    vec3 col = band < 0.3 ? deep : band < 0.72 ? mid : light;
+    float cr = abs(noise(vec2(u * 16.0 - t * 1.5, v * 6.0)) - 0.5);
+    col = mix(col, deep * 0.7, (1.0 - smoothstep(0.015, 0.05, cr)) * 0.85 * step(0.3, band));
+    float inkO = smoothstep(0.9, 0.97, v + (n - 0.5) * 0.1);
+    float inkI = 1.0 - smoothstep(0.02, 0.08, v);
+    col = mix(col, vec3(0.07, 0.05, 0.04), max(inkO, inkI) * 0.9);
+    float edge = 1.0 - smoothstep(0.97, 1.0, v + (n - 0.5) * 0.14);
+    float tail = 1.0 - smoothstep(0.45 + n * 0.35, 1.0, u);
+    c = vec4(col * 1.15, edge * tail * alpha);
   } else if (style == 5) {
     vec3 col = vec3(0.5, 0.92, 1.0);
     float a = (1.0 - smoothstep(0.7, 1.0, u)) * smoothstep(0.0, 0.2, v) * (1.0 - smoothstep(0.8, 1.0, v));
@@ -484,7 +513,7 @@ export class Effects {
 
   /**
    * Crescent slash in a plane: center, basis vectors f (arc start dir) and s (arc sweep dir), radius, arc radians.
-   * style: 'steel' | 'water' | 'fire' | 'calm' | 'demon' | 'serpent'
+   * style: 'steel' | 'water' | 'fire' | 'calm' | 'demon' | 'serpent' | 'moon' | 'wind' | 'stone'
    */
   arc({ center, f, s, radius = 1.4, width = 0.5, arc = Math.PI * 0.9, style = 'steel', life = 0.32, wipe = 0.07 }) {
     const key = `${radius.toFixed(2)}|${width.toFixed(2)}|${arc.toFixed(2)}`;
@@ -497,7 +526,7 @@ export class Effects {
     const mat = new THREE.ShaderMaterial({
       vertexShader: arcVert,
       fragmentShader: arcFrag,
-      uniforms: { uStyle: { value: sid }, uTime: { value: this.time }, uProg: { value: 0 }, uFade: { value: 0 } },
+      uniforms: { uStyle: { value: sid }, uTime: { value: this.time }, uProg: { value: 0 }, uFade: { value: 1.3 } },
       transparent: true,
       depthWrite: false,
       side: THREE.DoubleSide,
@@ -514,7 +543,8 @@ export class Effects {
     return this._add(mesh, life, (t) => {
       mat.uniforms.uTime.value = this.time;
       mat.uniforms.uProg.value = Math.min(1, (t * life) / wipe);
-      mat.uniforms.uFade.value = Math.max(0, (t - 0.35) / 0.65) * 1.3;
+      // (the dissolve threshold falls from 1.3 to 0: whole while it wipes in, eaten away tail first at the end)
+      mat.uniforms.uFade.value = (1 - Math.max(0, (t - 0.35) / 0.65)) * 1.3;
     });
   }
 
@@ -540,7 +570,7 @@ export class Effects {
     const mat = new THREE.ShaderMaterial({
       vertexShader: arcVert,
       fragmentShader: dragonFrag,
-      uniforms: { uStyle: { value: sid }, uTime: { value: this.time }, uProg: { value: 0 }, uFade: { value: 0 } },
+      uniforms: { uStyle: { value: sid }, uTime: { value: this.time }, uProg: { value: 0 }, uFade: { value: 1.2 } },
       transparent: true,
       depthWrite: false,
       side: THREE.DoubleSide,
@@ -551,7 +581,7 @@ export class Effects {
     return this._add(mesh, life, (t) => {
       mat.uniforms.uTime.value = this.time;
       mat.uniforms.uProg.value = Math.min(1, t / grow);
-      mat.uniforms.uFade.value = Math.max(0, (t - 0.55) / 0.45) * 1.2;
+      mat.uniforms.uFade.value = (1 - Math.max(0, (t - 0.55) / 0.45)) * 1.2;
     });
   }
 
@@ -657,8 +687,9 @@ export class Effects {
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: alpha, depthWrite: false, blending: THREE.AdditiveBlending });
     mat.userData.dispose = true;
     model.root.updateMatrixWorld(true);
-    model.root.traverse((o) => {
-      if (o.isMesh && o.visible && o.geometry.attributes.position.count > 20) {
+    // (only what is drawn: a hidden weapon stays out of it, and instanced parts -- a chain -- have no one place)
+    model.root.traverseVisible((o) => {
+      if (o.isMesh && !o.isInstancedMesh && o.geometry.attributes.position.count > 20) {
         const m = new THREE.Mesh(o.geometry, mat);
         o.matrixWorld.decompose(m.position, m.quaternion, m.scale);
         g.add(m);

@@ -956,6 +956,195 @@ function faceObanai(expr) {
   return c;
 }
 
+// ---------------------------------------------------------------------------
+// Shinazugawa Sanemi: small lilac irises adrift in wide whites, a scowl, old scars across the face
+// ---------------------------------------------------------------------------
+const SANEMI = {
+  sclera: '#fffdfb', scleraShade: '#e9dcdc',
+  iris: {
+    a: 0.02, b: 0.1, rx: 0.36, ry: 0.62, cols: ['#3a2860', '#7a60b0', '#c6b2ea'], refl: '#ebe2ff', ring: '#22163e', pupil: '#130a20', pk: 0.24,
+    shadow: '#2a1c46', shadowA: 0.6, hl: [{ x: -0.3, y: -0.34, rx: 0.2, ry: 0.15, rot: -0.2 }, { x: 0.3, y: 0.42, rx: 0.08, ry: 0.06 }],
+  },
+  lash: { col: '#1c1618', w0: 3.8, w1: 9.2, peak: 0.6, wing: [0.2, -0.04, 0], flicks: [[0.84, -0.42, 1.12, -0.66, 3.8]] },
+  crease: { col: '#6e4a4a', w: 2.2, off: 9, from: 0.3, to: 0.92 },
+  lower: { col: '#4a3434', w: 2.4, from: 0.3, to: 1 },
+};
+
+/** A healed cut across the face: a pale pink welt with an ink edge, pale down its middle; `stitch` adds the ticks. */
+function faceScar(ctx, ctrl, w, stitch = 0) {
+  const pts = catmull(PP(ctrl), 10);
+  fillRib(ctx, ribbon(pts, w + 2.4, { taperA: 0.25, taperB: 0.25, pow: 0.75 }), '#9a5a58');
+  fillRib(ctx, ribbon(pts, w, { taperA: 0.25, taperB: 0.25, pow: 0.75 }), '#e3a39c');
+  fillRib(ctx, ribbon(offsetPts(pts, w * 0.12), w * 0.34, { taperA: 0.3, taperB: 0.3, pow: 0.8 }), '#f8dcd4');
+  for (let i = 1; i <= stitch; i++) {
+    const k = Math.round((i / (stitch + 1)) * (pts.length - 1));
+    const [x, y] = pts[k], [x2, y2] = pts[Math.min(pts.length - 1, k + 1)];
+    const a = Math.atan2(y2 - y, x2 - x) + Math.PI / 2, l = w * 1.1;
+    fillRib(ctx, ribbon([[x - Math.cos(a) * l, y - Math.sin(a) * l], [x + Math.cos(a) * l, y + Math.sin(a) * l]], 1.8, { taperA: 0.3, taperB: 0.3 }), '#9a5a58');
+  }
+}
+
+function sanemiScars(ctx) {
+  // down from his left brow (viewer's right) and slantwise over the bridge of the nose onto his right cheek
+  faceScar(ctx, [[0.69, 0.36], [0.6, 0.47], [0.52, 0.6], [0.44, 0.68], [0.37, 0.73]], 5.2, 3);
+  // down his right cheek, under the eye
+  faceScar(ctx, [[0.285, 0.675], [0.29, 0.73], [0.3, 0.79]], 4.2);
+  // across his left cheek toward the ear
+  faceScar(ctx, [[0.73, 0.69], [0.79, 0.715], [0.85, 0.7]], 4);
+  // a nick at the corner of the brow on his right
+  faceScar(ctx, [[0.2, 0.45], [0.23, 0.5], [0.25, 0.54]], 3.4);
+}
+
+/** Thin red threads running in from the corners of the whites (his eyes when he is angry). */
+function bloodshot(ctx, F, n = 3) {
+  for (let i = 0; i < n; i++) {
+    const s = i % 2 ? -1 : 1;
+    const y = (i - (n - 1) / 2) * 0.22;
+    inkLine(ctx, [F(s * 0.98, y), F(s * 0.78, y + 0.06), F(s * 0.62, y - 0.02)], 1.3, '#d0485a', { taperA: 0.1, taperB: 0.8 });
+  }
+}
+
+function faceSanemi(expr) {
+  const { c, ctx } = canvas2d(S, S);
+  const BROW = '#b8bcc6', BROW_INK = '#4a4a56', LINE = '#3a1e1e', NOSE = '#a45c50';
+  // silver brows with an ink edge, short and slashed down toward the nose
+  const brows = (pts, w) => {
+    bothBrows(ctx, pts, w + 2.6, BROW_INK, { fall: 0.5 });
+    bothBrows(ctx, pts, w, BROW, { fall: 0.55 });
+  };
+  const eyes = (spec) => {
+    for (const [i, side] of [[0, -1], [1, 1]]) {
+      const F = eyeFrame(EYE_U[i], EYE_F, side);
+      drawEye(ctx, F, spec);
+      if (spec.veins) {
+        ctx.save();
+        bloodshot(ctx, F, spec.veins);
+        ctx.restore();
+      }
+    }
+  };
+  if (expr === 'neutral') {
+    brows([[0.414, 0.518], [0.37, 0.494], [0.318, 0.47], [0.266, 0.455]], 5.2);
+    eyes({
+      ...SANEMI,
+      lid: { inner: [-1, 0.2], c1: [-0.66, -0.6], c2: [0.42, -0.94], outer: [1.07, -0.3] },
+      low: { c1: [-0.5, 0.86], c2: [0.62, 0.74] },
+    });
+    inkLine(ctx, PP([[0.46, 0.506], [0.468, 0.526]]), 2.4, BROW_INK, { taperA: 0.4, taperB: 0.4 });
+    inkLine(ctx, PP([[0.54, 0.506], [0.532, 0.526]]), 2.4, BROW_INK, { taperA: 0.4, taperB: 0.4 });
+    smallNose(ctx, NOSE);
+    // a scowl, the right corner (viewer's left) hitched up in a sneer
+    inkLine(ctx, PP([[0.452, 0.8], [0.476, 0.806], [0.5, 0.808], [0.524, 0.806], [0.548, 0.812]]), 3.4, LINE, { taperA: 0.25, taperB: 0.25 });
+    inkLine(ctx, PP([[0.446, 0.791], [0.452, 0.8], [0.458, 0.806]]), 2.4, LINE, { taperA: 0.4, taperB: 0.4 });
+  } else if (expr === 'fierce') {
+    brows([[0.42, 0.53], [0.376, 0.5], [0.322, 0.47], [0.266, 0.448]], 5.6);
+    eyes({
+      ...SANEMI,
+      iris: { ...SANEMI.iris, rx: 0.3, ry: 0.54, pk: 0.2, b: 0.06, hl: [{ x: -0.3, y: -0.3, rx: 0.2, ry: 0.15 }, { x: 0.3, y: 0.44, rx: 0.08, ry: 0.06 }] },
+      lid: { inner: [-1, 0.14], c1: [-0.6, -0.76], c2: [0.42, -1.08], outer: [1.08, -0.36] },
+      low: { c1: [-0.5, 0.98], c2: [0.62, 0.86] },
+      lash: { ...SANEMI.lash, w0: 4.4, w1: 9.6 },
+      veins: 3,
+    });
+    inkLine(ctx, PP([[0.458, 0.51], [0.468, 0.54]]), 2.8, BROW_INK, { taperA: 0.4, taperB: 0.4 });
+    inkLine(ctx, PP([[0.542, 0.51], [0.532, 0.54]]), 2.8, BROW_INK, { taperA: 0.4, taperB: 0.4 });
+    inkLine(ctx, PP([[0.476, 0.49], [0.5, 0.486], [0.524, 0.49]]), 2, BROW_INK, { taperA: 0.4, taperB: 0.4 });
+    smallNose(ctx, NOSE);
+    // a wide, savage grin, both rows of teeth bared
+    openMouth(ctx, PP([[0.412, 0.772], [0.45, 0.784], [0.5, 0.788], [0.55, 0.784], [0.588, 0.772], [0.574, 0.814], [0.54, 0.842], [0.5, 0.85], [0.46, 0.842], [0.426, 0.814]]), {
+      inside: '#3a0a10', upperTeeth: 8, lowerTeeth: 7, lw: 3.2, tongue: '#a0343c', ink: LINE,
+      fangs: [[0.448, 8, 11], [0.552, 8, 11]],
+    });
+  } else {
+    brows([[0.406, 0.47], [0.364, 0.476], [0.316, 0.488], [0.264, 0.5]], 5.2);
+    drawSquint(ctx, eyeFrame(EYE_U[1], EYE_F + 0.01, 1), '#1c1618', 6.4);
+    drawEye(ctx, eyeFrame(EYE_U[0], EYE_F, -1), {
+      ...SANEMI,
+      iris: { ...SANEMI.iris, b: 0.16, rx: 0.34, ry: 0.6 },
+      lid: { inner: [-1, 0.22], c1: [-0.7, -0.3], c2: [0.4, -0.56], outer: [1.04, 0.0] },
+      low: { c1: [-0.5, 0.7], c2: [0.6, 0.62] },
+    });
+    smallNose(ctx, NOSE);
+    grimace(ctx, PP([[0.44, 0.792], [0.5, 0.784], [0.56, 0.792], [0.554, 0.812], [0.5, 0.82], [0.446, 0.812]]), { lw: 2.8, splits: 5, ink: LINE });
+    sweatDrop(ctx, 0.2, 0.52, 0.9);
+  }
+  sanemiScars(ctx);
+  return c;
+}
+
+// ---------------------------------------------------------------------------
+// Himejima Gyomei: blind white eyes, brows knit in sorrow, tears running down both cheeks, the scar across his brow
+// ---------------------------------------------------------------------------
+const GYOMEI = {
+  sclera: '#f1eff4', scleraShade: '#c6c0d4',
+  lash: { col: '#141216', w0: 3.6, w1: 8.2, peak: 0.55, wing: [0.1, 0.12, 0], flicks: [[0.9, -0.2, 1.1, -0.26, 3.2]] },
+  crease: { col: '#6a4a44', w: 2.4, off: 8, from: 0.2, to: 0.95 },
+  lower: { col: '#5a3e3a', w: 2.6, from: 0.2, to: 1 },
+};
+
+/** Tears welling at the inner corners and running down both cheeks. */
+function gyomeiTears(ctx, len = 1) {
+  for (const side of [-1, 1]) {
+    const u0 = 0.5 + side * 0.105;
+    const pts = [[u0, 0.635], [u0 + side * 0.012, 0.69], [u0 + side * 0.006, 0.75 * len + 0.635 * (1 - len)], [u0 + side * 0.016, 0.8 * len + 0.64 * (1 - len)]];
+    const rib = ribbon(catmull(PP(pts), 10), (t) => 7 * (0.55 + 0.45 * Math.sin(t * Math.PI)), { taperA: 0.3, taperB: 0.05, pow: 0.7 });
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = css('#5a7cae');
+    ctx.lineWidth = 2.6;
+    ctx.stroke(rib.path);
+    ctx.fillStyle = css('#dcefff', 0.92);
+    ctx.fill(rib.path);
+    ctx.restore();
+    // the drop gathering at the end
+    const [x, y] = P(pts[3][0], pts[3][1] + 0.012);
+    const drop = new Path2D();
+    drop.ellipse(x, y, 5.2, 6.6, 0, 0, TAU);
+    inked(ctx, drop, '#e6f4ff', '#5a7cae', 1.3);
+    ctx.fillStyle = css('#ffffff');
+    ctx.beginPath();
+    ctx.ellipse(x - 1.6, y - 1.8, 1.6, 2, 0, 0, TAU);
+    ctx.fill();
+  }
+}
+
+function gyomeiScar(ctx) {
+  // straight across the forehead, a little higher on his left (viewer's right)
+  faceScar(ctx, [[0.34, 0.425], [0.42, 0.418], [0.5, 0.414], [0.58, 0.408], [0.66, 0.4]], 5.6);
+}
+
+function faceGyomei(expr) {
+  const { c, ctx } = canvas2d(S, S);
+  const BROW = '#16141a', LINE = '#3a2420', NOSE = '#9a5a48';
+  // his eyes have no iris: a pale, unseeing white under heavy lids
+  const blind = (lid, low, shade = '#c6c0d4') => ({ ...GYOMEI, scleraShade: shade, lid, low });
+  if (expr === 'neutral') {
+    // brows lifted at the inner ends: sorrow
+    bothBrows(ctx, [[0.41, 0.49], [0.366, 0.494], [0.312, 0.5], [0.258, 0.516]], 9.5, BROW, { fall: 0.4 });
+    bothEyes(ctx, blind({ inner: [-1, 0.16], c1: [-0.7, -0.46], c2: [0.5, -0.6], outer: [1.04, 0.22] }, { c1: [-0.5, 0.78], c2: [0.62, 0.74] }));
+    smallNose(ctx, NOSE, 4);
+    inkLine(ctx, PP([[0.46, 0.808], [0.48, 0.803], [0.5, 0.802], [0.52, 0.803], [0.54, 0.808]]), 3.6, LINE, { taperA: 0.25, taperB: 0.25 });
+    inkLine(ctx, PP([[0.488, 0.826], [0.5, 0.828], [0.512, 0.826]]), 2.4, '#9a5a4a', { taperA: 0.4, taperB: 0.4 });
+    gyomeiTears(ctx, 1);
+  } else if (expr === 'fierce') {
+    bothBrows(ctx, [[0.414, 0.52], [0.37, 0.5], [0.316, 0.482], [0.258, 0.476]], 10.5, BROW, { fall: 0.4 });
+    bothEyes(ctx, blind({ inner: [-1, 0.12], c1: [-0.66, -0.6], c2: [0.44, -0.84], outer: [1.05, -0.12] }, { c1: [-0.5, 0.86], c2: [0.62, 0.8] }, '#b8b0c8'));
+    inkLine(ctx, PP([[0.462, 0.5], [0.47, 0.532]]), 3, BROW, { taperA: 0.4, taperB: 0.4 });
+    inkLine(ctx, PP([[0.538, 0.5], [0.53, 0.532]]), 3, BROW, { taperA: 0.4, taperB: 0.4 });
+    smallNose(ctx, NOSE, 4);
+    openMouth(ctx, PP([[0.43, 0.78], [0.465, 0.772], [0.5, 0.77], [0.535, 0.772], [0.57, 0.78], [0.566, 0.814], [0.54, 0.846], [0.5, 0.856], [0.46, 0.846], [0.434, 0.814]]), { inside: '#3a0a10', upperTeeth: 7, lowerTeeth: 6, tongue: '#9a3038', lw: 3.4, ink: LINE });
+    gyomeiTears(ctx, 1);
+  } else {
+    bothBrows(ctx, [[0.404, 0.47], [0.36, 0.478], [0.31, 0.49], [0.258, 0.506]], 9.5, BROW, { fall: 0.45 });
+    for (const [i, side] of [[0, -1], [1, 1]]) drawSquint(ctx, eyeFrame(EYE_U[i], EYE_F + 0.01, side), '#141216', 6.8);
+    smallNose(ctx, NOSE, 4);
+    grimace(ctx, PP([[0.442, 0.79], [0.5, 0.782], [0.558, 0.79], [0.552, 0.81], [0.5, 0.818], [0.448, 0.81]]), { lw: 3, splits: 5, ink: LINE });
+    gyomeiTears(ctx, 0.8);
+  }
+  gyomeiScar(ctx);
+  return c;
+}
+
 function demonVeins(ctx, rng, starts, col) {
   const grow = (x, y, a, w, len, depth) => {
     const pts = [[x, y]];
@@ -1195,6 +1384,12 @@ export const FACE_MAKERS = {
   face_obanai_neutral: () => faceObanai('neutral'),
   face_obanai_fierce: () => faceObanai('fierce'),
   face_obanai_hurt: () => faceObanai('hurt'),
+  face_sanemi_neutral: () => faceSanemi('neutral'),
+  face_sanemi_fierce: () => faceSanemi('fierce'),
+  face_sanemi_hurt: () => faceSanemi('hurt'),
+  face_gyomei_neutral: () => faceGyomei('neutral'),
+  face_gyomei_fierce: () => faceGyomei('fierce'),
+  face_gyomei_hurt: () => faceGyomei('hurt'),
   face_kokushibo_neutral: () => faceKokushibo('neutral'),
   face_kokushibo_fierce: () => faceKokushibo('fierce'),
   face_demon_a: () => faceDemonA(),

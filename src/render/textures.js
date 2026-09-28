@@ -8,9 +8,13 @@ import { woodFloor, woodDark, pillarRed, shoji, fusuma1, fusuma2, fusuma3, roofT
 import {
   checkerTanjiro, giyuSolid, giyuKikko, uniformBlack, legWraps, akazaSkin, akazaTop, akazaPants,
   demonSkin, demonRags, hairTanjiro, hairGiyu, hairAkaza, rengokuHaori, obanaiStripes, kokushiboKimono, kokushiboHakama,
+  sanemiHaori, sanemiChest, sanemiArm, sanemiKill, gyomeiHaori,
 } from './tex/fabric.js';
 import { FACE_MAKERS } from './tex/faces.js';
-import { crack, compass, waveCurl, splash, flame, flameTiger, smoke, shadow } from './tex/fx.js';
+import { crack, compass, waveCurl, windCurl, splash, flame, flameTiger, smoke, shadow } from './tex/fx.js';
+
+const BRUSH_FONT = 'LXGW WenKai TC';
+const BRUSH_TEXT = '殺南無阿彌陀佛';
 
 // kind: 'data' => NoColorSpace, otherwise sRGB colour.
 // tile: RepeatWrapping (drawn seamless); clampY: only across (vertical edges clamp). aniso: anisotropy 8 (floors / walls).
@@ -37,6 +41,12 @@ const SPECS = [
   // seamless left-right only: mapped once vertically (hem = canvas bottom); the top half is plain cream
   { name: 'rengokuHaori', make: rengokuHaori, tile: true, clampY: true }, // hem at the bottom, mapped once vertically
   { name: 'obanaiStripes', make: obanaiStripes, tile: true },
+  { name: 'sanemiHaori', make: sanemiHaori, tile: true },
+  { name: 'sanemiChest', make: sanemiChest, tile: true },
+  { name: 'sanemiArm', make: sanemiArm, tile: true },
+  // 殺 on the back of his haori (drawn with the page's brush font, so wait for it: see createTextures)
+  { name: 'sanemiKill', make: sanemiKill, font: true },
+  { name: 'gyomeiHaori', make: gyomeiHaori, tile: true, font: true },
   { name: 'uniformBlack', make: uniformBlack, tile: true },
   { name: 'legWraps', make: legWraps, tile: true },
   { name: 'akazaSkin', make: akazaSkin, tile: true },
@@ -55,6 +65,7 @@ const SPECS = [
   { name: 'crack', make: crack, blend: 'alpha' },
   { name: 'compass', make: compass, blend: 'additive' },
   { name: 'waveCurl', make: waveCurl, blend: 'alpha' },
+  { name: 'windCurl', make: windCurl, blend: 'alpha' },
   { name: 'splash', make: splash, blend: 'alpha' },
   { name: 'flame', make: flame, blend: 'alpha' },
   { name: 'flameTiger', make: flameTiger, blend: 'additive' },
@@ -82,6 +93,14 @@ function yieldToBrowser() {
 export async function createTextures(onProgress) {
   const out = {};
   const total = SPECS.length;
+  // (the lettering on a haori is written in the page's brush font: give it a moment to arrive, then go on without it)
+  const fonts = globalThis.document?.fonts;
+  if (fonts?.load) {
+    await Promise.race([
+      fonts.load(`700 64px "${BRUSH_FONT}"`, BRUSH_TEXT).catch(() => null),
+      new Promise((r) => setTimeout(r, 2500)),
+    ]);
+  }
   for (let i = 0; i < total; i++) {
     const spec = SPECS[i];
     const made = spec.make(hashString(spec.name) ^ 0x5bd1e995);

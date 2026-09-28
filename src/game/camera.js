@@ -77,9 +77,11 @@ export class CameraRig {
     this.pitch = clamp(this.pitch, -0.35, 1.05);
     // follow
     const p = player.pos;
-    _t.set(p.x, p.y + this.height, p.z);
+    // (camLift: a player fighting high in the air -- Sanemi's typhoon -- takes the view up with him)
+    _t.set(p.x, p.y + this.height + (player.camLift || 0), p.z);
     this.focus.lerp(_t, dampT(14, realDt));
-    let dist = this.distTarget;
+    // (distAdd: a bigger player -- Gyomei -- is framed from further back)
+    let dist = this.distTarget + (this.distAdd || 0);
     if (this.lock && this.lock.alive !== false) {
       const tp = this.lock.pos;
       const dx = tp.x - p.x, dz = tp.z - p.z;
@@ -89,7 +91,7 @@ export class CameraRig {
       this.yaw += angleDiff(this.yaw, want) * dampT(5, realDt);
       const wantPitch = clamp(0.2 + (d < 3 ? 0.1 : 0) - (this.lock.height > 2.5 ? 0.05 : 0), 0.05, 0.5);
       this.pitch += (wantPitch - this.pitch) * dampT(3, realDt);
-      dist = clamp(4.8 + d * 0.18, 4.8, 7.5);
+      dist = clamp(4.8 + d * 0.18, 4.8, 7.5) + (this.distAdd || 0);
       // focus slightly toward target
       _v.set(tp.x, tp.y + 1.2, tp.z);
       this.focus.lerp(_v, 0.18 * dampT(14, realDt) * 3);

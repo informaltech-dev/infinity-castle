@@ -8,12 +8,14 @@ import { Callouts, Banner, Subtitle, Prompt, Toasts, LockOn, EnemyBars, DamageNu
 const EASE_OUT = 'cubic-bezier(.16,1,.3,1)';
 const FIRE_RE = /火|日|炎|圓舞|陽/;
 const SERPENT_RE = /蛇|塒|毒牙/;
+const WIND_RE = /風|爪爪|塵旋|嵐|颪|颱/;
+const STONE_RE = /岩|天面|紋岩|瓦輪/;
+const ULT_STYLES = ['water', 'serpent', 'wind', 'stone'];
 
-/** Colour scheme of an ultimate gauge: fire (default), water or serpent. */
+/** Colour scheme of an ultimate gauge: fire (default), water, serpent, wind or stone. */
 export function setUltStyle(el, style) {
-  el.classList.toggle('is-water', style === 'water');
-  el.classList.toggle('is-serpent', style === 'serpent');
-  el.classList.toggle('is-fire', style !== 'water' && style !== 'serpent');
+  for (const s of ULT_STYLES) el.classList.toggle('is-' + s, style === s);
+  el.classList.toggle('is-fire', !ULT_STYLES.includes(style));
 }
 const q = (el, s) => el.querySelector(s);
 const tx = (v01) => `translateX(${((v01 - 1) * 100).toFixed(2)}%)`;
@@ -396,8 +398,10 @@ export class HUD {
       sl.g.textContent = g;
       sl.g.classList.toggle('is-2', [...g].length > 1);
       sl.nameEl.textContent = name;
-      sl.el.classList.toggle('is-fire', FIRE_RE.test(form + name));
-      sl.el.classList.toggle('is-serpent', SERPENT_RE.test(form + name));
+      // (one colour a form: 蛇紋岩 is a stone form, not a serpent one)
+      const fn = form + name;
+      const st = STONE_RE.test(fn) ? 'stone' : WIND_RE.test(fn) ? 'wind' : SERPENT_RE.test(fn) ? 'serpent' : FIRE_RE.test(fn) ? 'fire' : '';
+      for (const k of ['fire', 'serpent', 'wind', 'stone']) sl.el.classList.toggle('is-' + k, st === k);
     }
     if (s.cost !== sl.cost) {
       sl.cost = s.cost;

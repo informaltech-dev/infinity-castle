@@ -2,13 +2,14 @@ import * as THREE from 'three';
 import { Animator, compileClip, compilePose } from './anim.js';
 import {
   SWORD_STANCE, SWORD_RUN, SWORD_SPRINT, SWORD_GUARD, SWORD_CLIPS,
+  FLAIL_STANCE, FLAIL_RUN, FLAIL_SPRINT, FLAIL_GUARD, FLAIL_CLIPS,
   AKAZA_STANCE, AKAZA_RUN, AKAZA_CLIPS,
   KOKUSHIBO_STANCE, KOKUSHIBO_RUN, KOKUSHIBO_CLIPS,
   DEMON_STANCE, DEMON_RUN, DEMON_CLIPS,
 } from './poses.js';
 
 const cache = new Map();
-const SWORDSMEN = new Set(['tanjiro', 'giyu', 'rengoku', 'obanai']);
+const SWORDSMEN = new Set(['tanjiro', 'giyu', 'rengoku', 'obanai', 'sanemi']);
 
 function compileSet(key, stance, clips) {
   if (cache.has(key)) return cache.get(key);
@@ -23,10 +24,14 @@ function compileSet(key, stance, clips) {
 export function createAnimator(model) {
   const id = model.id;
   let anim, clips;
-  if (SWORDSMEN.has(id) || id === 'kokushibo') {
+  if (SWORDSMEN.has(id) || id === 'kokushibo' || id === 'gyomei') {
     if (id === 'kokushibo') {
       anim = new Animator(model.rig, { stance: KOKUSHIBO_STANCE, run: KOKUSHIBO_RUN, sprint: KOKUSHIBO_RUN });
       clips = compileSet('kokushibo', KOKUSHIBO_STANCE, KOKUSHIBO_CLIPS);
+    } else if (id === 'gyomei') {
+      // (his axe is held like a sword; the chain and the ball are the Flail's)
+      anim = new Animator(model.rig, { stance: FLAIL_STANCE, run: FLAIL_RUN, sprint: FLAIL_SPRINT, guard: FLAIL_GUARD });
+      clips = compileSet('flail', FLAIL_STANCE, FLAIL_CLIPS);
     } else {
       anim = new Animator(model.rig, { stance: SWORD_STANCE, run: SWORD_RUN, sprint: SWORD_SPRINT, guard: SWORD_GUARD });
       clips = compileSet('sword', SWORD_STANCE, SWORD_CLIPS);

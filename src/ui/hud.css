@@ -80,6 +80,14 @@
 .hd-player.is-obanai .hd-crest-pat {
   background: repeating-linear-gradient(90deg, #18171d 0 calc(var(--u) * 0.7), #e9e5dc 0 calc(var(--u) * 1.4));
 }
+/* Sanemi: his white haori, streaked with wind */
+.hd-player.is-sanemi .hd-crest-pat {
+  background: repeating-linear-gradient(-32deg, #f3f1ea 0 calc(var(--u) * 0.8), #9fd8b8 0 calc(var(--u) * 0.95), #f3f1ea 0 calc(var(--u) * 1.6));
+}
+/* Gyomei: his olive haori and the sutra written over it */
+.hd-player.is-gyomei .hd-crest-pat {
+  background: repeating-linear-gradient(90deg, transparent 0 calc(var(--u) * 0.9), rgba(28, 26, 12, 0.55) 0 calc(var(--u) * 1.1), transparent 0 calc(var(--u) * 1.5)), #6f6c3e;
+}
 .hd-crest-ring {
   position: absolute;
   inset: 0;
@@ -430,6 +438,12 @@
 .hd-sk.is-serpent .sk-bg {
   background: radial-gradient(circle at 38% 32%, rgba(104, 66, 164, 0.92), rgba(20, 10, 34, 0.95) 72%);
 }
+.hd-sk.is-wind .sk-bg {
+  background: radial-gradient(circle at 38% 32%, rgba(38, 128, 84, 0.92), rgba(6, 26, 16, 0.95) 72%);
+}
+.hd-sk.is-stone .sk-bg {
+  background: radial-gradient(circle at 38% 32%, rgba(132, 110, 74, 0.92), rgba(30, 24, 16, 0.95) 72%);
+}
 .sk-ring {
   position: absolute;
   inset: 0;
@@ -450,6 +464,14 @@
 .hd-sk.is-serpent.is-ready .sk-ring {
   fill: #efe6ff;
   filter: drop-shadow(0 0 calc(var(--u) * 0.7) rgba(167, 123, 240, 0.9));
+}
+.hd-sk.is-wind.is-ready .sk-ring {
+  fill: #e2fff0;
+  filter: drop-shadow(0 0 calc(var(--u) * 0.7) rgba(63, 191, 127, 0.9));
+}
+.hd-sk.is-stone.is-ready .sk-ring {
+  fill: #f6ecd6;
+  filter: drop-shadow(0 0 calc(var(--u) * 0.7) rgba(196, 164, 106, 0.9));
 }
 .sk-g {
   position: absolute;
@@ -650,6 +672,16 @@
   --u1: #a77bf0;
   --u2: #f2ecff;
   --u3: #4a2a86;
+}
+.hd-ult.is-wind {
+  --u1: #3fbf7f;
+  --u2: #e6fff0;
+  --u3: #155a38;
+}
+.hd-ult.is-stone {
+  --u1: #c4a46a;
+  --u2: #f6ecd6;
+  --u3: #5a4526;
 }
 .ul-disc {
   position: relative;
@@ -1172,6 +1204,32 @@
 .hd-co.is-serpent .co-name {
   color: #f8f4ff;
   text-shadow: 0 0 calc(var(--u) * 1) rgba(167, 123, 240, 0.95), 0.05em 0.05em 0 #1e0c3a, 0 0 2px #000;
+}
+.hd-co.is-wind {
+  --fk: #d8ffe8;
+}
+.hd-co.is-wind .co-splash {
+  background: linear-gradient(180deg, rgba(6, 30, 18, 0) 0%, rgba(8, 34, 22, 0.95) 10%, rgba(30, 110, 70, 0.92) 52%, rgba(150, 230, 190, 0.82) 86%, rgba(150, 230, 190, 0) 100%);
+}
+.hd-co.is-wind .co-school {
+  color: #c8f4dc;
+}
+.hd-co.is-wind .co-name {
+  color: #f4fff8;
+  text-shadow: 0 0 calc(var(--u) * 1) rgba(63, 191, 127, 0.95), 0.05em 0.05em 0 #0a2a1a, 0 0 2px #000;
+}
+.hd-co.is-stone {
+  --fk: #f0e2c0;
+}
+.hd-co.is-stone .co-splash {
+  background: linear-gradient(180deg, rgba(30, 24, 16, 0) 0%, rgba(34, 27, 18, 0.95) 10%, rgba(110, 90, 60, 0.92) 52%, rgba(214, 190, 140, 0.82) 86%, rgba(214, 190, 140, 0) 100%);
+}
+.hd-co.is-stone .co-school {
+  color: #efdcb4;
+}
+.hd-co.is-stone .co-name {
+  color: #fffaf0;
+  text-shadow: 0 0 calc(var(--u) * 1) rgba(196, 164, 106, 0.95), 0.05em 0.05em 0 #2e2212, 0 0 2px #000;
 }
 .hd-co.is-demon {
   --fk: #6fe3ff;

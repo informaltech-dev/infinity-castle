@@ -108,7 +108,7 @@ export class Combat {
       if (crit) dmg *= 1.8;
       if (victim.staggered) dmg *= 1.3;
     } else {
-      dmg *= diff.toPlayer;
+      dmg *= diff.toPlayer * (victim.defMul ?? 1);
       if (victim.blocking && !h.unblockable) dmg *= 0.25;
     }
     if (!h.fixed) dmg = Math.round(dmg * (0.92 + Math.random() * 0.16));
@@ -136,7 +136,8 @@ export class Combat {
     if (h.fov) g.cameraRig.kick(h.fov);
     victim.flash(isPlayerVictim ? 0xff4040 : 0xffffff, 0.09);
     const cutDir = att.swordVel && att.swordVel.lengthSq() > 0.5 ? att.swordVel : null;
-    g.fx.hit(hitPos, pushDir, { style: h.blunt ? (style === 'akaza' ? 'akaza' : 'steel') : style, power, crit, blunt: !!h.blunt, cutDir });
+    // (a blunt blow keeps only the styles made for it: Akaza's fists, Gyomei's iron ball)
+    g.fx.hit(hitPos, pushDir, { style: h.blunt && style !== 'akaza' && style !== 'stone' ? 'steel' : style, power, crit, blunt: !!h.blunt, cutDir });
     if (crit) {
       g.fx.screen.flash(0xffffff, 0.25, 10);
       g.fx.screen.chroma(0.6);

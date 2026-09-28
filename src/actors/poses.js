@@ -449,6 +449,82 @@ export const SWORD_CLIPS = {
       { t: 0.7, e: 'inOut', p: { hp: [0, -0.42, -0.08], chest: [16, -24, 0] } },
     ],
   },
+  // ----------------------------------------------------------- 風之呼吸 (Sanemi)
+  // 壹之型・塵旋風・削斬: from the drawn-back charge, bent low and whirling twice round with the blade held out
+  // as he drills forward, and a last cut across where the whirl stops
+  jinsenpu: {
+    dur: 0.78,
+    keys: [
+      { t: 0, e: 'snap', p: { hp: [0, -0.24, -0.16], by: 0, hips: [0, -40, 0], chest: [6, -46, 0], spine: [6, -14, 0], head: [-4, 50, 0], lh: 1, sw: { tilt: 90, yaw: 0, a: 14, r: 0.08, off: -14, roll: 90 } } },
+      { t: 0.05, e: 'out', p: { hp: [0, -0.38, 0.3], hips: [0, 0, 0], spine: [30, 0, 0], chest: [16, 10, 0], head: [-32, -6, 0], ...LUNGE, thighR: [-66, -6, -4], shinR: [70, 0, 0], lh: 0, upperArmL: [20, 0, 70], foreArmL: [-10, 0, 0], sw: { tilt: 86, a: 100, r: 0.62, off: 4, roll: 0 }, pole: [-0.2, -0.6, 0.8] } },
+      { t: 0.3, e: 'linear', p: { by: -720, hp: [0, -0.36, 0.34], chest: [16, 20, 0], sw: { a: 104 } } },
+      { t: 0.35, e: 'out', p: { by: -720, hp: [0, -0.28, 0.36], chest: [12, 46, 0], spine: [18, 16, 0], head: [-18, -40, 0], sw: { a: -104, r: 0.64, off: 6 } } },
+      { t: 0.56, e: 'inOut', p: { by: -720, sw: { a: -110 } } },
+      { t: 0.78, e: 'inOut', p: { by: -720, hp: [0, -0.14, 0.2], spine: [10, 6, 0], chest: [8, 24, 0], head: [-10, -20, 0], sw: { a: -96, off: 22 } } },
+    ],
+  },
+  // 貳之型・爪爪・科戶風: the blade raised high at the right shoulder, then one savage cut down and across
+  shinato: {
+    dur: 0.8,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.1, -0.04], hips: [0, -24, 0], spine: [-4, -12, 0], chest: [-10, -32, 0], head: [-6, 30, 0], ...WIDE, lh: 1, sw: { tilt: 40, yaw: 0, a: 150, r: 0.42, off: 30, roll: 0 }, pole: [-0.9, 0.3, -0.3] } },
+      { t: 0.14, e: 'snap', p: { hp: [0, -0.14, -0.06], chest: [-14, -42, 0], sw: { a: 162, off: 36 } } },
+      { t: 0.22, e: 'out', p: { hp: [0, -0.24, 0.26], hips: [0, 24, 0], spine: [14, 14, 0], chest: [22, 38, 0], head: [-18, -30, 0], ...LUNGE, sw: { a: -50, r: 0.64, off: 4 }, pole: [-0.4, -1, 0.1] } },
+      { t: 0.5, e: 'inOut', p: { sw: { a: -58 } } },
+      { t: 0.8, e: 'inOut', p: { hp: [0, -0.12, 0.12], chest: [10, 16, 0], sw: { a: -48, off: 24 } } },
+    ],
+  },
+  // 肆之型・昇上砂塵嵐: coiled low, then two turns climbing up off the floor, the blade flung high at the top
+  risingStorm: {
+    dur: 0.95,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.36, 0], by: 0, hips: [0, 30, 0], chest: [14, 40, 0], spine: [16, 12, 0], head: [-18, -30, 0], thighL: [20, -10, 16], shinL: [50, 0, 0], thighR: [-24, -10, -16], shinR: [54, 0, 0], lh: 0, upperArmL: [0, 0, 70], foreArmL: [-20, 0, 0], sw: { tilt: 60, yaw: 0, a: -130, r: 0.5, off: -20, roll: 180 }, pole: [0, -0.4, 1] } },
+      { t: 0.12, e: 'in', p: { chest: [16, 50, 0], sw: { a: -140 } } },
+      { t: 0.5, e: 'linear', p: { by: -720, hp: [0, 0.22, 0], hips: [0, 0, 0], spine: [-6, 0, 0], chest: [-10, 0, 0], head: [10, 0, 0], thighL: [-40, 0, 10], shinL: [70, 0, 0], thighR: [-30, 0, -10], shinR: [60, 0, 0], upperArmL: [-10, 0, 80], sw: { tilt: 24, a: 60, r: 0.62, off: 10, roll: 0 }, pole: [-0.8, 0.2, -0.2] } },
+      { t: 0.58, e: 'out', p: { by: -720, hp: [0, 0.3, 0], sw: { a: 96, r: 0.66, off: 0 } } },
+      { t: 0.74, e: 'in', p: { by: -720, hp: [0, -0.22, 0.05], spine: [14, 0, 0], chest: [6, 0, 0], head: [-10, 0, 0], ...WIDE, sw: { a: 70 } } },
+      { t: 0.95, e: 'inOut', p: { by: -720, hp: [0, -0.1, 0.02], spine: [6, -4, 0], chest: [4, -6, 0], head: [-6, 0, 0], sw: { tilt: 10, a: -40, r: 0.4, off: 60 } } },
+    ],
+  },
+  // 伍之型・木枯颪: a crouch, a spring into the air, two turns falling with the blade out, a cut into the floor
+  kogarashi: {
+    dur: 1.05,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.34, -0.05], by: 0, spine: [20, 0, 0], chest: [10, -20, 0], head: [-20, 16, 0], thighL: [-50, -10, 12], shinL: [90, 0, 0], thighR: [-40, -10, -12], shinR: [86, 0, 0], lh: 1, sw: { tilt: 70, yaw: 0, a: 120, r: 0.44, off: 20, roll: 0 }, pole: [-0.9, 0.1, -0.2] } },
+      { t: 0.14, e: 'in', p: { hp: [0, -0.42, -0.06], chest: [12, -26, 0] } },
+      { t: 0.36, e: 'out', p: { hp: [0, 1.1, 0.4], bp: -10, spine: [-6, 0, 0], chest: [-6, 0, 0], head: [6, 0, 0], thighL: [-70, 0, 10], shinL: [110, 0, 0], thighR: [-80, 0, -10], shinR: [120, 0, 0], lh: 0, upperArmL: [20, 0, 80], foreArmL: [-10, 0, 0], sw: { tilt: 86, a: 100, r: 0.6, off: 10 } } },
+      { t: 0.62, e: 'linear', p: { by: -720, hp: [0, 0.5, 0.6], bp: 10 } },
+      { t: 0.7, e: 'snap', p: { by: -720, hp: [0, -0.4, 0.7], bp: 0, spine: [26, 0, 0], chest: [20, 30, 0], head: [-24, -20, 0], ...LUNGE, thighR: [-60, -6, -4], shinR: [80, 0, 0], sw: { tilt: 40, a: -70, r: 0.64, off: 4 }, pole: [-0.4, -1, 0.1] } },
+      { t: 0.86, e: 'inOut', p: { by: -720, sw: { a: -76 } } },
+      { t: 1.05, e: 'inOut', p: { by: -720, hp: [0, -0.14, 0.3], spine: [10, 0, 0], chest: [8, 10, 0], head: [-8, -6, 0], sw: { a: -52, off: 24 } } },
+    ],
+  },
+  // 玖之型・韋馱天颱風: bent low with the blade drawn far back while the wind gathers; a whirling cut for each
+  // turn of the storm; and the plunge that ends it
+  typhoonReady: {
+    dur: 0.8,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.4, -0.1], by: 0, hips: [0, -30, 0], spine: [24, -14, 0], chest: [12, -40, 0], head: [-20, 46, 0], thighL: [-36, -26, 16], shinL: [70, 0, 0], thighR: [34, -12, -16], shinR: [50, 0, 0], lh: 0, upperArmL: [-20, 0, 60], foreArmL: [-40, 0, 0], sw: { tilt: 80, yaw: 0, a: 130, r: 0.46, off: 30, roll: 0 }, pole: [-0.9, 0.1, -0.2] } },
+      { t: 0.8, e: 'inOut', p: { hp: [0, -0.44, -0.12], chest: [14, -46, 0], sw: { a: 138 } } },
+    ],
+  },
+  typhoonSpin: {
+    dur: 0.26,
+    keys: [
+      { t: 0, e: 'snap', p: { hp: [0, -0.2, 0.1], by: 0, spine: [20, 0, 0], chest: [14, 20, 0], head: [-20, -10, 0], ...LUNGE, lh: 0, upperArmL: [30, 0, 70], foreArmL: [-10, 0, 0], sw: { tilt: 84, yaw: 0, a: 100, r: 0.62, off: 6, roll: 0 }, pole: [-0.2, -0.6, 0.8] } },
+      { t: 0.2, e: 'linear', p: { by: -360, chest: [14, -10, 0] } },
+      { t: 0.26, e: 'out', p: { by: -360, sw: { a: 92 } } },
+    ],
+  },
+  typhoonDive: {
+    dur: 1.0,
+    keys: [
+      { t: 0, e: 'snap', p: { hp: [0, 0.4, 0.2], bp: 20, by: 0, spine: [20, 0, 0], chest: [10, 0, 0], head: [-30, 0, 0], thighL: [-70, 0, 10], shinL: [110, 0, 0], thighR: [-80, 0, -10], shinR: [120, 0, 0], lh: 0, upperArmL: [40, 0, 80], foreArmL: [-10, 0, 0], sw: { tilt: 86, yaw: 0, a: 100, r: 0.62, off: 6, roll: 0 }, pole: [-0.2, -0.6, 0.8] } },
+      { t: 0.25, e: 'linear', p: { by: -720, hp: [0, 0.1, 0.4], bp: 10 } },
+      { t: 0.32, e: 'snap', p: { by: -720, hp: [0, -0.42, 0.6], bp: 0, spine: [28, 0, 0], chest: [22, 30, 0], head: [-26, -20, 0], ...LUNGE, thighR: [-60, -6, -4], shinR: [80, 0, 0], sw: { tilt: 30, a: -80, r: 0.64, off: 2 }, pole: [-0.4, -1, 0.1] } },
+      { t: 1.0, e: 'inOut', p: { by: -720, hp: [0, -0.3, 0.4], sw: { a: -84 } } },
+    ],
+  },
   fall: {
     dur: 0.6,
     keys: [
@@ -470,6 +546,267 @@ export const SWORD_CLIPS = {
       { t: 0, e: 'out', p: { ...SWORD_STANCE } },
       { t: 0.5, e: 'inOut', p: { hp: [0, -0.02, 0], hips: [0, 0, 0], spine: [0, 0, 0], chest: [0, 0, 0], head: [6, 0, 0], thighL: [0, 0, 5], shinL: [4, 0, 0], thighR: [0, 0, -5], shinR: [4, 0, 0], lh: 0, upperArmL: [0, 0, 8], foreArmL: [-10, 0, 0], sw: { tilt: 0, yaw: -20, a: -95, r: 0.52, off: -8, roll: 0 } } },
       { t: 1.2, e: 'inOut', p: { head: [10, 0, 0] } },
+    ],
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Gyomei (Stone Hashira): the hand axe in his right hand (swing-plane IK, like a sword), the chain in his left
+// (free: the ball is steered by the moves' flail keys, see Flail); the arms pull and throw where the ball goes
+// ---------------------------------------------------------------------------
+export const FLAIL_STANCE = {
+  hp: [0, -0.05, 0],
+  hips: [0, 10, 0],
+  spine: [4, -2, 0],
+  chest: [2, -8, 0],
+  neck: [0, 0, 0],
+  head: [-4, 6, 0],
+  thighL: [10, -8, 10],
+  shinL: [16, 0, 0],
+  footL: [-4, 10, 0],
+  thighR: [-14, -10, -10],
+  shinR: [18, 0, 0],
+  footR: [0, -6, 0],
+  upperArmL: [-36, 0, 22],
+  foreArmL: [-46, 0, 0],
+  handL: [0, 0, 0],
+  lh: 0,
+  sw: { w: 1, tilt: 0, yaw: -14, a: -16, r: 0.34, off: 98, roll: 0 },
+  pole: [-0.6, -1, -0.2],
+};
+
+export const FLAIL_RUN = {
+  hp: [0, -0.04, 0],
+  hips: [0, 0, 0],
+  spine: [16, 0, 0],
+  chest: [8, 0, 0],
+  head: [-14, 0, 0],
+  upperArmL: [-16, 0, 18],
+  foreArmL: [-60, 0, 0],
+  thighL: [0, 0, 3],
+  shinL: [10, 0, 0],
+  thighR: [0, 0, -3],
+  shinR: [10, 0, 0],
+  lh: 0,
+  sw: { w: 1, tilt: 8, yaw: -18, a: -100, r: 0.46, off: -60, roll: 0 },
+  pole: [-0.6, -1, -0.2],
+};
+
+export const FLAIL_SPRINT = {
+  ...FLAIL_RUN,
+  spine: [26, 0, 0],
+  chest: [10, 0, 0],
+  head: [-24, 0, 0],
+  upperArmL: [24, 0, 16],
+  foreArmL: [-40, 0, 0],
+  sw: { w: 1, tilt: 10, yaw: -22, a: -118, r: 0.46, off: -48, roll: 0 },
+};
+
+// the chain held taut across his front between his fists
+export const FLAIL_GUARD = {
+  hp: [0, -0.12, -0.02],
+  spine: [8, 0, 0],
+  chest: [2, 4, 0],
+  head: [-8, -4, 0],
+  thighL: [18, -8, 12],
+  shinL: [30, 0, 0],
+  thighR: [-18, -8, -12],
+  shinR: [32, 0, 0],
+  lh: 0,
+  upperArmL: [-84, 20, 34],
+  foreArmL: [-36, 0, 0],
+  sw: { w: 1, tilt: 70, yaw: 0, a: 36, r: 0.42, off: -40, roll: 90 },
+  pole: [-0.9, -0.4, 0.2],
+};
+
+const G_WIDE = { thighL: [12, -10, 16], shinL: [30, 0, 0], thighR: [-16, -10, -16], shinR: [32, 0, 0] };
+const G_LUNGE = { thighL: [26, -6, 10], shinL: [36, 0, 0], footL: [-8, 0, 0], thighR: [-44, -8, -6], shinR: [50, 0, 0], footR: [-6, 0, 0] };
+
+export const FLAIL_CLIPS = {
+  // the ball swung round flat, from his right across to his left, the chain hauled after it
+  light1: {
+    dur: 0.66,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.08, 0], hips: [0, -20, 0], spine: [4, -14, 0], chest: [0, -40, 0], head: [-4, 34, 0], ...G_WIDE, lh: 0, upperArmL: [-60, -40, 0], foreArmL: [-30, 0, 0], sw: { tilt: 80, yaw: 0, a: 120, r: 0.4, off: 60, roll: 0 }, pole: [-0.9, 0, -0.2] } },
+      { t: 0.14, e: 'in', p: { chest: [0, -48, 0], upperArmL: [-66, -46, 0], sw: { a: 132 } } },
+      { t: 0.28, e: 'out', p: { hp: [0, -0.14, 0.12], hips: [0, 24, 0], spine: [8, 14, 0], chest: [6, 44, 0], head: [-8, -30, 0], ...G_LUNGE, upperArmL: [-40, 30, 60], foreArmL: [-10, 0, 0], sw: { a: -60, r: 0.56, off: 20 }, pole: [-0.2, -0.6, 0.8] } },
+      { t: 0.44, e: 'inOut', p: { chest: [4, 50, 0], upperArmL: [-30, 30, 70], sw: { a: -70 } } },
+      { t: 0.66, e: 'inOut', p: { hp: [0, -0.08, 0.05], hips: [0, 10, 0], chest: [2, 10, 0], head: [-4, 0, 0], upperArmL: [-40, 0, 26], foreArmL: [-44, 0, 0], sw: { tilt: 20, a: -20, r: 0.36, off: 90 } } },
+    ],
+  },
+  // ...and back again, from his left across to his right
+  light2: {
+    dur: 0.66,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.08, 0], hips: [0, 24, 0], spine: [4, 14, 0], chest: [2, 44, 0], head: [-4, -34, 0], ...G_WIDE, lh: 0, upperArmL: [-30, 30, 70], foreArmL: [-20, 0, 0], sw: { tilt: 80, yaw: 0, a: -70, r: 0.5, off: 10, roll: 0 }, pole: [-0.2, -0.6, 0.8] } },
+      { t: 0.14, e: 'in', p: { chest: [2, 52, 0], upperArmL: [-26, 30, 78], sw: { a: -80 } } },
+      { t: 0.28, e: 'out', p: { hp: [0, -0.14, 0.12], hips: [0, -22, 0], spine: [8, -14, 0], chest: [6, -44, 0], head: [-8, 30, 0], ...G_LUNGE, upperArmL: [-70, -40, 0], foreArmL: [-20, 0, 0], sw: { a: 110, r: 0.52, off: 30 }, pole: [-0.9, 0, -0.2] } },
+      { t: 0.44, e: 'inOut', p: { chest: [4, -50, 0], sw: { a: 120 } } },
+      { t: 0.66, e: 'inOut', p: { hp: [0, -0.08, 0.05], hips: [0, 10, 0], chest: [2, -8, 0], head: [-4, 6, 0], upperArmL: [-36, 0, 22], foreArmL: [-46, 0, 0], sw: { tilt: 0, a: -16, r: 0.34, off: 98 } } },
+    ],
+  },
+  // a short chop with the axe
+  light3: {
+    dur: 0.5,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.08, 0], chest: [-8, -30, 0], spine: [-2, -10, 0], head: [-4, 24, 0], lh: 0, upperArmL: [-30, 0, 30], foreArmL: [-50, 0, 0], sw: { tilt: 30, yaw: 0, a: 140, r: 0.4, off: 10, roll: 0 }, pole: [-0.8, -0.2, 0] } },
+      { t: 0.07, e: 'snap', p: { chest: [-10, -36, 0], sw: { a: 150, off: 14 } } },
+      { t: 0.15, e: 'out', p: { hp: [0, -0.16, 0.1], chest: [16, 26, 0], spine: [10, 10, 0], head: [-12, -20, 0], ...G_LUNGE, sw: { a: -50, r: 0.58, off: 4 }, pole: [-0.5, -1, -0.2] } },
+      { t: 0.32, e: 'inOut', p: { sw: { a: -56 } } },
+      { t: 0.5, e: 'inOut', p: { sw: { a: -40, off: 50 } } },
+    ],
+  },
+  // the ball swung up overhead and brought down in front of him
+  light4: {
+    dur: 0.9,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.06, -0.04], chest: [-6, -24, 0], spine: [-4, -8, 0], head: [-2, 18, 0], ...G_WIDE, lh: 0, upperArmL: [-60, 0, 50], foreArmL: [-30, 0, 0], sw: { tilt: 20, yaw: 0, a: 120, r: 0.4, off: 40, roll: 0 }, pole: [-0.8, 0.2, -0.3] } },
+      { t: 0.24, e: 'inOut', p: { hp: [0, 0.02, -0.06], spine: [-10, 0, 0], chest: [-16, -6, 0], head: [10, 0, 0], upperArmL: [-160, 0, 20], foreArmL: [-20, 0, 0], sw: { a: 150, off: 20 } } },
+      { t: 0.44, e: 'snap', p: { hp: [0, -0.28, 0.2], spine: [24, 0, 0], chest: [22, 6, 0], head: [-24, 0, 0], ...G_LUNGE, upperArmL: [-40, 0, 20], foreArmL: [-10, 0, 0], sw: { a: -40, r: 0.56, off: 10 }, pole: [-0.5, -1, 0] } },
+      { t: 0.64, e: 'inOut', p: { hp: [0, -0.24, 0.18] } },
+      { t: 0.9, e: 'inOut', p: { hp: [0, -0.08, 0.06], spine: [6, 0, 0], chest: [2, -6, 0], head: [-4, 4, 0], upperArmL: [-36, 0, 22], foreArmL: [-46, 0, 0], sw: { a: -16, r: 0.34, off: 98 } } },
+    ],
+  },
+  // a full turn of the ball round him, flat, at arm's length and the chain's
+  heavy: {
+    dur: 0.9,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.12, 0], hips: [0, -26, 0], spine: [6, -16, 0], chest: [4, -44, 0], head: [-6, 34, 0], ...G_WIDE, lh: 0, upperArmL: [-70, -40, 0], foreArmL: [-20, 0, 0], sw: { tilt: 80, yaw: 0, a: 130, r: 0.44, off: 60, roll: 0 }, pole: [-0.9, 0, -0.2] } },
+      { t: 0.2, e: 'inOut', p: { hips: [0, -6, 0], chest: [4, -10, 0], head: [-6, 10, 0], upperArmL: [-80, 0, 20], sw: { a: 60 } } },
+      { t: 0.36, e: 'inOut', p: { hp: [0, -0.16, 0.06], hips: [0, 24, 0], chest: [6, 46, 0], head: [-8, -30, 0], upperArmL: [-40, 30, 70], sw: { a: -80, r: 0.54, off: 20 } } },
+      { t: 0.56, e: 'inOut', p: { hips: [0, 30, 0], chest: [6, 60, 0], upperArmL: [-20, 30, 80], sw: { a: -110 } } },
+      { t: 0.9, e: 'inOut', p: { hp: [0, -0.08, 0.02], hips: [0, 10, 0], spine: [4, -2, 0], chest: [2, -8, 0], head: [-4, 6, 0], upperArmL: [-36, 0, 22], foreArmL: [-46, 0, 0], sw: { tilt: 0, a: -16, r: 0.34, off: 98 } } },
+    ],
+  },
+  // winding up the charged heavy: the ball whirling over his head on its chain
+  thrustCharge: {
+    dur: 0.6,
+    loop: false,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.1, -0.04], hips: [0, -10, 0], spine: [-4, -4, 0], chest: [-8, -10, 0], head: [-2, 8, 0], ...G_WIDE, lh: 0, upperArmL: [-170, 0, 10], foreArmL: [-10, 0, 0], sw: { tilt: 20, yaw: -10, a: -30, r: 0.34, off: 100, roll: 0 }, pole: [-0.6, -1, -0.2] } },
+      { t: 0.6, e: 'inOut', p: { hp: [0, -0.12, -0.05], chest: [-10, -12, 0] } },
+    ],
+  },
+  // 貳之型・天面碎: the ball flung high overhead, a stamp on the chain, and down it comes on the foe's head
+  tenmen: {
+    dur: 1.0,
+    keys: [
+      { t: 0, e: 'snap', p: { hp: [0, -0.12, -0.05], hips: [0, -10, 0], spine: [-4, -4, 0], chest: [-8, -10, 0], head: [-2, 8, 0], ...G_WIDE, lh: 0, upperArmL: [-170, 0, 10], foreArmL: [-10, 0, 0], sw: { tilt: 20, yaw: -10, a: -30, r: 0.34, off: 100, roll: 0 } } },
+      { t: 0.14, e: 'out', p: { hp: [0, 0.02, 0.04], spine: [-12, 0, 0], chest: [-14, 0, 0], head: [16, 0, 0], upperArmL: [-150, 0, 20], foreArmL: [-4, 0, 0], sw: { a: 100, r: 0.5, off: 0 } } },
+      { t: 0.4, e: 'inOut', p: { hp: [0, -0.02, 0], thighR: [-60, -10, -10], shinR: [70, 0, 0], head: [20, 0, 0] } },
+      { t: 0.47, e: 'snap', p: { hp: [0, -0.22, 0.1], spine: [18, 0, 0], chest: [14, 0, 0], head: [-6, 0, 0], thighR: [-20, -10, -14], shinR: [30, 0, 0], footR: [10, 0, 0], upperArmL: [-60, 0, 30], foreArmL: [-20, 0, 0], sw: { a: -20, r: 0.5, off: 40 } } },
+      { t: 0.58, e: 'out', p: { hp: [0, -0.26, 0.12], spine: [22, 0, 0], head: [-18, 0, 0] } },
+      { t: 1.0, e: 'inOut', p: { hp: [0, -0.08, 0.04], spine: [4, -2, 0], chest: [2, -8, 0], head: [-4, 6, 0], thighR: [-14, -10, -10], shinR: [18, 0, 0], footR: [0, -6, 0], upperArmL: [-36, 0, 22], foreArmL: [-46, 0, 0], sw: { tilt: 0, a: -16, r: 0.34, off: 98 } } },
+    ],
+  },
+  // 壹之型・蛇紋岩・雙極: ball and axe let fly together, out wide either side, to meet on the foe
+  dualPoles: {
+    dur: 0.9,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.12, -0.04], spine: [-2, 0, 0], chest: [-8, 0, 0], head: [-2, 0, 0], ...G_WIDE, lh: 0, upperArmL: [-40, 0, 80], foreArmL: [-30, 0, 0], sw: { tilt: 86, yaw: 0, a: 110, r: 0.46, off: 40, roll: 0 }, pole: [-0.9, 0, -0.2] } },
+      { t: 0.12, e: 'in', p: { chest: [-12, 0, 0], upperArmL: [-30, 0, 96], sw: { a: 124 } } },
+      { t: 0.26, e: 'out', p: { hp: [0, -0.2, 0.14], spine: [14, 0, 0], chest: [12, 0, 0], head: [-14, 0, 0], ...G_LUNGE, upperArmL: [-90, 0, 30], foreArmL: [-6, 0, 0], sw: { a: 20, r: 0.64, off: 0 }, pole: [-0.5, -1, 0] } },
+      { t: 0.5, e: 'inOut', p: { upperArmL: [-80, 0, 20], sw: { a: 10 } } },
+      { t: 0.9, e: 'inOut', p: { hp: [0, -0.08, 0.04], spine: [4, -2, 0], chest: [2, -8, 0], head: [-4, 6, 0], upperArmL: [-36, 0, 22], foreArmL: [-46, 0, 0], sw: { tilt: 0, a: -16, r: 0.34, off: 98 } } },
+    ],
+  },
+  // 參之型・岩軀之膚: ball and axe wheeling round him on the chain, turning with them
+  stoneSkin: {
+    dur: 1.2,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.16, 0], by: 0, hips: [0, 10, 0], spine: [8, 0, 0], chest: [6, 0, 0], head: [-6, 0, 0], ...G_WIDE, lh: 0, upperArmL: [-20, 0, 86], foreArmL: [-10, 0, 0], sw: { tilt: 86, yaw: 0, a: 96, r: 0.6, off: 20, roll: 0 }, pole: [-0.2, -0.6, 0.8] } },
+      { t: 1.0, e: 'linear', p: { by: -1080 } },
+      { t: 1.2, e: 'out', p: { by: -1080, hp: [0, -0.08, 0.02], hips: [0, 10, 0], spine: [4, -2, 0], chest: [2, -8, 0], head: [-4, 6, 0], upperArmL: [-36, 0, 22], foreArmL: [-46, 0, 0], sw: { tilt: 0, a: -16, r: 0.34, off: 98 } } },
+    ],
+  },
+  // 肆之型・流紋岩・速征: advancing, ball and axe hurled out and hauled back by turns
+  rhyolite: {
+    dur: 1.2,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.16, 0.04], spine: [14, 0, 0], chest: [8, 20, 0], head: [-10, -14, 0], ...G_LUNGE, lh: 0, upperArmL: [-90, 0, 30], foreArmL: [-20, 0, 0], sw: { tilt: 60, yaw: 0, a: 40, r: 0.4, off: 10, roll: 0 }, pole: [-0.5, -1, 0] } },
+      { t: 0.14, e: 'out', p: { chest: [10, -20, 0], head: [-10, 14, 0], upperArmL: [-100, 0, 20], foreArmL: [-4, 0, 0], sw: { a: 10, r: 0.62 } } },
+      { t: 0.26, e: 'out', p: { chest: [10, 24, 0], head: [-10, -16, 0], upperArmL: [-60, 0, 40], foreArmL: [-50, 0, 0], sw: { a: -10, r: 0.62 } } },
+      { t: 0.38, e: 'out', p: { chest: [10, -20, 0], head: [-10, 14, 0], upperArmL: [-100, 0, 20], foreArmL: [-4, 0, 0], sw: { a: 30, r: 0.4 } } },
+      { t: 0.5, e: 'out', p: { chest: [10, 24, 0], head: [-10, -16, 0], upperArmL: [-60, 0, 40], foreArmL: [-50, 0, 0], sw: { a: -10, r: 0.62 } } },
+      { t: 0.62, e: 'out', p: { chest: [10, -20, 0], head: [-10, 14, 0], upperArmL: [-100, 0, 20], foreArmL: [-4, 0, 0], sw: { a: 30, r: 0.4 } } },
+      { t: 0.74, e: 'out', p: { chest: [10, 24, 0], head: [-10, -16, 0], upperArmL: [-60, 0, 40], foreArmL: [-50, 0, 0], sw: { a: -10, r: 0.62 } } },
+      { t: 0.88, e: 'inOut', p: { hp: [0, -0.04, 0.02], spine: [-10, 0, 0], chest: [-14, 0, 0], head: [12, 0, 0], upperArmL: [-165, 0, 12], foreArmL: [-10, 0, 0], sw: { tilt: 20, a: 120, r: 0.46, off: 30 } } },
+      { t: 1.0, e: 'snap', p: { hp: [0, -0.3, 0.22], spine: [26, 0, 0], chest: [22, 0, 0], head: [-26, 0, 0], upperArmL: [-40, 0, 20], foreArmL: [-10, 0, 0], sw: { a: -40, r: 0.56, off: 10 }, pole: [-0.5, -1, 0] } },
+      { t: 1.2, e: 'inOut', p: { hp: [0, -0.1, 0.1], spine: [8, 0, 0], chest: [4, -6, 0], head: [-6, 4, 0], upperArmL: [-36, 0, 22], foreArmL: [-46, 0, 0], sw: { tilt: 0, a: -16, r: 0.34, off: 98 } } },
+    ],
+  },
+  // 伍之型・瓦輪刑部: gathered low, then up into the air, hurling the ball and the axe down by turns
+  garinReady: {
+    dur: 0.8,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.3, -0.06], hips: [0, 0, 0], spine: [18, 0, 0], chest: [8, 0, 0], head: [-14, 0, 0], thighL: [-30, -14, 16], shinL: [70, 0, 0], thighR: [-30, -14, -16], shinR: [70, 0, 0], lh: 0, upperArmL: [-10, 0, 60], foreArmL: [-40, 0, 0], sw: { tilt: 80, yaw: 0, a: 120, r: 0.46, off: 40, roll: 0 }, pole: [-0.9, 0, -0.2] } },
+      { t: 0.8, e: 'inOut', p: { hp: [0, -0.36, -0.08], spine: [22, 0, 0] } },
+    ],
+  },
+  garinThrowA: {
+    dur: 0.24,
+    keys: [
+      { t: 0, e: 'snap', p: { hp: [0, 0, 0], spine: [-8, 0, 0], chest: [-10, -20, 0], head: [20, 14, 0], thighL: [-50, 0, 10], shinL: [90, 0, 0], thighR: [-30, 0, -10], shinR: [70, 0, 0], lh: 0, upperArmL: [-160, 0, 20], foreArmL: [-10, 0, 0], sw: { tilt: 20, yaw: 0, a: 120, r: 0.46, off: 30, roll: 0 }, pole: [-0.8, 0.2, -0.3] } },
+      { t: 0.1, e: 'out', p: { spine: [20, 0, 0], chest: [20, 16, 0], head: [-20, -10, 0], upperArmL: [-30, 0, 30], foreArmL: [-6, 0, 0] } },
+      { t: 0.24, e: 'inOut', p: { chest: [18, 20, 0] } },
+    ],
+  },
+  garinThrowB: {
+    dur: 0.24,
+    keys: [
+      { t: 0, e: 'snap', p: { hp: [0, 0, 0], spine: [-8, 0, 0], chest: [-10, 20, 0], head: [20, -14, 0], thighL: [-30, 0, 10], shinL: [70, 0, 0], thighR: [-50, 0, -10], shinR: [90, 0, 0], lh: 0, upperArmL: [-90, 0, 60], foreArmL: [-40, 0, 0], sw: { tilt: 20, yaw: 0, a: 160, r: 0.5, off: 10, roll: 0 }, pole: [-0.8, 0.2, -0.3] } },
+      { t: 0.1, e: 'out', p: { spine: [20, 0, 0], chest: [20, -16, 0], head: [-20, 10, 0], upperArmL: [-60, 0, 40], sw: { a: -40, r: 0.62, off: 0 } } },
+      { t: 0.24, e: 'inOut', p: { chest: [18, -20, 0] } },
+    ],
+  },
+  garinLand: {
+    dur: 0.9,
+    keys: [
+      { t: 0, e: 'snap', p: { hp: [0, -0.46, 0.06], bp: 0, spine: [30, 0, 0], chest: [12, 0, 0], head: [-26, 0, 0], thighL: [-70, -10, 20], shinL: [110, 0, 0], thighR: [-20, -10, -30], shinR: [120, 0, 0], footR: [20, 0, 0], lh: 0, upperArmL: [-40, 0, 60], foreArmL: [-20, 0, 0], sw: { tilt: 40, yaw: 0, a: -60, r: 0.56, off: 10, roll: 0 }, pole: [-0.5, -1, 0] } },
+      { t: 0.4, e: 'inOut', p: { hp: [0, -0.4, 0.06] } },
+      { t: 0.9, e: 'inOut', p: { ...FLAIL_STANCE } },
+    ],
+  },
+  // reactions and the like: the swordsmen's, ending in his own stance
+  dodgeF: SWORD_CLIPS.dodgeF,
+  dodgeB: SWORD_CLIPS.dodgeB,
+  dodgeL: SWORD_CLIPS.dodgeL,
+  dodgeR: SWORD_CLIPS.dodgeR,
+  parry: SWORD_CLIPS.parry,
+  hitLight: SWORD_CLIPS.hitLight,
+  knockdown: SWORD_CLIPS.knockdown,
+  death: SWORD_CLIPS.death,
+  fall: SWORD_CLIPS.fall,
+  blockHit: {
+    dur: 0.3,
+    keys: [
+      { t: 0, e: 'snap', p: { ...FLAIL_GUARD, hp: [0, -0.16, -0.08], chest: [-12, 4, 0] } },
+      { t: 0.3, e: 'inOut', p: { ...FLAIL_GUARD } },
+    ],
+  },
+  getup: {
+    dur: 0.55,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.72, -0.2], bp: -80, lh: 0, sw: { tilt: 30, a: -80, r: 0.55, off: -30 } } },
+      { t: 0.25, e: 'inOut', p: { hp: [0, -0.5, 0], bp: 10, spine: [40, 0, 0], chest: [10, 0, 0], thighL: [-90, 0, 10], shinL: [120, 0, 0], thighR: [-30, 0, -20], shinR: [110, 0, 0] } },
+      { t: 0.55, e: 'inOut', p: { ...FLAIL_STANCE, bp: 0 } },
+    ],
+  },
+  landing: {
+    dur: 0.6,
+    keys: [
+      { t: 0, e: 'snap', p: { hp: [0, -0.48, 0], spine: [30, 0, 0], chest: [10, 0, 0], head: [-26, 0, 0], thighL: [-70, 0, 20], shinL: [110, 0, 0], thighR: [-20, 0, -30], shinR: [120, 0, 0], footR: [20, 0, 0], lh: 0, upperArmL: [0, 0, 50], foreArmL: [-10, 0, 0], sw: { tilt: 40, yaw: -20, a: -140, r: 0.55, off: -20 } } },
+      { t: 0.35, e: 'inOut', p: { hp: [0, -0.46, 0] } },
+      { t: 0.6, e: 'inOut', p: { ...FLAIL_STANCE } },
+    ],
+  },
+  // standing tall and still, the axe held upright before his chest, the ball hanging from his lowered left hand
+  victory: {
+    dur: 1.2,
+    keys: [
+      { t: 0, e: 'out', p: { ...FLAIL_STANCE } },
+      { t: 0.5, e: 'inOut', p: { hp: [0, -0.02, 0], hips: [0, 0, 0], spine: [0, 0, 0], chest: [0, 0, 0], head: [8, 0, 0], thighL: [0, 0, 6], shinL: [4, 0, 0], thighR: [0, 0, -6], shinR: [4, 0, 0], lh: 0, upperArmL: [4, 0, 12], foreArmL: [-10, 0, 0], handL: [0, 0, 0], sw: { tilt: 0, yaw: -42, a: -58, r: 0.44, off: 146, roll: -90 }, pole: [-0.6, -1, -0.2] } },
+      { t: 1.2, e: 'inOut', p: { head: [12, 0, 0] } },
     ],
   },
 };

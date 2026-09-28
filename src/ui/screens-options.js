@@ -120,7 +120,7 @@ export class SelectScreen extends Screen {
         // on a touch screen the legend is the glyph printed on the matching button
         const glyph = t.ult ? ultGlyph(t.name.replace(/\s+/g, '・'), t.glyph) : formGlyph(t.form, t.name);
         const cap = touch ? touchIcon('btn', glyph) : keyCap(t.key, 1);
-        const st = t.style === 'fire' || t.style === 'serpent' ? `is-${t.style}` : '';
+        const st = ['fire', 'serpent', 'wind', 'stone'].includes(t.style) ? `is-${t.style}` : '';
         return `<li class="${st} ${t.ult ? 'is-ult' : ''}">${cap}<span>${sch}<span class="t-name">${esc(full)}</span></span></li>`;
       })
       .join('');

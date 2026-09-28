@@ -23,6 +23,7 @@ export const SOUND_GROUPS = {
     'clang', 'block', 'guardBreak', 'dodge', 'perfectDodge', 'step', 'land'],
   'Water / fire / serpent': ['waterSplash', 'waterWave', 'waterDragon', 'calm', 'fireBurst', 'fireWhoosh', 'fireDragon', 'tigerRoar',
     'swingSerpent', 'serpentHiss'],
+  'Wind / stone': ['swingWind', 'windGust', 'windClaw', 'windHowl', 'flailWhirl', 'chainRattle', 'stoneHit', 'stoneSmash'],
   'Akaza': ['punchWhoosh', 'punchHit', 'shockwave', 'groundSlam', 'crack', 'barrage', 'compass', 'bossCharge', 'bossRoar'],
   'Kokushibo': ['moonSlash', 'moonCut', 'moonCrescent', 'moonDraw', 'moonTransform', 'moonFall', 'moonRead', 'moonVortex'],
   '真劍': ['tellBlade', 'tellFist', 'peril', 'execute'],
