@@ -153,6 +153,87 @@ export function giyuKikko(seed) {
   return c;
 }
 
+// Kokushibo's kimono: an irregular "stone pavement" of hexagons, purple and black, inked apart.
+export function kokushiboKimono(seed) {
+  const S = 512, NX = 8, NY = 10;
+  const rng = makeRng(seed);
+  const { c, ctx } = canvas2d(S, S);
+  const w = S / NX, rs = S / NY;
+  const s = rs / 1.5;
+  const kx = w / 2 / (s * Math.cos(Math.PI / 6));
+  const PURPLES = ['#5c2c80', '#6a3692', '#4e2570'];
+  const BLACK = '#17121e';
+  const INK = '#0b0810';
+  ctx.fillStyle = css(INK);
+  ctx.fillRect(0, 0, S, S);
+  const hexPts = (cx, cy, k) => {
+    const pts = [];
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI) / 3;
+      pts.push([cx + Math.cos(a) * s * kx * k, cy + Math.sin(a) * s * k]);
+    }
+    return pts;
+  };
+  for (let row = 0; row < NY; row++) {
+    for (let col = 0; col < NX; col++) {
+      const cx = col * w + (row & 1 ? w / 2 : 0) + w / 4;
+      const cy = row * rs + rs / 2;
+      const dark = rng.chance(0.38);
+      const tone = vary(dark ? BLACK : rng.pick(PURPLES), rng, 0.03, 3, 0.04);
+      const outer = hexPts(cx, cy, 0.97);
+      const po = pathOf(outer, true);
+      const strokes = [];
+      for (let k = 0; k < 3; k++) {
+        const sp = strokePts(cx + rng.range(-s, s * 0.5), cy + rng.range(-s, s), 1.3 + rng.range(-0.3, 0.3), rng.range(14, 34), rng.range(-0.4, 0.4), 6);
+        strokes.push({ rib: ribbon(sp, rng.range(3, 8), { taperA: 0.3, taperB: 0.4 }), col: lighten(tone, dark ? 0.07 : 0.12), a: rng.range(0.2, 0.4) });
+      }
+      wrapped(ctx, S, S, bboxOf(outer, 4), () => {
+        const g = ctx.createLinearGradient(cx, cy - s, cx, cy + s);
+        g.addColorStop(0, css(lighten(tone, dark ? 0.05 : 0.09)));
+        g.addColorStop(1, css(darken(tone, 0.1)));
+        ctx.fillStyle = g;
+        ctx.fill(po);
+        ctx.save();
+        ctx.clip(po);
+        for (const st of strokes) {
+          ctx.fillStyle = css(st.col, st.a);
+          ctx.fill(st.rib.path);
+        }
+        ctx.restore();
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = css(INK);
+        ctx.lineWidth = 4;
+        ctx.stroke(po);
+      });
+    }
+  }
+  folds(ctx, S, rng, { count: 6, dark: '#05020a', light: '#c9a6f0', darkA: 0.34, lightA: 0.16, ang: 1.3, widthK: 0.16 });
+  weave(ctx, S, S, 0.1, 'overlay', 2);
+  grain(ctx, S, S, 0.06);
+  return c;
+}
+
+// Kokushibo's umanori hakama: black, with the pleats pressed in.
+export function kokushiboHakama(seed) {
+  const S = 256;
+  const rng = makeRng(seed);
+  const { c, ctx } = canvas2d(S, S);
+  fabricBase(ctx, S, seed, '#18161d', '#0c0b10', '#2b2833', 0.45);
+  brushWork(ctx, S, rng, 26, ['#24212b', '#0e0d12'], { ang: 1.5, angJ: 0.15, lenMin: 60, lenMax: 150, aMin: 0.12, aMax: 0.24 });
+  // pleat creases every quarter (seamless across)
+  for (let k = 0; k < 4; k++) {
+    const x = (k + 0.5) * (S / 4);
+    ctx.fillStyle = css('#000000', 0.45);
+    ctx.fillRect(x - 1.5, 0, 3, S);
+    ctx.fillStyle = css('#4a4556', 0.4);
+    ctx.fillRect(x + 1.5, 0, 2, S);
+  }
+  folds(ctx, S, rng, { count: 6, dark: '#000000', light: '#5c566e', darkA: 0.42, lightA: 0.26, ang: 1.5, angJ: 0.2 });
+  weave(ctx, S, S, 0.1);
+  grain(ctx, S, S, 0.05);
+  return c;
+}
+
 export function uniformBlack(seed) {
   const S = 256;
   const rng = makeRng(seed);

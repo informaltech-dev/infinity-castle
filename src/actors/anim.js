@@ -349,6 +349,7 @@ export class Animator {
       if (src.prevClip && src.fadeIn > 0) {
         sampleClip(src.prevClip, Math.min(src.prevTime, src.prevClip.dur), this.act2);
         this.act2[BY] = this.act[BY] + angleDiff(this.act[BY], this.act2[BY]);
+        this.act2[BP] = this.act[BP] + angleDiff(this.act[BP], this.act2[BP]);
         blendPose(this.act, this.act2, this.act, clamp(src.blendIn / src.fadeIn));
       }
       const w = src.weight;
@@ -363,7 +364,11 @@ export class Animator {
         for (let i = HP; i < POSE_SIZE; i++) out[i] = this.loco[i];
         out[LH] = this.loco[LH] + (this.act[LH] - this.loco[LH]) * w;
       } else {
-        if (w < 1) this.act[BY] = this.loco[BY] + angleDiff(this.loco[BY], this.act[BY]);
+        // (and so does a flip: a clip that ends a whole turn over lands upright, not spinning back)
+        if (w < 1) {
+          this.act[BY] = this.loco[BY] + angleDiff(this.loco[BY], this.act[BY]);
+          this.act[BP] = this.loco[BP] + angleDiff(this.loco[BP], this.act[BP]);
+        }
         blendPose(out, this.loco, this.act, w);
       }
     } else {

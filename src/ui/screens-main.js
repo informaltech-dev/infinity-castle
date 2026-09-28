@@ -2,7 +2,7 @@
 import { h, esc, clamp, rng, fmtTime, fmtInt } from './dom.js';
 import { enso, ensoPath, sealHTML, ICON } from './icons.js';
 import { Screen, makeHints, Confirm } from './screen-base.js';
-import { MENU_ITEMS, PAUSE_ITEMS, LOADING_TIPS, LOADING_TIPS_TOUCH, RANK_GLYPH, RANK_WORD, CHAR_BY_ID } from './data.js';
+import { MENU_ITEMS, PAUSE_ITEMS, LOADING_TIPS, LOADING_TIPS_TOUCH, LOADING_TIPS_DUEL, RANK_GLYPH, RANK_WORD, CHAR_BY_ID } from './data.js';
 
 function motes(container, count, seed, colors) {
   const R = rng(seed);
@@ -54,7 +54,7 @@ export class LoadingScreen extends Screen {
     this._tip = Math.floor(Math.random() * LOADING_TIPS.length);
   }
   onShow() {
-    const tips = this.ui.touchMode ? LOADING_TIPS_TOUCH : LOADING_TIPS;
+    const tips = this.ui.shown?.('difficulty') === 'duel' ? LOADING_TIPS_DUEL : this.ui.touchMode ? LOADING_TIPS_TOUCH : LOADING_TIPS;
     this._tip = (this._tip + 1) % tips.length;
     this.tipEl.textContent = tips[this._tip];
   }

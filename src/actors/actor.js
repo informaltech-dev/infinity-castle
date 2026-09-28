@@ -8,10 +8,18 @@ const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 const _flashCol = new THREE.Color();
 
+/** How long before a held blow lands its tell (the glint) shows: about one human reaction and a little over. */
+export const TELL_LEAD = 0.32;
+
 /**
  * Runs a move definition on an actor: plays the clip, fires timed hits/fx/sfx, applies root motion.
  * def: { clip, speed, dur, cancel, motion: [[t0,t1,dist,(ease)]], turn: [t0,t1,rate], hits: [...], multi: [...],
- *        iframes: [t0,t1], armor: [t0,t1], events: [{t, fn}], sfx: [{t,name,opts}], mask, fade }
+ *        iframes: [t0,t1], armor: [t0,t1], events: [{t, fn}], sfx: [{t,name,opts}], mask, fade,
+ *        tells: [t, ...], strikes: [t, ...] }
+ * `t` is the move's own clock (every timing in the def is on it). A wind-up can be held: at each of def.tells
+ * (a moment of full anticipation in the clip) the move waits opts.holds[i] seconds, pose held, before it goes
+ * on into the blow. The actor's onTell(runner) is called TELL_LEAD before each blow that follows a hold, and
+ * before the first. `strikes` names the blows of a move whose damage comes from its events, not its hits.
  */
 export class ActionRunner {
   constructor(actor, def, opts = {}) {
@@ -29,7 +37,20 @@ export class ActionRunner {
     this.motionScale = opts.motionScale ?? 1;
     this.target = opts.target ?? null;
     this.data = {};
-    if (clip) actor.anim.play(clip, { fade: def.fade ?? 0.04, speed: this.speed, mask: def.mask, fadeOut: def.fadeOut ?? 0.14, hold: def.hold });
+    this.holds = null;
+    this.tellAt = null;
+    if (def.tells && opts.holds) {
+      const holds = def.tells.map((at, i) => ({ at, len: Math.max(0, opts.holds[i] ?? 0), used: 0 }));
+      if (holds.some((h) => h.len > 0)) this.holds = holds;
+    }
+    if (actor.onTell && !def.noTell) {
+      // a tell before every blow (a flurry of ticks: only before its first)
+      const strikes = def.strikes || [...(def.hits || []).map((h) => h.t), ...(def.multi || []).map((h) => h.t0)];
+      this.tellAt = [...new Set(strikes)].sort((x, y) => x - y);
+    }
+    // (a held move's clip waits for the move's first update to set its pace: were it to run on its own the frame it
+    // starts, it would stand one frame ahead of the move's clock -- a held wind-up frozen partway into the blow)
+    if (clip) actor.anim.play(clip, { fade: def.fade ?? 0.04, speed: this.holds ? 0 : this.speed, mask: def.mask, fadeOut: def.fadeOut ?? 0.14, hold: def.hold });
     def.onStart?.(actor, this);
   }
 
@@ -37,12 +58,89 @@ export class ActionRunner {
     return w && this.t >= w[0] && this.t <= w[1];
   }
 
+  /** Seconds (real, this actor's clock) until the move's clock reaches `tc`, counting the holds still ahead. */
+  timeTo(tc) {
+    let s = tc - this.t;
+    if (s > 0 && this.holds) for (const h of this.holds) if (h.used < h.len && h.at <= tc) s += h.len - h.used;
+    return s;
+  }
+
+  /** The next blow of this move still to come (its clock time), or null. (A blow already dealt is not "next".) */
+  nextStrike() {
+    const d = this.def;
+    let best = null;
+    const consider = (t) => {
+      if (best == null || t < best) best = t;
+    };
+    if (d.strikes) {
+      for (const t of d.strikes) if (t > this.t + 1e-6) consider(t);
+    } else {
+      (d.hits || []).forEach((h, i) => {
+        if (!this.fired.has('h' + i)) consider(h.t);
+      });
+      for (const h of d.multi || []) if (this.t <= h.t1) consider(Math.max(h.t0, this.t));
+    }
+    return best;
+  }
+
+  /** Was the blow at clock time `s` held back (the last wind-up before it held at least `min`)? */
+  heldBefore(s, min = 0.3) {
+    let last = null;
+    for (const h of this.holds || []) if (h.at <= s && (!last || h.at > last.at)) last = h;
+    return !!last && last.len >= min;
+  }
+
+  /** Is a hold running right now? */
+  get holding() {
+    return !!this.holds?.some((h) => h.used > 0 && h.used < h.len);
+  }
+
+  /** Shorten the hold in progress (or the next one) so the blow comes within `left` seconds of its wind-up. */
+  cutHold(left) {
+    for (const h of this.holds || []) {
+      if (h.used >= h.len) continue;
+      h.len = Math.min(h.len, h.used + Math.max(0, left));
+      return;
+    }
+  }
+
+  /** The move clock's advance for `dt` of real time: it stands still through a hold. */
+  _advance(dt) {
+    let t = this.t;
+    let left = dt;
+    for (const h of this.holds || []) {
+      if (left <= 0) break;
+      if (h.used >= h.len) continue;
+      if (t < h.at) {
+        const n = Math.min(left, h.at - t);
+        t += n;
+        left -= n;
+        if (left <= 0) break;
+      }
+      const n = Math.min(left, h.len - h.used);
+      h.used += n;
+      left -= n;
+    }
+    return t + left - this.t;
+  }
+
   update(dt) {
     if (this.done) return;
     const a = this.actor;
     const prev = this.t;
-    this.t += dt;
+    const adv = this.holds ? this._advance(dt) : dt;
+    this.t += adv;
+    // the clip keeps to the move's clock (it stands in the held pose)
+    if (this.holds && dt > 0 && this.clip && a.anim.clip === this.clip) a.anim.clipSpeed = this.speed * (adv / dt);
     const d = this.def;
+    if (this.tellAt) {
+      for (let i = 0; i < this.tellAt.length; i++) {
+        const s = this.tellAt[i];
+        if (s == null || this.timeTo(s) > (d.tellLead ?? TELL_LEAD)) continue;
+        this.tellAt[i] = null;
+        a.onTell(this, s, i);
+      }
+    }
     // turning / auto-aim
     if (d.turn && this.t >= d.turn[0] && this.t <= d.turn[1]) {
       const tgt = this.target || a.aimTarget?.();

@@ -60,7 +60,13 @@ export class Player extends Actor {
     this.perfectCooldown = 0;
     this.threadMesh = this._makeThread();
     this.ult = null;
-    this.stats = { damageTaken: 0 };
+    this.stats = { damageTaken: 0, parries: 0, perfects: 0, executions: 0 };
+    /** 真劍: health a wound leaves recoverable for a moment, won back by cutting back (rally) */
+    this.rally = 0;
+    this.rallyT = 0;
+    this.parryWin = 0.2;
+    this.blockEndT = -99;
+    this.blockPressT = -99;
     // the blade's resting glow as built; techniques light it up, _restGlow puts it back
     this._glow0 = model.sword.bladeMat.uniforms.uEmissive.value.clone();
   }
@@ -119,11 +125,46 @@ export class Player extends Actor {
     this.trailOn = true;
   }
 
+  /** The 真劍 ruleset (rules.js DUEL) when that is the difficulty, else undefined. */
+  get duel() {
+    return this.game.rules.duel;
+  }
+
   spend(res, amt) {
     if (this[res] < amt) return false;
     this[res] -= amt;
-    if (res === 'stamina') this.staminaDelay = 0.7;
+    if (res === 'stamina') this.staminaDelay = this.duel?.stamina.delay ?? 0.7;
     return true;
+  }
+
+  /** 真劍: every swing costs stamina (any left will do; running dry holds the recovery back). */
+  _pay(kind) {
+    const D = this.duel;
+    if (!D) return true;
+    if (this.stamina <= 0.5) {
+      this.game.hud?.toast('耐力不足', 'info');
+      return false;
+    }
+    const cost = D.stamina[kind] ?? 0;
+    this.staminaDelay = this.stamina < cost ? D.stamina.delay + 0.5 : D.stamina.delay;
+    this.stamina = Math.max(0, this.stamina - cost);
+    return true;
+  }
+
+  /** 真劍: a boss with a broken posture within reach, open to an execution. */
+  execTarget() {
+    if (!this.duel || !this.alive) return null;
+    for (const e of this.game.enemies) if (e.execReady && this.distTo(e) < 4.4) return e;
+    return null;
+  }
+
+  /** 真劍: a cut landed wins back part of the recoverable health. */
+  regain(dmg) {
+    const R = this.duel?.rally;
+    if (!R || this.rally <= 0 || !this.alive) return;
+    const heal = Math.min(this.rally, R.flat + dmg * R.perHit);
+    this.hp = Math.min(this.maxHp, this.hp + heal);
+    this.rally -= heal;
   }
 
   gain(conc = 0, breath = 0) {
@@ -136,22 +177,26 @@ export class Player extends Actor {
     }
   }
 
+  /** A critical blow owed: 'counter' (off a parry or a perfect dodge, Tanjiro's thread too), 'back', or false. */
   consumeCrit(victim, h) {
     // Obanai's winding blade: a real blow (heavy, combo finisher, technique) landed from behind is always critical.
     // Not the chip ticks or the ultimate's slither: each crit flashes the screen, and those land several times a second.
-    if (this.charId === 'obanai' && victim && this.state !== 'ult' && (h?.power ?? 0.5) >= 0.6 && this._behind(victim)) return true;
+    // (Outside a duel it comes first, and a counter owed is kept for the next blow; in a duel the counter, which
+    // bites deeper into his posture, is spent on it.)
+    const back = this.charId === 'obanai' && victim && this.state !== 'ult' && (h?.power ?? 0.5) >= 0.6 && this._behind(victim);
+    if (back && !this.duel) return 'back';
     if (this.counterT > 0) {
       this.counterT = 0;
-      return true;
+      return 'counter';
     }
     if (this.critTarget && victim === this.critTarget && this.critT > 0) {
       this.critTarget = null;
       this.critT = 0;
       this.threadMesh.visible = false;
       this.game.fx.screen.impact(0.06, 0x120204, 0xffe0e0);
-      return true;
+      return 'counter';
     }
-    return false;
+    return back ? 'back' : false;
   }
 
   /** Are we behind `v` (outside the front ~220° of its facing)? */
@@ -196,8 +241,21 @@ export class Player extends Actor {
     // cooldowns & resources
     for (let i = 0; i < 3; i++) this.skillCd[i] = Math.max(0, this.skillCd[i] - dt);
     this.staminaDelay -= dt;
-    if (this.staminaDelay <= 0 && this.state !== 'block') this.stamina = Math.min(this.maxStamina, this.stamina + 34 * dt);
-    this.breath = Math.min(this.maxBreath, this.breath + (this.heart ? 10 : 5) * dt);
+    const D = this.duel;
+    if (D) {
+      // 真劍: slower breath (won back by parrying and dodging well), some stamina back even behind a guard
+      if (this.staminaDelay <= 0) this.stamina = Math.min(this.maxStamina, this.stamina + D.stamina.regen * (this.state === 'block' ? D.stamina.guard : 1) * dt);
+      this.breath = Math.min(this.maxBreath, this.breath + D.breath.regen * (this.heart ? 2 : 1) * dt);
+      if (this.rally > 0) {
+        if (this.rallyT > 0) this.rallyT -= dt;
+        else this.rally = Math.max(0, this.rally - D.rally.decay * dt);
+        this.rally = Math.min(this.rally, this.maxHp - Math.max(0, this.hp));
+      }
+    } else {
+      if (this.staminaDelay <= 0 && this.state !== 'block') this.stamina = Math.min(this.maxStamina, this.stamina + 34 * dt);
+      this.breath = Math.min(this.maxBreath, this.breath + (this.heart ? 10 : 5) * dt);
+      this.rally = 0;
+    }
     this.comboTimer -= dt;
     if (this.charId === 'rengoku') this._heartUpdate(dt);
     if (this.critT > 0) {
@@ -258,6 +316,7 @@ export class Player extends Actor {
     }
     if (pressed('lock')) this.toggleLock();
     if (pressed('stance')) this.toggleAttackMode();
+    if (pressed('block')) this.blockPressT = this.game.time;
   }
 
   toggleAttackMode() {
@@ -336,19 +395,43 @@ export class Player extends Actor {
     this._locomote(dt, input, WALK);
     if (!this.control) return;
     if (input.down('block')) {
-      this.setState('block');
-      this.blockT = 0;
+      this._enterBlock();
       return;
     }
     this._consumeBuffer(input);
+  }
+
+  /**
+   * Raise the guard. Its first moments parry. 真劍: only a fresh press parries (not a guard held through
+   * the end of an attack), and a press right after letting go parries for less (no mashing it).
+   */
+  _enterBlock() {
+    const D = this.duel;
+    this.setState('block');
+    this.blockT = 0;
+    this._parryKept = false;
+    if (!D) {
+      this.parryWin = 0.2;
+      return;
+    }
+    const g = this.game;
+    const fresh = g.time - this.blockPressT < 0.15;
+    this.parryWin = !fresh ? 0 : g.time - this.blockEndT < D.parry.gap ? D.parry.spam : D.parry.window;
   }
 
   _consumeBuffer(input) {
     const b = this.buffer;
     if (!b) return false;
     const sprinting = this.anim.sprint > 0.5 && this.speed > 6;
+    const ex = (b === 'light' || b === 'heavy') && this.execTarget();
+    if (ex) {
+      this.buffer = null;
+      this.startExecution(ex);
+      return true;
+    }
     switch (b) {
       case 'light': {
+        if (!this._pay('light')) break;
         if (this.comboTimer <= 0) this.comboIdx = 0;
         const name = sprinting ? 'light3' : ['light1', 'light2', 'light3', 'light4'][this.comboIdx % 4];
         this.comboIdx = (this.comboIdx + 1) % 4;
@@ -356,6 +439,10 @@ export class Player extends Actor {
         break;
       }
       case 'heavy':
+        if (this.duel && this.stamina <= 0.5) {
+          this.game.hud?.toast('耐力不足', 'info');
+          break;
+        }
         this.setState('charge');
         this.chargeT = 0;
         this.velXZ.multiplyScalar(0.3);
@@ -424,27 +511,30 @@ export class Player extends Actor {
     this.velXZ.set(0, 0, 0);
     this.setTrail(null);
     // a dodge started just before an incoming hit counts as perfect even if it carries us out of range
-    const threat = this._imminentThreat();
+    const threat = this._imminentThreat(this.duel?.perfect.horizon ?? 0.3);
     if (threat && this.perfectCooldown <= 0) this.perfectDodge(threat);
   }
 
-  /** Returns the attacker whose hit would land on us within the next instant, if any. */
-  _imminentThreat() {
+  /** Returns the attacker whose hit would land on us within `horizon` seconds, if any. */
+  _imminentThreat(horizon = 0.3) {
     const g = this.game;
     const combat = g.combat;
     for (const e of g.enemies) {
-      if (!e.alive || !e.action) continue;
+      if (!e.alive) continue;
       const r = e.action;
-      const d = r.def;
-      for (const h of d.hits || []) {
-        const dt = h.t - r.t;
-        if (dt < -0.02 || dt > 0.3) continue;
+      const d = r?.def;
+      for (const h of (r && d.hits) || []) {
+        // (a held wind-up counts: the blow is that much further off)
+        const dt = r.timeTo ? r.timeTo(h.t) : h.t - r.t;
+        if (dt < -0.02 || dt > horizon) continue;
         if (combat.inShape(e, this, { ...h, range: (h.range ?? 2.2) + 0.9, arc: (h.arc ?? 120) + 30 })) return e;
       }
-      for (const h of d.multi || []) {
-        if (r.t < h.t0 - 0.3 || r.t > h.t1) continue;
+      for (const h of (r && d.multi) || []) {
+        if ((r.timeTo ? r.timeTo(h.t0) : h.t0 - r.t) > horizon || r.t > h.t1) continue;
         if (combat.inShape(e, this, { ...h, range: (h.range ?? 2.2) + 0.9 })) return e;
       }
+      // (what he has thrown -- moons still in flight, rings still spreading -- outlives the move that threw it)
+      if (e.threatens?.(this, horizon)) return e;
       // hazards (shock rings) about to sweep over us
       for (const hz of e.hazards || []) {
         const dd = Math.hypot(this.pos.x - hz.c.x, this.pos.z - hz.c.z);
@@ -470,6 +560,7 @@ export class Player extends Actor {
       this.game.audio?.play('uiBack', { volume: 0.5 });
       return;
     }
+    if (!this._pay('skill')) return;
     this.breath -= sk.cost;
     this.skillCd[i] = sk.cd;
     this.startMove(sk.move, { noLunge: false });
@@ -506,6 +597,11 @@ export class Player extends Actor {
       const charged = this.chargeT >= 0.6;
       this._charging = false;
       this._chargedFx = false;
+      if (!this._pay(charged ? 'charged' : 'heavy')) {
+        this.anim.stop(0.1);
+        this.setState('move');
+        return;
+      }
       if (charged) this.startMove('thrust');
       else this.startMove('heavy');
     }
@@ -518,28 +614,46 @@ export class Player extends Actor {
       return;
     }
     const d = r.def;
-    this.invuln = r.inWindow(d.iframes) ? Math.max(this.invuln, 0.02) : this.invuln;
+    // 真劍: a breath technique is no shield (only one that is itself a slip keeps a sliver of invulnerability)
+    const iw = this.duel && d.cost ? d.duelIframes : d.iframes;
+    this.invuln = r.inWindow(iw) ? Math.max(this.invuln, 0.02) : this.invuln;
     this.armor = r.inWindow(d.armor);
     r.update(dt);
+    // 真劍: parry after parry -- a fresh press turns the next blow of the string aside too; a guard simply held on
+    // through the parry blocks the next blow if it comes before the parry is over (only a fresh press parries it)
+    if (this.duel && this.curMove === 'parry' && r.t > 0.1 && this.control && (input.pressed('block') || (input.down('block') && this._imminentThreat(Math.max(0.1, r.dur - r.t) + 0.1)))) {
+      this.action = null;
+      this._enterBlock();
+      return;
+    }
     // cancels
     const b = this.buffer;
     if (b) {
       const isDodge = this.curMove === 'dodge';
-      if (b === 'dodge' && !isDodge && (r.t > 0.12 || r.canCancel) && !d.cost) {
+      if (b === 'dodge' && !isDodge && (r.t > 0.12 || r.canCancel) && !d.cost && !d.commit) {
         this.startDodge(input);
         this.buffer = null;
         return;
       }
-      if (r.canCancel) {
-        if (isDodge && b === 'light') {
+      // 真劍: one breath technique cannot run straight into the next; it plays out first
+      if (this.duel && d.cost && b.startsWith('skill') && !r.done) {
+        // (keep it buffered)
+      } else if (r.canCancel) {
+        if (isDodge && b === 'light' && !this.execTarget()) {
           this.buffer = null;
+          if (!this._pay('light')) return;
           this.comboIdx = 2;
           this.startMove('light3');
           return;
         }
+        const st = this.stateT, arm = this.armor;
         this.setState('move');
         this._consumeBuffer(input);
-        if (this.state === 'action' || this.state === 'charge') return;
+        if (this.state !== 'move') return;
+        // (nothing came of it -- short of stamina, a technique not ready: the move plays on)
+        this.state = 'action';
+        this.stateT = st;
+        this.armor = arm;
       }
     }
     if (r.done) {
@@ -557,6 +671,9 @@ export class Player extends Actor {
     const tgt = this.aimTarget();
     if (tgt) this.turnTowards(tgt.pos, 14, dt);
     if (!input.down('block') || !this.control) {
+      // (letting go of a guard that a parry kept up is no mashing: the next press gets the full window)
+      this.blockEndT = this._parryKept ? -99 : this.game.time;
+      this._parryKept = false;
       this.setState('move');
       return;
     }
@@ -564,8 +681,14 @@ export class Player extends Actor {
       this.buffer = null;
       this.startDodge(input);
     } else if (this.buffer === 'light' || this.buffer === 'heavy') {
+      const st = this.stateT;
       this.setState('move');
       this._consumeBuffer(input);
+      // (nothing came of it -- short of stamina: the guard stays up, and its parry window with it)
+      if (this.state === 'move') {
+        this.state = 'block';
+        this.stateT = st;
+      }
     }
   }
 
@@ -601,14 +724,16 @@ export class Player extends Actor {
     if (!this.alive) return 'miss';
     if (this.state === 'ult' || this.god) return 'miss';
     if (this.invuln > 0) {
-      const inDodge = this.curMove === 'dodge' && this.state === 'action' && g.time - this.dodgeStart < 0.24;
+      const inDodge = this.curMove === 'dodge' && this.state === 'action' && g.time - this.dodgeStart < (this.duel?.perfect.grace ?? 0.24);
       if (inDodge && this.perfectCooldown <= 0) this.perfectDodge(att);
       return 'dodge';
     }
+    const src = h.from || att.pos;
     if (this.blocking && !h.unblockable) {
-      const front = Math.abs(this.angleTo(att)) < 1.7;
+      const front = Math.abs(angleDiff(this.yaw, Math.atan2(src.x - this.pos.x, src.z - this.pos.z))) < 1.7;
       if (!front) return null;
-      if (this.blockT < 0.2 && !h.unparryable) {
+      // (真劍: a flurry's ticks come too fast to turn aside one by one: they are blocked)
+      if (this.blockT < this.parryWin && !h.unparryable && !(this.duel && h.every)) {
         this.parry(att, h);
         return 'parry';
       }
@@ -619,7 +744,7 @@ export class Player extends Actor {
       g.stats.damageTaken += dmg;
       this.stamina -= (h.dmg ?? 10) * 1.6;
       this.staminaDelay = 0.8;
-      const d = _v.set(this.pos.x - att.pos.x, 0, this.pos.z - att.pos.z).normalize();
+      const d = _v.set(this.pos.x - src.x, 0, this.pos.z - src.z).normalize();
       this.knock.copy(d).multiplyScalar(2 + (h.knock ?? 1) * 0.5);
       this.model.sword.mid.getWorldPosition(_v2);
       g.fx.particles.sparks(_v2, _v3.copy(d).negate(), 16, 0xfff0c0, 9, 1);
@@ -646,13 +771,26 @@ export class Player extends Actor {
 
   perfectDodge(att) {
     const g = this.game;
+    const D = this.duel;
     this.perfectCooldown = 1.2;
-    g.slowmo(0.22, 0.85);
+    this.stats.perfects++;
+    // (a duel's rhythm is not stopped for long: a short slow, a sure counter)
+    if (D) g.slowmo(0.3, 0.45);
+    else g.slowmo(0.22, 0.85);
     g.hud?.toast('完美閃避', 'perfect');
     g.audio?.play('perfectDodge');
     g.fx.screen.flash(0xcfe8ff, 0.3, 6);
     g.fx.screen.chroma(0.8);
-    this.gain(10, 12);
+    if (D) {
+      this.gain(D.conc.perfect, D.breath.perfect);
+      att?.onPerfectDodgedBy?.(this);
+      // (his blow cut only air: it costs him balance)
+      if (att?.isBoss && att.state !== 'stagger') {
+        att.poise -= D.posture.dodge;
+        att.lastHitT = g.time;
+        if (att.poise <= 0) att._breakPosture?.();
+      }
+    } else this.gain(10, 12);
     g.fx.effects.afterimage(this.model, { color: 0x6ec8ff, life: 0.45, alpha: 0.45 });
     if (this.charId === 'tanjiro' && att && att.alive) {
       this.critTarget = att;
@@ -660,7 +798,7 @@ export class Player extends Actor {
       this.threadMesh.visible = true;
       g.hud?.toast('隙之線', 'counter');
     } else {
-      this.counterT = 1.5;
+      this.counterT = D ? D.perfect.counter : 1.5;
     }
   }
 
@@ -677,18 +815,35 @@ export class Player extends Actor {
     g.fx.screen.flash(0xffffff, 0.35, 12);
     this.hitstop = 0.12;
     att.hitstop = Math.max(att.hitstop, 0.14);
-    this.anim.play(this.clips.parry, { fade: 0.02 });
-    this.setState('action');
-    this.run(this.moves.parry);
-    this.curMove = 'parry';
-    this.counterT = 1.6;
-    this.gain(12, this.charId === 'giyu' ? 40 : 15);
+    const D = this.duel;
+    // 真劍: with his next blow right behind this one the guard stays up (to block it, or parry it on a fresh press)
+    const r = D ? att.action : null;
+    const next = r ? r.nextStrike() : null;
+    const soon = next != null && r.timeTo(next) < 0.25;
+    // (a parry that landed is no mashing: the next press gets the full window)
+    this.blockEndT = -99;
+    if (soon) {
+      this.anim.play(this.clips.blockHit, { fade: 0.02, mask: 'upper' });
+      this.blockT = this.parryWin;
+      this._parryKept = true;
+    } else {
+      this.anim.play(this.clips.parry, { fade: 0.02 });
+      this.setState('action');
+      this.run(this.moves.parry);
+      this.curMove = 'parry';
+    }
+    this.counterT = D ? 1.0 : 1.6;
+    this.stats.parries++;
+    if (D) this.gain(D.conc.parry, this.charId === 'giyu' ? D.breath.parryGiyu : D.breath.parry);
+    else this.gain(12, this.charId === 'giyu' ? 40 : 15);
     g.hud?.toast('完美格擋', 'counter');
     att.onParried?.(this, h);
-    if (this.charId === 'giyu' && att.alive) {
-      // Giyu counters instantly
+    // Giyu counters instantly (in a duel, only once the parry has ended the string: mid-string the next blow is
+    // already coming; and a broken posture is left to an execution)
+    if (this.charId === 'giyu' && att.alive && (!D || att.state === 'hit')) {
       g.fx.effects.timer(0.12, null, () => {
-        if (!att.alive || this.state === 'dead') return;
+        // (not if he has since done anything else: dodged, guarded, begun an execution)
+        if (!att.alive || this.state !== 'action' || this.curMove !== 'parry') return;
         this.faceInstant(att.pos);
         this.startMove('light3', { noLunge: true });
         this.callout('水之呼吸', '拾壹之型', '凪', 'calm');
@@ -700,6 +855,11 @@ export class Player extends Actor {
     const g = this.game;
     this.stats.damageTaken += info.dmg;
     this.gain(4, 0);
+    const R = this.duel?.rally;
+    if (R) {
+      this.rally = Math.min(this.maxHp - Math.max(0, this.hp), this.rally + info.dmg * R.share);
+      this.rallyT = R.hold;
+    }
     g.audio?.play('playerHurt', { pos: this.pos });
     if (this.state === 'ult') return;
     if ((this.armor && h.stun !== 'down') || (this.heart && (h.stun || 'light') === 'light')) {
@@ -711,12 +871,13 @@ export class Player extends Actor {
     this._charging = false;
     this.model.setFace('hurt');
     const stun = h.stun || 'light';
-    this.anim.hitDir = Math.sign(this.angleTo(att) || 1);
+    const src = h.from || att.pos;
+    this.anim.hitDir = Math.sign(angleDiff(this.yaw, Math.atan2(src.x - this.pos.x, src.z - this.pos.z)) || 1);
     if (stun === 'down') {
       this.setState('down');
       this._gettingUp = false;
       this.anim.play(this.clips.knockdown, { fade: 0.03, hold: true });
-      this.knock.set(this.pos.x - att.pos.x, 0, this.pos.z - att.pos.z).normalize().multiplyScalar((h.knock ?? 5) + 2);
+      this.knock.set(this.pos.x - src.x, 0, this.pos.z - src.z).normalize().multiplyScalar((h.knock ?? 5) + 2);
     } else {
       this.setState('hit');
       this.stunLen = stun === 'heavy' ? 0.55 : 0.34;
@@ -728,6 +889,7 @@ export class Player extends Actor {
   die(att) {
     if (!this.alive) return;
     this.alive = false;
+    this.rally = 0;
     this.setState('dead');
     this.action = null;
     this.setTrail(null);
@@ -737,6 +899,49 @@ export class Player extends Actor {
     this.game.slowmo(0.25, 1.2);
     this.game.onPlayerDeath?.();
     void att;
+  }
+
+  /** 真劍: a broken posture, and the killing blow it opens: in close, one cut through him. */
+  startExecution(e) {
+    const g = this.game;
+    this.faceInstant(e.pos);
+    const d = this.distTo(e);
+    this.setState('action');
+    this.run(this.moves.execute, { target: e, motionScale: clamp((d - e.radius - 1.1) / 1.6, 0.05, 2.4) });
+    this.curMove = 'execute';
+    this.invuln = 1.0;
+    this.velXZ.set(0, 0, 0);
+    this.model.setFace('fierce');
+    e.onExecuteStart(this);
+    g.slowmo(0.3, 0.55);
+    g.cameraRig.kick(8);
+    g.fx.screen.speed(1, 0.3);
+    g.audio?.play('execute', { pos: this.pos });
+    this.afterimage(0.5, 0.4);
+  }
+
+  /** The execution's cut: a fixed share of his health, and the full weight of the moment. */
+  _executeHit(e) {
+    const g = this.game;
+    if (!e || !e.alive) return;
+    // (his posture already back: the chance is gone, the cut is no execution)
+    if (e.state !== 'stagger') return e.onExecuted?.(false);
+    const dmg = e.execDamage();
+    const res = g.combat.applyHit(this, e, {
+      dmg, fixed: true, poise: 0, knock: 2, hitstop: 0.22, shake: 0.85, power: 1, stun: 'heavy', crit: true,
+      style: this.palette.style, impact: 0.16, impactA: 0x050305, impactB: 0xfff4e8, radial: 0.9, fov: 10,
+    });
+    const landed = res === 'hit';
+    e.onExecuted?.(landed);
+    if (!landed) return;
+    this.stats.executions++;
+    g.hud?.toast('處決', 'counter');
+    g.fx.effects.arc({
+      center: e.chest(new THREE.Vector3()),
+      f: this.right(new THREE.Vector3()).negate().setY(0.4).normalize(),
+      s: this.forward(new THREE.Vector3()),
+      radius: 1.6, width: 0.9, arc: Math.PI * 1.1, style: this.palette.style, life: 0.6, wipe: 0.06,
+    });
   }
 
   // ---------------------------------------------------------------- fx helpers used by moves

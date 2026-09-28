@@ -697,11 +697,375 @@ export const AKAZA_CLIPS = {
       { t: 0.4, e: 'inOut', p: { ...AKAZA_STANCE, bp: 0 } },
     ],
   },
+  // 腳式・流閃群光: right roundhouse, left roundhouse, then straight up -- each knee drawn up first
+  kickFlurry: {
+    dur: 1.15,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.1, -0.02], hips: [0, 14, 0], spine: [0, -6, 10], chest: [-4, 20, 0], head: [-4, -18, 0], thighL: [-6, 0, 10], shinL: [24, 0, 0], footL: [-4, 12, 0], thighR: [-74, 0, -52], shinR: [116, 0, 0], footR: [24, 0, 0], upperArmL: [-60, 10, 40], foreArmL: [-100, 0, 0], upperArmR: [-20, 0, -62], foreArmR: [-80, 0, 0] } },
+      { t: 0.1, e: 'out', p: { hp: [0, -0.06, 0.06], hips: [0, -36, 0], spine: [-10, -10, 24], chest: [-6, -16, 0], head: [0, 22, -10], thighR: [-70, -20, -84], shinR: [4, 0, 0], footR: [-10, 0, 0], upperArmL: [-40, 0, 64], upperArmR: [14, 0, -72] } },
+      { t: 0.28, e: 'out', p: { hp: [0, -0.12, 0.08], hips: [0, -14, 0], spine: [0, 6, -10], chest: [-4, -20, 0], head: [-4, 18, 0], thighR: [-8, 0, -10], shinR: [26, 0, 0], footR: [-4, -12, 0], thighL: [-74, 0, 52], shinL: [116, 0, 0], footL: [24, 0, 0], upperArmR: [-60, -10, -40], foreArmR: [-100, 0, 0], upperArmL: [-20, 0, 62], foreArmL: [-80, 0, 0] } },
+      { t: 0.38, e: 'out', p: { hp: [0, -0.06, 0.14], hips: [0, 36, 0], spine: [-10, 10, -24], chest: [-6, 16, 0], head: [0, -22, 10], thighL: [-70, 20, 84], shinL: [4, 0, 0], footL: [-10, 0, 0], upperArmR: [-40, 0, -64], upperArmL: [14, 0, 72] } },
+      { t: 0.56, e: 'out', p: { hp: [0, -0.18, 0.16], hips: [0, 8, 0], spine: [12, 0, 0], chest: [10, 6, 0], head: [-12, 0, 0], thighL: [-12, 0, 8], shinL: [34, 0, 0], footL: [-6, 0, 0], thighR: [-112, 0, -8], shinR: [120, 0, 0], footR: [24, 0, 0], upperArmL: [-70, 10, 12], foreArmL: [-60, 0, 0], upperArmR: [-40, 0, -30], foreArmR: [-100, 0, 0] } },
+      { t: 0.68, e: 'out', p: { hp: [0, -0.02, 0.22], spine: [-20, 0, 0], chest: [-14, 0, 0], head: [12, 0, 0], thighR: [-160, 0, -6], shinR: [0, 0, 0], footR: [-24, 0, 0], thighL: [8, 0, 6], shinL: [12, 0, 0], upperArmL: [-10, 0, 52], foreArmL: [-40, 0, 0], upperArmR: [12, 0, -52], foreArmR: [-40, 0, 0] } },
+      { t: 0.9, e: 'inOut', p: { thighR: [-120, 0, -8], shinR: [40, 0, 0] } },
+      { t: 1.15, e: 'inOut', p: { ...AKAZA_STANCE } },
+    ],
+  },
+  // 腳式・飛遊星千輪: down into a crouch, up into a forward somersault, heels first onto the mark
+  flipKick: {
+    dur: 1.2,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.48, -0.06], hips: [0, 0, 0], spine: [26, 0, 0], chest: [24, 0, 0], head: [-28, 0, 0], thighL: [-80, 0, 14], shinL: [126, 0, 0], footL: [-22, 0, 0], thighR: [-62, 0, -14], shinR: [112, 0, 0], footR: [-22, 0, 0], upperArmL: [52, 0, 26], foreArmL: [-20, 0, 0], upperArmR: [52, 0, -26], foreArmR: [-20, 0, 0] } },
+      { t: 0.12, e: 'linear', p: { hp: [0, 0.9, 0.05], bp: 50, spine: [34, 0, 0], chest: [24, 0, 0], head: [-12, 0, 0], thighL: [-124, 0, 10], shinL: [134, 0, 0], thighR: [-124, 0, -10], shinR: [134, 0, 0], footL: [0, 0, 0], footR: [0, 0, 0], upperArmL: [-64, 0, 30], foreArmL: [-96, 0, 0], upperArmR: [-64, 0, -30], foreArmR: [-96, 0, 0] } },
+      { t: 0.3, e: 'linear', p: { hp: [0, 1.5, 0.1], bp: 205 } },
+      { t: 0.44, e: 'in', p: { hp: [0, 0.95, 0.12], bp: 318, spine: [-12, 0, 0], chest: [-12, 0, 0], head: [22, 0, 0], thighL: [-168, 0, 12], shinL: [0, 0, 0], thighR: [-156, 0, -12], shinR: [0, 0, 0], footL: [-30, 0, 0], footR: [-30, 0, 0], upperArmL: [34, 0, 64], foreArmL: [-10, 0, 0], upperArmR: [34, 0, -64], foreArmR: [-10, 0, 0] } },
+      { t: 0.52, e: 'out', p: { hp: [0, -0.38, 0.12], bp: 360, spine: [32, 0, 0], chest: [26, 0, 0], head: [-32, 0, 0], thighL: [-42, 0, 16], shinL: [72, 0, 0], thighR: [-92, 0, -14], shinR: [124, 0, 0], footL: [0, 0, 0], footR: [-20, 0, 0], upperArmL: [22, 0, 42], foreArmL: [-40, 0, 0], upperArmR: [22, 0, -42], foreArmR: [-40, 0, 0] } },
+      { t: 0.9, e: 'inOut', p: { hp: [0, -0.32, 0.1] } },
+      { t: 1.2, e: 'inOut', p: { ...AKAZA_STANCE, bp: 360 } },
+    ],
+  },
+  // 破壞殺・鬼芯八重芯: both fists low at the hips, then eight blows, straight, hook and rising, left and right
+  eightCore: {
+    dur: 1.25,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.3, -0.06], hips: [0, 10, 0], spine: [12, 0, 0], chest: [10, -8, 0], head: [-14, 0, 0], thighL: [-40, -10, 22], shinL: [60, 0, 0], thighR: [10, -10, -24], shinR: [50, 0, 0], upperArmL: [22, 0, 30], foreArmL: [-132, 0, 0], upperArmR: [22, 0, -30], foreArmR: [-132, 0, 0] } },
+      { t: 0.08, e: 'out', p: { hp: [0, -0.26, 0.06], chest: [6, 26, 0], upperArmL: [-92, 0, -6], foreArmL: [-4, 0, 0], upperArmR: [-20, 0, -30], foreArmR: [-120, 0, 0] } },
+      { t: 0.16, e: 'out', p: { chest: [6, -26, 0], upperArmR: [-92, 0, 6], foreArmR: [-4, 0, 0], upperArmL: [-20, 0, 30], foreArmL: [-120, 0, 0] } },
+      { t: 0.24, e: 'out', p: { chest: [6, -38, 0], upperArmL: [-90, -60, 40], foreArmL: [-90, 0, 0], upperArmR: [-30, 0, -30], foreArmR: [-120, 0, 0] } },
+      { t: 0.32, e: 'out', p: { chest: [6, 38, 0], upperArmR: [-90, 60, -40], foreArmR: [-90, 0, 0], upperArmL: [-30, 0, 30], foreArmL: [-120, 0, 0] } },
+      { t: 0.4, e: 'out', p: { hp: [0, -0.16, 0.12], chest: [-16, -16, 0], upperArmL: [-160, 0, 0], foreArmL: [-30, 0, 0], upperArmR: [-20, 0, -30], foreArmR: [-120, 0, 0] } },
+      { t: 0.48, e: 'out', p: { hp: [0, -0.24, 0.14], chest: [6, -26, 0], upperArmR: [-92, 0, 6], foreArmR: [-4, 0, 0], upperArmL: [-20, 0, 30], foreArmL: [-120, 0, 0] } },
+      { t: 0.56, e: 'out', p: { chest: [6, 26, 0], upperArmL: [-92, 0, -6], foreArmL: [-4, 0, 0], upperArmR: [-20, 0, -30], foreArmR: [-120, 0, 0] } },
+      { t: 0.6, e: 'in', p: { chest: [-4, -40, 0], upperArmR: [0, 0, -30], foreArmR: [-124, 0, 0], upperArmL: [-40, 0, 20], foreArmL: [-110, 0, 0] } },
+      { t: 0.66, e: 'out', p: { hp: [0, -0.32, 0.36], hips: [0, -10, 0], chest: [12, 42, 0], spine: [8, 16, 0], upperArmR: [-90, 0, 10], foreArmR: [0, 0, 0], thighR: [10, -10, -14], shinR: [20, 0, 0] } },
+      { t: 0.95, e: 'inOut', p: {} },
+      { t: 1.25, e: 'inOut', p: { ...AKAZA_STANCE } },
+    ],
+  },
   counterGuard: {
     dur: 0.3,
     keys: [
       { t: 0, e: 'snap', p: { hp: [0, -0.2, -0.05], chest: [-6, 10, 0], upperArmL: [-110, 0, -20], foreArmL: [-60, 0, 0], upperArmR: [-40, 0, -20], foreArmR: [-120, 0, 0] } },
       { t: 0.3, e: 'inOut', p: {} },
+    ],
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Kokushibo (Moon Breathing): upright and unhurried, the blade held low in one hand. The big second-state
+// forms take it in both.
+// ---------------------------------------------------------------------------
+export const KOKUSHIBO_STANCE = {
+  hp: [0, -0.03, 0],
+  hips: [0, 8, 0],
+  spine: [2, -3, 0],
+  chest: [0, -6, 0],
+  neck: [0, 0, 0],
+  head: [-3, 2, 0],
+  thighL: [6, -6, 5], shinL: [8, 0, 0], footL: [-2, 8, 0],
+  thighR: [-8, -8, -5], shinR: [10, 0, 0], footR: [0, -4, 0],
+  upperArmL: [6, 0, 9], foreArmL: [-16, 0, 0], handL: [0, 0, 0],
+  lh: 0,
+  sw: { w: 1, tilt: 14, yaw: -24, a: -64, r: 0.55, off: 30, roll: 0 },
+  pole: [-0.5, -1, -0.2],
+};
+
+export const KOKUSHIBO_RUN = {
+  hp: [0, -0.05, 0],
+  hips: [0, 0, 0],
+  spine: [16, 0, 0],
+  chest: [6, 0, 0],
+  head: [-14, 0, 0],
+  upperArmL: [-6, 0, 12],
+  foreArmL: [-40, 0, 0],
+  sw: { w: 1, tilt: 8, yaw: -18, a: -108, r: 0.52, off: -40, roll: 0 },
+  pole: [-0.6, -1, -0.2],
+};
+
+// the second state: the grown blade trails behind him, point just off the boards
+export const KOKUSHIBO_STANCE2 = {
+  ...KOKUSHIBO_STANCE,
+  hp: [0, -0.06, 0],
+  chest: [2, -10, 0],
+  sw: { w: 1, tilt: 12, yaw: -30, a: -118, r: 0.52, off: -52, roll: 0 },
+  pole: [-0.6, -1, -0.1],
+};
+
+export const KOKUSHIBO_RUN2 = {
+  ...KOKUSHIBO_RUN,
+  sw: { w: 1, tilt: 10, yaw: -26, a: -122, r: 0.52, off: -50, roll: 0 },
+};
+
+const K_LEFT_FREE = { lh: 0, upperArmL: [20, 0, 36], foreArmL: [-30, 0, 0] };
+const K_WIDE = { thighL: [12, -10, 16], shinL: [30, 0, 0], thighR: [-16, -10, -16], shinR: [32, 0, 0] };
+const K_LUNGE = { thighL: [30, -6, 8], shinL: [40, 0, 0], footL: [-10, 0, 0], thighR: [-50, -8, -4], shinR: [56, 0, 0], footR: [-8, 0, 0] };
+
+export const KOKUSHIBO_CLIPS = {
+  taunt: {
+    dur: 2.4,
+    keys: [
+      { t: 0, e: 'inOut', p: { ...KOKUSHIBO_STANCE, head: [10, 0, 0] } },
+      { t: 1.4, e: 'inOut', p: { head: [2, 4, 0] } },
+      { t: 2.4, e: 'inOut', p: { head: [-4, 0, 0] } },
+    ],
+  },
+  hit: {
+    dur: 0.34,
+    keys: [
+      { t: 0, e: 'snap', p: { hp: [0, -0.1, -0.08], spine: [-12, 0, 6], chest: [-10, 12, 0], head: [-14, 0, 8], ...K_LEFT_FREE, sw: { tilt: 20, a: -96, r: 0.52, off: -10 } } },
+      { t: 0.34, e: 'inOut', p: { ...KOKUSHIBO_STANCE } },
+    ],
+  },
+  stagger: {
+    dur: 2.2,
+    keys: [
+      { t: 0, e: 'snap', p: { hp: [0, -0.16, -0.16], spine: [-18, 0, 8], chest: [-16, 18, 0], head: [-24, 0, 10], ...K_LEFT_FREE, sw: { tilt: 20, a: -120, r: 0.5, off: -30 } } },
+      { t: 0.5, e: 'out', p: { hp: [0, -0.46, 0], spine: [34, 0, 0], chest: [16, 0, 0], head: [8, 0, 0], thighL: [-70, 0, 10], shinL: [90, 0, 0], thighR: [0, 0, -10], shinR: [96, 0, 0], sw: { tilt: 0, a: -90, r: 0.55, off: -8 } } },
+      { t: 1.9, e: 'inOut', p: { hp: [0, -0.44, 0] } },
+      { t: 2.2, e: 'inOut', p: { ...KOKUSHIBO_STANCE } },
+    ],
+  },
+  // down on one knee, the blade planted point-first in the boards
+  kneel: {
+    dur: 0.8,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.2, -0.1], spine: [-10, 0, 0], chest: [-12, 0, 0], head: [-10, 0, 0], ...K_LEFT_FREE } },
+      { t: 0.8, e: 'inOut', p: { hp: [0, -0.52, 0], spine: [26, 0, 0], chest: [12, 0, 0], head: [22, 0, 0], thighL: [-84, 0, 8], shinL: [86, 0, 0], footL: [0, 0, 0], thighR: [4, 0, -8], shinR: [100, 0, 0], footR: [-30, 0, 0], upperArmL: [-20, 0, 20], foreArmL: [-60, 0, 0], sw: { tilt: 0, yaw: -10, a: -20, r: 0.5, off: -64, roll: 0 } } },
+    ],
+  },
+  // headless, the body still on its feet: slack arms, the sword hanging
+  deathStand: {
+    dur: 1.2,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.3, 0], spine: [10, 0, 0], chest: [6, 0, 0], ...K_LEFT_FREE, sw: { tilt: 10, yaw: -20, a: -92, r: 0.56, off: -4 } } },
+      { t: 1.2, e: 'inOut', p: { hp: [0, -0.12, 0], spine: [-4, 0, 0], chest: [-8, 0, 0], upperArmL: [0, 0, 18], foreArmL: [-8, 0, 0], sw: { a: -84 } } },
+    ],
+  },
+  // 透明的世界: reads the blow and slips half a step aside
+  counterGuard: {
+    dur: 0.3,
+    keys: [
+      { t: 0, e: 'snap', p: { hp: [0, -0.12, -0.06], hips: [0, -30, 0], chest: [-6, -30, 0], head: [-4, 30, 0], ...K_LEFT_FREE, sw: { tilt: 80, yaw: 0, a: -120, r: 0.4, off: -20, roll: 180 }, pole: [0.2, -0.4, 0.9] } },
+      { t: 0.3, e: 'inOut', p: { chest: [-4, -34, 0] } },
+    ],
+  },
+  // a step aside, low and quick (reading a technique): to his left, and to his right
+  stepL: {
+    dur: 0.4,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0.06, -0.16, 0], spine: [4, 0, 12], chest: [0, 8, 6], head: [0, -8, -8], thighL: [-6, 0, 30], shinL: [30, 0, 0], thighR: [-10, 0, 4], shinR: [40, 0, 0], ...K_LEFT_FREE, sw: { tilt: 14, yaw: -24, a: -80, r: 0.52, off: 10 } } },
+      { t: 0.4, e: 'inOut', p: { ...KOKUSHIBO_STANCE } },
+    ],
+  },
+  stepR: {
+    dur: 0.4,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [-0.06, -0.16, 0], spine: [4, 0, -12], chest: [0, -8, -6], head: [0, 8, 8], thighR: [-6, 0, -30], shinR: [30, 0, 0], thighL: [-10, 0, -4], shinL: [40, 0, 0], ...K_LEFT_FREE, sw: { tilt: 14, yaw: -24, a: -80, r: 0.52, off: 10 } } },
+      { t: 0.4, e: 'inOut', p: { ...KOKUSHIBO_STANCE } },
+    ],
+  },
+  // chiburi: the blade flicked clean and lowered -- the opening after a string of cuts
+  chiburi: {
+    dur: 0.85,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.06, 0], chest: [-4, -10, 0], head: [-2, 6, 0], ...K_LEFT_FREE, sw: { tilt: 30, yaw: -30, a: 36, r: 0.5, off: 16, roll: 0 } } },
+      { t: 0.14, e: 'snap', p: { chest: [4, 8, 0], sw: { a: -84, off: -8 } } },
+      { t: 0.5, e: 'inOut', p: { sw: { a: -80, off: 4 } } },
+      { t: 0.85, e: 'inOut', p: { ...KOKUSHIBO_STANCE } },
+    ],
+  },
+  // a straight thrust: the blade drawn back flat along his right side, point on the target, then driven home
+  thrust: {
+    dur: 0.95,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.22, -0.1], hips: [0, -26, 0], chest: [4, -32, 0], spine: [4, -10, 0], head: [-6, 32, 0], ...K_WIDE, lh: 0, upperArmL: [-78, 0, 12], foreArmL: [-12, 0, 0], sw: { tilt: 90, yaw: 0, a: 118, r: 0.42, off: -118, roll: 90 }, pole: [-0.6, -1, -0.2] } },
+      { t: 0.3, e: 'in', p: { chest: [6, -38, 0], sw: { a: 128, off: -128 } } },
+      { t: 0.4, e: 'out', p: { hp: [0, -0.3, 0.36], hips: [0, 18, 0], chest: [14, 20, 0], spine: [10, 8, 0], head: [-14, -18, 0], ...K_LUNGE, upperArmL: [30, 0, 44], foreArmL: [-20, 0, 0], sw: { a: 4, r: 0.7, off: -4 } } },
+      { t: 0.62, e: 'inOut', p: { sw: { a: 8, off: -2 } } },
+      { t: 0.95, e: 'inOut', p: { hp: [0, -0.12, 0.2], sw: { a: -40, off: 20 } } },
+    ],
+  },
+  // ----------------------------------------------------------- plain cuts (one hand)
+  slashA: {
+    dur: 0.56,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.08, 0], chest: [-6, -36, 0], spine: [0, -12, 0], head: [-6, 28, 0], ...K_LEFT_FREE, sw: { tilt: 40, yaw: 0, a: 124, r: 0.44, off: -6, roll: 0 }, pole: [-0.8, -0.3, 0.1] } },
+      { t: 0.08, e: 'snap', p: { chest: [-8, -42, 0], sw: { a: 136, off: -12 } } },
+      { t: 0.16, e: 'out', p: { hp: [0, -0.16, 0.12], chest: [16, 30, 0], spine: [10, 12, 0], head: [-12, -24, 0], ...K_LUNGE, sw: { a: -40, r: 0.62, off: 10 }, pole: [-0.5, -1, -0.2] } },
+      { t: 0.34, e: 'inOut', p: { sw: { a: -48, off: 6 } } },
+      { t: 0.56, e: 'inOut', p: { sw: { a: -44, off: 30 } } },
+    ],
+  },
+  slashB: {
+    dur: 0.56,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.14, 0.05], chest: [12, 30, 0], spine: [8, 12, 0], head: [-8, -26, 0], ...K_LUNGE, ...K_LEFT_FREE, sw: { tilt: 45, yaw: 0, a: -114, r: 0.46, off: -16, roll: 180 }, pole: [-0.5, -1, 0.2] } },
+      { t: 0.07, e: 'snap', p: { sw: { a: -124, off: -22 } } },
+      { t: 0.16, e: 'out', p: { hp: [0, -0.06, 0.12], chest: [-10, -30, 0], spine: [-4, -12, 0], head: [-2, 24, 0], sw: { a: 90, r: 0.58, off: 14 }, pole: [-0.8, -0.2, -0.3] } },
+      { t: 0.34, e: 'inOut', p: { sw: { a: 98, off: 18 } } },
+      { t: 0.56, e: 'inOut', p: { sw: { a: 82, off: 30 } } },
+    ],
+  },
+  slashC: {
+    dur: 0.6,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.1, 0], hips: [0, -20, 0], chest: [0, -44, 0], spine: [4, -16, 0], head: [-6, 40, 0], ...K_WIDE, ...K_LEFT_FREE, sw: { tilt: 86, yaw: 0, a: 102, r: 0.46, off: 26, roll: 0 }, pole: [-0.9, 0.1, -0.2] } },
+      { t: 0.08, e: 'snap', p: { chest: [0, -50, 0], sw: { a: 114, off: 30 } } },
+      { t: 0.18, e: 'out', p: { hp: [0, -0.14, 0.14], hips: [0, 24, 0], chest: [6, 44, 0], spine: [6, 18, 0], head: [-8, -40, 0], ...K_LUNGE, sw: { a: -106, r: 0.62, off: 6 }, pole: [-0.2, -0.6, 0.8] } },
+      { t: 0.36, e: 'inOut', p: { sw: { a: -114 } } },
+      { t: 0.6, e: 'inOut', p: { sw: { a: -98, off: 20 } } },
+    ],
+  },
+  // ----------------------------------------------------------- 壹之型・闇月・宵之宮: the draw
+  iaiReady: {
+    dur: 0.45,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.2, -0.05], hips: [0, 30, 0], chest: [8, 46, 0], spine: [8, 16, 0], head: [-10, -42, 0], ...K_WIDE, lh: 1, sw: { tilt: 88, yaw: 0, a: -126, r: 0.34, off: -24, roll: 180 }, pole: [0.2, -0.4, 0.9] } },
+      { t: 0.45, e: 'inOut', p: { hp: [0, -0.24, -0.07], chest: [10, 52, 0], sw: { a: -132, off: -28 } } },
+    ],
+  },
+  iai: {
+    dur: 0.62,
+    keys: [
+      { t: 0, e: 'snap', p: { hp: [0, -0.24, -0.07], hips: [0, 30, 0], chest: [10, 52, 0], spine: [8, 16, 0], head: [-10, -42, 0], ...K_WIDE, lh: 1, sw: { tilt: 88, yaw: 0, a: -132, r: 0.34, off: -28, roll: 180 }, pole: [0.2, -0.4, 0.9] } },
+      { t: 0.07, e: 'out', p: { hp: [0, -0.28, 0.22], hips: [0, -20, 0], chest: [14, -48, 0], spine: [10, -16, 0], head: [-16, 42, 0], ...K_LUNGE, lh: 0, upperArmL: [30, 0, 56], foreArmL: [-20, 0, 0], sw: { a: 112, r: 0.64, off: 6 }, pole: [-0.9, -0.3, -0.2] } },
+      { t: 0.36, e: 'inOut', p: { sw: { a: 118 } } },
+      { t: 0.62, e: 'inOut', p: { hp: [0, -0.12, 0.1], sw: { a: 100, off: 24 } } },
+    ],
+  },
+  // 貳之型・珠華弄月: three rising cuts, one after another
+  pearl: {
+    dur: 1.12,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.16, 0.02], chest: [12, 30, 0], spine: [8, 12, 0], head: [-8, -26, 0], ...K_LUNGE, ...K_LEFT_FREE, sw: { tilt: 45, yaw: 0, a: -118, r: 0.46, off: -16, roll: 180 }, pole: [-0.5, -1, 0.2] } },
+      { t: 0.16, e: 'snap', p: { hp: [0, -0.2, 0], sw: { a: -128 } } },
+      { t: 0.26, e: 'out', p: { hp: [0, -0.08, 0.12], chest: [-10, -30, 0], head: [-2, 24, 0], sw: { a: 92, r: 0.6, off: 14 }, pole: [-0.8, -0.2, -0.3] } },
+      { t: 0.36, e: 'inOut', p: { chest: [10, -24, 0], sw: { tilt: -45, a: -116, r: 0.46, off: -16 }, pole: [0.2, -1, 0.3] } },
+      { t: 0.5, e: 'out', p: { hp: [0, -0.08, 0.22], chest: [-10, 30, 0], head: [-2, -24, 0], sw: { a: 92, r: 0.6, off: 14 }, pole: [-0.8, 0.2, -0.3] } },
+      { t: 0.62, e: 'inOut', p: { hp: [0, -0.2, 0.2], chest: [14, 0, 0], head: [-10, 0, 0], sw: { tilt: 0, a: -128, r: 0.46, off: -10 }, pole: [-0.6, -1, 0] } },
+      { t: 0.76, e: 'out', p: { hp: [0, 0.02, 0.32], spine: [-8, 0, 0], chest: [-20, 0, 0], head: [12, 0, 0], sw: { a: 104, r: 0.62, off: 10 }, pole: [-0.8, 0.2, -0.2] } },
+      { t: 1.12, e: 'inOut', p: { hp: [0, -0.1, 0.2], chest: [0, 0, 0], head: [0, 0, 0], sw: { a: 70, off: 30 } } },
+    ],
+  },
+  // 參之型・厭忌月・銷蝕: two flat sweeps, right to left and back
+  loathe: {
+    dur: 0.95,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.14, 0], hips: [0, -20, 0], chest: [0, -46, 0], spine: [4, -16, 0], head: [-6, 40, 0], ...K_WIDE, ...K_LEFT_FREE, sw: { tilt: 86, yaw: 0, a: 106, r: 0.46, off: 26, roll: 0 }, pole: [-0.9, 0.1, -0.2] } },
+      { t: 0.18, e: 'out', p: { hp: [0, -0.18, 0.12], hips: [0, 24, 0], chest: [6, 46, 0], spine: [6, 18, 0], head: [-8, -40, 0], ...K_LUNGE, sw: { a: -112, r: 0.64, off: 4 }, pole: [-0.2, -0.6, 0.8] } },
+      { t: 0.3, e: 'inOut', p: { sw: { a: -122, off: -10, roll: 180 } } },
+      { t: 0.48, e: 'out', p: { hp: [0, -0.2, 0.22], hips: [0, -24, 0], chest: [8, -46, 0], spine: [6, -16, 0], head: [-10, 40, 0], sw: { a: 114, r: 0.64, off: 6 }, pole: [-0.9, -0.3, -0.2] } },
+      { t: 0.95, e: 'inOut', p: { hp: [0, -0.1, 0.16], sw: { a: 98, off: 26 } } },
+    ],
+  },
+  // 伍之型・月魄災渦: no swing at all -- he only stands, and the moons come
+  cast: {
+    dur: 0.9,
+    keys: [
+      { t: 0, e: 'out', p: { ...KOKUSHIBO_STANCE, hp: [0, -0.06, 0], head: [6, 0, 0] } },
+      { t: 0.2, e: 'out', p: { hp: [0, -0.1, 0], chest: [-4, 0, 0], head: [-6, 0, 0], sw: { a: -72, off: 26 } } },
+      { t: 0.9, e: 'inOut', p: { ...KOKUSHIBO_STANCE } },
+    ],
+  },
+  // 陸之型・常夜孤月・無間: a raised blade, then one great diagonal cut
+  eternal: {
+    dur: 1.05,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.1, -0.04], chest: [-12, -24, 0], spine: [-4, -10, 0], head: [4, 20, 0], ...K_WIDE, lh: 1, sw: { tilt: 22, yaw: 0, a: 150, r: 0.42, off: 22, roll: 0 }, pole: [-0.8, 0.3, -0.3] } },
+      { t: 0.34, e: 'in', p: { chest: [-16, -30, 0], sw: { a: 162, off: 28 } } },
+      { t: 0.44, e: 'out', p: { hp: [0, -0.28, 0.34], hips: [0, 20, 0], chest: [26, 34, 0], spine: [14, 14, 0], head: [-18, -30, 0], ...K_LUNGE, sw: { a: -70, r: 0.64, off: 4 }, pole: [-0.4, -1, 0.1] } },
+      { t: 0.74, e: 'inOut', p: { sw: { a: -78 } } },
+      { t: 1.05, e: 'inOut', p: { hp: [0, -0.14, 0.2], sw: { a: -64, off: 24 } } },
+    ],
+  },
+  dash: {
+    dur: 0.42,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.26, 0.05], spine: [30, 0, 0], chest: [10, 0, 0], head: [-26, 0, 0], ...K_LUNGE, lh: 0, upperArmL: [50, 0, 20], foreArmL: [-20, 0, 0], sw: { tilt: 10, yaw: -20, a: -130, r: 0.52, off: -34 } } },
+      { t: 0.42, e: 'inOut', p: { hp: [0, -0.1, 0], spine: [8, 0, 0] } },
+    ],
+  },
+  hop: {
+    dur: 0.4,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, 0.12, -0.16], bp: -8, spine: [-10, 0, 0], thighL: [-36, 0, 10], shinL: [56, 0, 0], thighR: [-18, 0, -10], shinR: [46, 0, 0], ...K_LEFT_FREE, sw: { tilt: 20, yaw: -20, a: -90, r: 0.5, off: -20 } } },
+      { t: 0.4, e: 'inOut', p: { ...KOKUSHIBO_STANCE, bp: 0 } },
+    ],
+  },
+  // ----------------------------------------------------------- the second state (both hands, the long blade)
+  // raised upright before his face while the blade grows
+  transform: {
+    dur: 1.6,
+    keys: [
+      { t: 0, e: 'out', p: { ...KOKUSHIBO_STANCE } },
+      { t: 0.5, e: 'out', p: { hp: [0, -0.08, 0], hips: [0, 0, 0], chest: [-4, 0, 0], head: [-4, 0, 0], ...K_WIDE, lh: 1, sw: { tilt: 0, yaw: -6, a: 40, r: 0.36, off: 50, roll: 90 }, pole: [-0.8, -0.6, 0] } },
+      { t: 1.6, e: 'inOut', p: { head: [-10, 0, 0], sw: { a: 46, off: 44 } } },
+    ],
+  },
+  // 漆之型・厄鏡・月映: from low at his right up across to high on his left
+  mirror: {
+    dur: 0.95,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.22, -0.02], hips: [0, 20, 0], chest: [12, 36, 0], spine: [8, 12, 0], head: [-10, -30, 0], ...K_WIDE, lh: 1, sw: { tilt: -24, yaw: -10, a: -130, r: 0.46, off: -14, roll: 0 }, pole: [-0.6, -1, 0.1] } },
+      { t: 0.24, e: 'in', p: { chest: [14, 44, 0], sw: { a: -138 } } },
+      { t: 0.36, e: 'out', p: { hp: [0, -0.06, 0.26], hips: [0, -20, 0], chest: [-16, -34, 0], spine: [-6, -12, 0], head: [6, 30, 0], ...K_LUNGE, sw: { a: 112, r: 0.62, off: 12 }, pole: [-0.8, 0.3, -0.3] } },
+      { t: 0.66, e: 'inOut', p: { sw: { a: 118 } } },
+      { t: 0.95, e: 'inOut', p: { hp: [0, -0.1, 0.14], sw: { a: 96, off: 24 } } },
+    ],
+  },
+  // 捌之型・月龍輪尾: the whole length swept flat through a half circle and more
+  dragon: {
+    dur: 1.05,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.24, 0], by: 0, hips: [0, -24, 0], chest: [4, -50, 0], spine: [6, -16, 0], head: [-8, 44, 0], ...K_WIDE, lh: 1, sw: { tilt: 88, yaw: 0, a: 132, r: 0.44, off: 20, roll: 0 }, pole: [-0.9, 0.1, -0.2] } },
+      { t: 0.24, e: 'in', p: { chest: [4, -56, 0], sw: { a: 142 } } },
+      { t: 0.5, e: 'out', p: { hp: [0, -0.3, 0.2], by: -50, hips: [0, 26, 0], chest: [8, 48, 0], spine: [8, 18, 0], head: [-10, -40, 0], ...K_LUNGE, sw: { a: -128, r: 0.64, off: 6 }, pole: [-0.2, -0.6, 0.8] } },
+      { t: 0.76, e: 'inOut', p: { sw: { a: -136 } } },
+      { t: 1.05, e: 'inOut', p: { hp: [0, -0.14, 0.1], by: 0, sw: { a: -110, off: 24 } } },
+    ],
+  },
+  // 玖之型・墮月・連面: down from overhead, then straight back up
+  descend: {
+    dur: 1.05,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.1, -0.06], chest: [-18, 0, 0], spine: [-6, 0, 0], head: [8, 0, 0], ...K_WIDE, lh: 1, sw: { tilt: 0, yaw: -4, a: 168, r: 0.42, off: 18, roll: 0 }, pole: [-0.7, 0.3, -0.3] } },
+      { t: 0.18, e: 'in', p: { chest: [-22, 0, 0], sw: { a: 176 } } },
+      { t: 0.3, e: 'out', p: { hp: [0, -0.32, 0.36], chest: [30, 0, 0], spine: [16, 0, 0], head: [-26, 0, 0], ...K_LUNGE, sw: { a: -44, r: 0.64, off: 2 }, pole: [-0.5, -1, 0] } },
+      { t: 0.46, e: 'inOut', p: { sw: { a: -58, off: -8 } } },
+      { t: 0.6, e: 'out', p: { hp: [0, -0.02, 0.4], chest: [-18, 0, 0], spine: [-6, 0, 0], head: [10, 0, 0], sw: { a: 128, r: 0.6, off: 12 }, pole: [-0.8, 0.3, -0.3] } },
+      { t: 1.05, e: 'inOut', p: { hp: [0, -0.12, 0.3], chest: [0, 0, 0], head: [0, 0, 0], sw: { a: 96, off: 26 } } },
+    ],
+  },
+  // 拾之型・穿面斬・籮月: the blade wheeled twice around in front of him like a saw
+  saw: {
+    dur: 1.1,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.2, 0], chest: [10, -14, 0], spine: [8, -4, 0], head: [-10, 12, 0], ...K_WIDE, lh: 1, sw: { tilt: 8, yaw: -6, a: 200, r: 0.46, off: 22, roll: 0 }, pole: [-0.8, -0.2, -0.3] } },
+      { t: 0.14, e: 'in', p: { sw: { a: 212 } } },
+      { t: 0.5, e: 'linear', p: { hp: [0, -0.24, 0.2], chest: [16, 8, 0], ...K_LUNGE, sw: { a: -148, r: 0.6, off: 10 } } },
+      { t: 0.86, e: 'linear', p: { hp: [0, -0.26, 0.34], chest: [20, 12, 0], sw: { a: -508 } } },
+      { t: 1.1, e: 'out', p: { hp: [0, -0.16, 0.3], chest: [10, 0, 0], sw: { a: -560, off: 26 } } },
+    ],
+  },
+  // 拾肆之型・兇變・天滿纖月: two whole turns with the long blade held out flat
+  spiral: {
+    dur: 1.25,
+    keys: [
+      { t: 0, e: 'out', p: { hp: [0, -0.26, 0], by: 0, hips: [0, 30, 0], chest: [10, 42, 0], spine: [10, 14, 0], head: [-12, -30, 0], ...K_WIDE, ...K_LEFT_FREE, upperArmL: [0, 0, 80], foreArmL: [-10, 0, 0], sw: { tilt: 82, yaw: 0, a: -120, r: 0.46, off: -20, roll: 180 }, pole: [0, -0.3, 1] } },
+      { t: 0.18, e: 'in', p: { chest: [12, 54, 0], sw: { a: -130 } } },
+      { t: 1.0, e: 'linear', p: { by: -720, hips: [0, -10, 0], chest: [4, -10, 0], head: [-10, 0, 0], sw: { a: -84, r: 0.64, off: 0 } } },
+      { t: 1.25, e: 'out', p: { by: -720, hp: [0, -0.16, 0.05], sw: { a: -92, off: 20 } } },
+    ],
+  },
+  // 拾陸之型・月虹・孤留月: the blade raised to the sky, held, and brought down
+  sky: {
+    dur: 1.35,
+    keys: [
+      { t: 0, e: 'out', p: { ...KOKUSHIBO_STANCE } },
+      { t: 0.36, e: 'out', p: { hp: [0, -0.02, 0], chest: [-14, 0, 0], spine: [-6, 0, 0], head: [16, 0, 0], ...K_WIDE, lh: 1, sw: { tilt: 0, yaw: -4, a: 96, r: 0.5, off: 0, roll: 0 }, pole: [-0.8, 0, -0.3] } },
+      { t: 0.84, e: 'inOut', p: { head: [20, 0, 0], sw: { a: 100 } } },
+      { t: 1.0, e: 'out', p: { hp: [0, -0.3, 0.3], chest: [28, 0, 0], spine: [14, 0, 0], head: [-24, 0, 0], ...K_LUNGE, sw: { a: -50, r: 0.64, off: 4 }, pole: [-0.5, -1, 0] } },
+      { t: 1.35, e: 'inOut', p: { hp: [0, -0.14, 0.2], sw: { a: -60, off: 24 } } },
     ],
   },
 };

@@ -166,6 +166,22 @@
   background: linear-gradient(180deg, #f06a50 0%, #d23a2e 38%, #a8231d 70%, #7a1411 100%);
   transition: transform 0.14s linear;
 }
+/* 真劍: health a wound leaves recoverable -- cut back to win it back before it fades */
+.hd-hp-rally {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: repeating-linear-gradient(115deg, #ffcf8a 0 6px, #e8a45a 6px 9px);
+  transition: transform 0.12s linear, opacity 0.2s ease;
+}
+.hd-hp-rally.is-on {
+  opacity: 1;
+  animation: hd-rally 0.8s ease-in-out infinite;
+}
+@keyframes hd-rally {
+  0%, 100% { filter: brightness(0.9); }
+  50% { filter: brightness(1.35); }
+}
 .hd-hp-fill::after {
   content: '';
   position: absolute;
@@ -893,6 +909,20 @@
 .be-dia { fill: #1c0812; stroke: var(--akaza); stroke-width: 2; }
 .be-dia2 { fill: none; stroke: rgba(111, 227, 255, 0.55); stroke-width: 1; }
 .be-flake path { fill: none; stroke: var(--ice); stroke-width: 1.6; stroke-linecap: round; }
+.be-moon { display: none; fill: var(--ice); }
+/* Kokushibo: violet and moon-gold in place of Akaza's pink and ice */
+.hd-boss.is-moon,
+.hd-bi.is-moon {
+  --akaza: #b890ff;
+  --ice: #ffe39a;
+}
+.hd-boss.is-moon .be-flake { display: none; }
+.hd-boss.is-moon .be-moon { display: inline; }
+.hd-boss.is-moon .be-dia { fill: #120a1e; }
+.hd-boss.is-moon .be-dia2 { stroke: rgba(255, 227, 154, 0.5); }
+.hd-boss.is-moon .bs-in { background: rgba(30, 10, 54, 0.8); }
+.hd-boss.is-moon .bs-fill { background: linear-gradient(180deg, #d8b8ff 0%, #8a4ae0 42%, #5a22a8 72%, #2a0c5e 100%); }
+.hd-boss.is-moon .bs-sheen { background-image: linear-gradient(100deg, transparent 42%, rgba(255, 227, 154, 0.45) 50%, transparent 58%); }
 .bs-bar {
   position: relative;
   flex: 1;
@@ -945,6 +975,67 @@
 .bs-marks {
   position: absolute;
   inset: -30% 0;
+}
+/* posture: worn down from the middle outward; full, it breaks (破勢) */
+.bs-post {
+  position: relative;
+  width: 58%;
+  height: calc(var(--u) * 0.9);
+  margin: calc(var(--u) * 0.8) auto 0;
+  background: rgba(8, 3, 6, 0.88);
+  border: 1px solid rgba(255, 214, 150, 0.5);
+  box-shadow: 0 0 calc(var(--u) * 0.6) rgba(0, 0, 0, 0.9);
+}
+.bs-post-fill {
+  position: absolute;
+  inset: 0;
+  transform: scaleX(0);
+  transform-origin: center;
+  background: linear-gradient(90deg, #d8641e, #ffc46a 50%, #d8641e);
+  transition: transform 0.12s linear;
+}
+.bs-post.is-high .bs-post-fill {
+  background: linear-gradient(90deg, #c01f2a, #ff8a4a 50%, #c01f2a);
+  box-shadow: 0 0 calc(var(--u) * 0.8) rgba(255, 90, 60, 0.8);
+}
+.bs-post.is-broken .bs-post-fill {
+  background: linear-gradient(90deg, #fff4dc, #ffffff 50%, #fff4dc);
+  box-shadow: 0 0 calc(var(--u) * 1.2) rgba(255, 240, 200, 0.95);
+  animation: bs-broken 0.35s ease-in-out infinite alternate;
+}
+@keyframes bs-broken {
+  from { opacity: 0.7; }
+  to { opacity: 1; }
+}
+/* 危: an unblockable blow is coming -- step off its line */
+.hd-peril {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.hd-peril span {
+  display: block;
+  opacity: 0;
+  transform: translate(-50%, -100%);
+  font-size: calc(var(--u) * 10);
+  font-weight: 900;
+  line-height: 1;
+  color: #ff1f33;
+  -webkit-text-stroke: calc(var(--u) * 0.35) #1a0205;
+  paint-order: stroke fill;
+  text-shadow: 0 0 calc(var(--u) * 2) rgba(255, 20, 40, 0.95), 0 0 calc(var(--u) * 0.5) #000;
+}
+/* (the outer box is placed each frame; the glyph itself swells in and fades) */
+.hd-peril.is-on span {
+  animation: hd-peril 0.8s ease-out forwards;
+}
+@keyframes hd-peril {
+  0% { opacity: 0; transform: translate(-50%, -100%) scale(1.6); filter: brightness(2.5); }
+  5% { opacity: 1; transform: translate(-50%, -100%) scale(1); filter: brightness(1.8); }
+  75% { opacity: 1; transform: translate(-50%, -100%) scale(1); filter: brightness(1); }
+  100% { opacity: 0; transform: translate(-50%, -100%) scale(1.05); }
 }
 .bs-mark {
   position: absolute;
@@ -1094,6 +1185,19 @@
 .hd-co.is-demon .co-name {
   color: #ffeef4;
   text-shadow: -0.04em 0 0 rgba(111, 227, 255, 0.85), 0.04em 0 0 rgba(224, 41, 74, 0.9), 0 0 calc(var(--u) * 1.2) rgba(240, 122, 160, 0.9), 0 0 2px #000;
+}
+.hd-co.is-moon {
+  --fk: #ffe39a;
+}
+.hd-co.is-moon .co-splash {
+  background: linear-gradient(180deg, rgba(16, 6, 30, 0) 0%, rgba(18, 6, 34, 0.95) 10%, rgba(74, 30, 140, 0.92) 52%, rgba(184, 144, 255, 0.8) 86%, rgba(184, 144, 255, 0) 100%);
+}
+.hd-co.is-moon .co-school {
+  color: #ffe39a;
+}
+.hd-co.is-moon .co-name {
+  color: #fbf6ff;
+  text-shadow: -0.04em 0 0 rgba(255, 227, 154, 0.85), 0.04em 0 0 rgba(140, 80, 240, 0.9), 0 0 calc(var(--u) * 1.2) rgba(184, 144, 255, 0.9), 0 0 2px #000;
 }
 .hd-co.is-calm {
   --fk: #e6f0f8;
@@ -1725,6 +1829,18 @@
 .hd-bi.is-play .bi-band { animation: bi-band 3.2s var(--ease-brush) both; }
 .hd-bi.is-play .bi-slash { animation: bi-slash 3.2s ease-out both; }
 .hd-bi.is-play .bi-compass { animation: bi-compass 3.2s var(--ease-out) both; }
+.hd-bi .bi-moon,
+.hd-bi.is-moon .bi-compass:not(.bi-moon) { display: none; }
+.hd-bi.is-moon .bi-moon {
+  display: block;
+  color: var(--ice);
+  filter: drop-shadow(0 0 calc(var(--u) * 0.7) rgba(184, 144, 255, 0.85));
+}
+.hd-bi.is-moon .bi-dim { background: radial-gradient(ellipse at center, rgba(14, 6, 26, 0.5), rgba(3, 1, 6, 0.88)); }
+.hd-bi.is-moon .bi-title { text-shadow: 0 0 calc(var(--u) * 1) rgba(184, 144, 255, 0.85), 0 0 2px #000; }
+.hd-bi.is-moon .bi-name {
+  text-shadow: -0.05em 0 0 rgba(255, 227, 154, 0.7), 0.05em 0 0 rgba(184, 144, 255, 0.8), 0 0 calc(var(--u) * 2.4) rgba(120, 60, 220, 0.6);
+}
 .hd-bi.is-play .bi-title { animation: bi-title 3.2s ease both; }
 .hd-bi.is-play .bi-name { animation: bi-name 3.2s var(--ease-brush) both; }
 .hd-bi.is-play .bi-subtitle { animation: bi-sub 3.2s ease both; }

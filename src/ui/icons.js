@@ -177,6 +177,28 @@ export function compassSVG(cls = 'ic-compass') {
   return `<svg class="${cls}" viewBox="-200 -200 400 400" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle r="178" stroke-width="1.4"/><circle r="164" stroke-width="0.8" stroke-dasharray="2 6"/><circle r="112" stroke-width="0.8" opacity=".6"/><circle r="46" stroke-width="1.6"/><path d="${d}" stroke-width="2"/><path d="${star}" stroke-width="1.6"/><circle r="10" stroke-width="2"/></g></svg>`;
 }
 
+/** A crescent (horns toward +x before `rot`), as an SVG path. */
+export function crescentPath(cx, cy, r, rot = 0) {
+  const t = 1.35;
+  const R = ([x, y]) => [cx + x * Math.cos(rot) - y * Math.sin(rot), cy + x * Math.sin(rot) + y * Math.cos(rot)];
+  const [a, b] = [R([Math.cos(t) * r, -Math.sin(t) * r]), R([Math.cos(t) * r, Math.sin(t) * r])];
+  return `M${f1(a[0])} ${f1(a[1])}A${f1(r)} ${f1(r)} 0 1 0 ${f1(b[0])} ${f1(b[1])}A${f1(r)} ${f1(r)} 0 0 1 ${f1(a[0])} ${f1(a[1])}Z`;
+}
+
+/** Kokushibo's title-card emblem: a great crescent in a ring, small crescents of every size strewn round it. */
+export function moonSVG(cls = 'ic-moon') {
+  let small = '';
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 18; i++) {
+    const a = (i / 18) * Math.PI * 2 + rnd() * 0.3;
+    const r = 132 + rnd() * 58;
+    const size = rnd() < 0.2 ? 16 + rnd() * 10 : 5 + rnd() * 8;
+    small += crescentPath(Math.cos(a) * r, Math.sin(a) * r, size, a + Math.PI + (rnd() - 0.5));
+  }
+  return `<svg class="${cls}" viewBox="-200 -200 400 400" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle r="178" stroke-width="1.4"/><circle r="164" stroke-width="0.8" stroke-dasharray="2 6"/><circle r="112" stroke-width="0.8" opacity=".5"/><path d="${crescentPath(0, 0, 96, -2.4)}" fill="currentColor" fill-opacity=".14" stroke-width="2"/><path d="${small}" fill="currentColor" fill-opacity=".35" stroke-width="1.2"/></g></svg>`;
+}
+
 const url = (svg) => `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}")`;
 
 /** Tortoiseshell (kikkō) hexagon pattern for Giyu's haori half. Returns a CSS url(). */

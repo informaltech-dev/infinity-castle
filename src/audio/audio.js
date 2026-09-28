@@ -163,7 +163,7 @@ export class AudioSystem {
     this._safe(() => this._engine.setListener(pos, forward, right));
   }
 
-  /** Crossfade to a track ('title'|'stage'|'boss'|'boss2'|'victory'|'defeat'|null). Same track = no-op. */
+  /** Crossfade to a track ('title'|'stage'|'boss'|'boss2'|'moon'|'moon2'|'victory'|'defeat'|null). Same track = no-op. */
   playMusic(track, fade = 1.5) {
     if (!this._ready) {
       this._pending.track = track || null;

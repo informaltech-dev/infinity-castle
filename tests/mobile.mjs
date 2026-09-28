@@ -2,7 +2,7 @@
 // on-screen controls with real multi-touch events (Chrome DevTools protocol) and checks the results.
 // Needs `pnpm dev` running (or BASE=<url>). Output: tests/out/mobile/.
 //
-//   node tests/mobile.mjs shots <device> [title menu select controls settings loading fight finisher pause result boss]
+//   node tests/mobile.mjs shots <device> [title menu select controls settings loading fight finisher pause result boss moon]
 //   node tests/mobile.mjs touch <device>
 //   node tests/mobile.mjs bars               (iPhone Safari: the swipe-up prompt that tucks the browser bars away)
 //
@@ -50,6 +50,22 @@ const context = await browser.newContext({
   isMobile: !dev.desktop,
   hasTouch: !dev.desktop,
   userAgent: dev.ua || undefined,
+});
+// Keep the test browser off the real screen: on macOS a pointer lock grabs the system cursor even from a
+// headless browser, and a fullscreen or orientation request can take over a display. Counted, never made.
+await context.addInitScript(() => {
+  const calls = (window.__sysCalls = { lock: 0, fullscreen: 0, orientation: 0 });
+  const none = (k) => function () {
+    calls[k]++;
+    return Promise.resolve();
+  };
+  Element.prototype.requestPointerLock = none('lock');
+  Element.prototype.requestFullscreen = none('fullscreen');
+  if ('webkitRequestFullscreen' in Element.prototype) Element.prototype.webkitRequestFullscreen = none('fullscreen');
+  Document.prototype.exitPointerLock = function () {};
+  try {
+    if (screen.orientation) screen.orientation.lock = none('orientation');
+  } catch (_) { /* read-only here */ }
 });
 const page = await context.newPage();
 const errors = [];
@@ -218,6 +234,21 @@ if (cmd === 'shots') {
     await skip(4);
     await sleep(4500);
     await shot('boss');
+  }
+  // Kokushibo: the select screen in his mode, and the fight (violet boss bar, crescents in the air)
+  if (want.includes('moon')) {
+    await load(q);
+    await ev(() => window.__game.ui.showCharacterSelect('kokushibo'));
+    await sleep(1200);
+    await shot('select-kokushibo');
+    await load(q + '&play=obanai&mode=kokushibo&seed=3');
+    await skip(15);
+    await sleep(300);
+    // (a player standing still would not last long)
+    await ev(() => (window.__game.player.god = true));
+    await skip(3.4);
+    await sleep(4500);
+    await shot('moon');
   }
 }
 

@@ -83,7 +83,7 @@ export class SelectScreen extends Screen {
   }
 
   onShow(mode) {
-    this.mode = mode === 'boss' ? 'boss' : 'story';
+    this.mode = MODES[mode] ? mode : 'story';
     const m = MODES[this.mode];
     this.modeB.textContent = m.label;
     this.modeS.textContent = m.sub;
@@ -383,12 +383,13 @@ export class SettingsScreen extends Screen {
   }
 
   setValue(def, v, sound) {
-    const s = this.ui.settings;
     if (def.type === 'slider') v = Math.round(clamp(v, def.min, def.max) * 100) / 100;
-    if (s[def.key] === v) return;
+    if (this.ui.shown(def.key) === v) return;
     this.ui._setSetting(def.key, v);
     const row = this.rows.find((r) => r.def === def);
     if (row) row.sync(v);
+    // (a choice that explains each of its values re-explains itself)
+    if (def.descs && row && this.rows[this.index] === row) this.onFocus(this.index);
     if (sound) {
       const now = performance.now();
       if (now - (this._lastTick || 0) > 45) {
@@ -400,7 +401,7 @@ export class SettingsScreen extends Screen {
 
   step(row, dir) {
     const def = row.def;
-    const cur = this.ui.settings[def.key];
+    const cur = this.ui.shown(def.key);
     if (def.type === 'slider') this.setValue(def, cur + def.step * dir, true);
     else if (def.type === 'toggle') this.setValue(def, dir > 0, true);
     else {
@@ -415,10 +416,10 @@ export class SettingsScreen extends Screen {
 
   activateRow(row) {
     const def = row.def;
-    if (def.type === 'toggle') this.setValue(def, !this.ui.settings[def.key], true);
+    if (def.type === 'toggle') this.setValue(def, !this.ui.shown(def.key), true);
     else if (def.type === 'choice') {
       const n = def.options.length;
-      let k = def.options.findIndex((o) => o.v === this.ui.settings[def.key]);
+      let k = def.options.findIndex((o) => o.v === this.ui.shown(def.key));
       this.setValue(def, def.options[(k + 1 + n) % n].v, true);
     }
   }
@@ -430,7 +431,7 @@ export class SettingsScreen extends Screen {
   }
 
   syncAll() {
-    for (const r of this.rows) r.sync(this.ui.settings[r.def.key]);
+    for (const r of this.rows) r.sync(this.ui.shown(r.def.key));
   }
 
   onShow() {
@@ -453,7 +454,8 @@ export class SettingsScreen extends Screen {
   onFocus(i) {
     const r = this.rows[i];
     const touch = this.ui.touchMode;
-    if (r) this.descEl.innerHTML = `<b>${esc(touch && r.def.touchLabel ? r.def.touchLabel : r.def.label)}</b><span>${esc(touch && r.def.touchDesc ? r.def.touchDesc : r.def.desc)}</span>`;
+    const desc = (d) => d.descs?.[this.ui.shown(d.key)] ?? (touch && d.touchDesc ? d.touchDesc : d.desc);
+    if (r) this.descEl.innerHTML = `<b>${esc(touch && r.def.touchLabel ? r.def.touchLabel : r.def.label)}</b><span>${esc(desc(r.def))}</span>`;
     else if (i === this.rows.length) this.descEl.innerHTML = `<b>恢復預設</b><span>將所有設定還原為初始數值。</span>`;
     else this.descEl.innerHTML = `<b>返回</b><span>設定會自動儲存。</span>`;
   }

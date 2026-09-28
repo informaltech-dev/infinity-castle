@@ -27,7 +27,7 @@ const NUMERIC = {
   mouseSensitivity: [0.3, 2.5],
   cameraShake: [0, 1.5],
 };
-const ENUMS = { animStyle: ['anime', 'smooth'], difficulty: ['easy', 'normal', 'hard'], touchButtonSize: ['s', 'm', 'l'] };
+const ENUMS = { animStyle: ['anime', 'smooth'], difficulty: ['easy', 'normal', 'hard', 'duel'], touchButtonSize: ['s', 'm', 'l'] };
 const BOOLS = ['invertY', 'damageNumbers'];
 
 /** Merge an arbitrary object over the defaults, clamping / validating every field. */

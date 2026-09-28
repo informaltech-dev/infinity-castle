@@ -3,6 +3,8 @@
 import combat from './combat.js';
 import elements from './elements.js';
 import boss from './boss.js';
+import moon from './moon.js';
+import duel from './duel.js';
 import misc from './misc.js';
 
 const DEFAULTS = {
@@ -22,6 +24,8 @@ export const SOUND_GROUPS = {
   'Water / fire / serpent': ['waterSplash', 'waterWave', 'waterDragon', 'calm', 'fireBurst', 'fireWhoosh', 'fireDragon', 'tigerRoar',
     'swingSerpent', 'serpentHiss'],
   'Akaza': ['punchWhoosh', 'punchHit', 'shockwave', 'groundSlam', 'crack', 'barrage', 'compass', 'bossCharge', 'bossRoar'],
+  'Kokushibo': ['moonSlash', 'moonCut', 'moonCrescent', 'moonDraw', 'moonTransform', 'moonFall', 'moonRead', 'moonVortex'],
+  '真劍': ['tellBlade', 'tellFist', 'peril', 'execute'],
   'Demons & misc': ['demonGrowl', 'demonHurt', 'demonDeath', 'decap', 'spawn', 'playerHurt', 'playerDeath',
     'biwa', 'biwaShift', 'taiko', 'doorSlide'],
   'UI & stingers': ['uiHover', 'uiSelect', 'uiConfirm', 'uiBack', 'gaugeFull', 'ultimate', 'impactFrame', 'finisher',
@@ -29,7 +33,7 @@ export const SOUND_GROUPS = {
 };
 
 export const SOUNDS = Object.create(null);
-for (const group of [combat, elements, boss, misc]) {
+for (const group of [combat, elements, boss, moon, duel, misc]) {
   for (const [name, def] of Object.entries(group)) SOUNDS[name] = { ...DEFAULTS, ...def };
 }
 

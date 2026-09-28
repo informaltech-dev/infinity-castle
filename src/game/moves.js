@@ -68,6 +68,12 @@ export function playerMoves(id) {
       sfx: [{ t: 0.0, name: 'swingWater', opts: { pitch: 1.2 } }],
     },
     parry: { clip: 'parry', dur: 0.42, cancel: 0.18 },
+    // 真劍: the execution of a broken posture (its cut is dealt by the player: a share of his health)
+    execute: {
+      clip: 'heavy', dur: 0.8, cancel: 0.62, turn: [0, 0.3, 20], motion: [[0.04, 0.3, 1.6, 'out3']], armor: [0, 0.8], commit: true,
+      events: [trail(0.2, 'steel'), call(0.2, (p) => p.glint()), arc(0.28, 48, 160, -76, { r: 2.0, width: 1.0, style: LS.heavy, life: 0.4 }), call(0.32, (p, r) => p._executeHit(r.target))],
+      sfx: [{ t: 0.26, name: 'swingHeavy', opts: { pitch: 0.85 } }],
+    },
     // ------------------------------------------------------------- forms
     waterSurface: {
       clip: 'waterSurface', dur: 0.82, cancel: 0.66, turn: [0, 0.22, 10], motion: [[0.2, 0.32, 4.6, 'out3']], iframes: [0.18, 0.34], armor: [0, 0.4],
@@ -274,7 +280,7 @@ function serpentMoves(L) {
     },
     // 貳之型・狹頭之毒牙: slips round behind the target and bites at the nape
     venomFang: {
-      clip: 'venomFang', dur: 0.72, cancel: 0.52, turn: [0.06, 0.22, 14], iframes: [0, 0.3], armor: [0, 0.4],
+      clip: 'venomFang', dur: 0.72, cancel: 0.52, turn: [0.06, 0.22, 14], iframes: [0, 0.3], duelIframes: [0.02, 0.18], armor: [0, 0.4],
       hits: [L({ t: 0.24, range: 2.6, arc: 110, dmg: 40, poise: 55, knock: 3, hitstop: 0.14, shake: 0.45, power: 0.95, stun: 'heavy', style: snake, impact: 0.06, ...cold, fov: 6 })],
       events: [
         call(0, (p) => p.callout('蛇之呼吸', '貳之型', '狹頭之毒牙', 'serpent')),

@@ -158,6 +158,7 @@ const STYLE_COL = {
   demon: 0xff4a6a,
   akaza: 0x7fe6ff,
   serpent: 0xc6a4ff,
+  moon: 0xd8b8ff,
 };
 
 export class FX {
@@ -219,6 +220,8 @@ export class FX {
       if (power > 0.35) this.effects.sprite(pos, { tex: 'splash', size: 0.4 + power * 0.7, life: 0.26, rot: Math.random() * 6.28, grow: 0.8, color: 0xc6a4ff, alpha: 0.75 });
     } else if (style === 'demon') {
       P.sparks(pos, _v, 8, 0xff3050, 7, 1.2);
+    } else if (style === 'moon') {
+      P.sparks(pos, _v, Math.round(6 + power * 8), 0xffe6a8, 9 + power * 6, 0.9);
     }
     if (blunt || power > 0.7) this.effects.ring(pos, { color: col, from: 0.2, to: 1.2 + power * 1.5, life: 0.25, normal: _v, thick: 0.2 });
     // dark demon blood-ash puff

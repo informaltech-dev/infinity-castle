@@ -10,6 +10,7 @@ const DIFF = {
   easy: { toPlayer: 0.6, toEnemy: 1.25, tokens: 1 },
   normal: { toPlayer: 0.9, toEnemy: 1.0, tokens: 2 },
   hard: { toPlayer: 1.45, toEnemy: 0.85, tokens: 3 },
+  duel: { toPlayer: 1.35, toEnemy: 1.1, tokens: 3 },
 };
 
 /**
@@ -17,7 +18,8 @@ const DIFF = {
  * Hit definition fields:
  *   range, arc (deg), offset (forward), height, dmg, poise, knock, launch, stun ('light'|'heavy'|'down'),
  *   hitstop, shake, style, power, sfx, unblockable, unparryable, radius (for circle shapes), shape ('arc'|'circle'|'line'),
- *   width (line), crit, finisher, gain
+ *   width (line), crit, finisher, gain, from (the point the blow comes from when that is not the attacker,
+ *   e.g. a crescent blade far from its owner: knockback, blocking and the hit spark use it)
  */
 export class Combat {
   constructor(game) {
@@ -26,7 +28,8 @@ export class Combat {
   }
 
   get diff() {
-    return DIFF[this.game.settings?.difficulty] || DIFF.normal;
+    const d = this.game.settings?.difficulty;
+    return Object.hasOwn(DIFF, d ?? '') ? DIFF[d] : DIFF.normal;
   }
 
   targetsFor(att) {
@@ -94,23 +97,29 @@ export class Combat {
     const diff = this.diff;
     let dmg = h.dmg ?? 10;
     let crit = !!h.crit;
-    if (att.team === 'player') {
+    let counter = false;
+    if (h.fixed) {
+      // (an execution: exactly what it says)
+    } else if (att.team === 'player') {
       dmg *= diff.toEnemy * (att.dmgMul ?? 1);
-      if (att.consumeCrit?.(victim, h)) crit = true;
+      const c = att.consumeCrit?.(victim, h);
+      if (c) crit = true;
+      counter = c === 'counter';
       if (crit) dmg *= 1.8;
       if (victim.staggered) dmg *= 1.3;
     } else {
       dmg *= diff.toPlayer;
       if (victim.blocking && !h.unblockable) dmg *= 0.25;
     }
-    dmg = Math.round(dmg * (0.92 + Math.random() * 0.16));
+    if (!h.fixed) dmg = Math.round(dmg * (0.92 + Math.random() * 0.16));
     victim.hp -= dmg;
     victim.lastHitT = g.time;
     victim.lastAttacker = att;
 
     // hit point on the victim's body
     const cp = victim.chest(_v);
-    _d.set(att.pos.x - victim.pos.x, 0, att.pos.z - victim.pos.z);
+    const src = h.from || att.pos;
+    _d.set(src.x - victim.pos.x, 0, src.z - victim.pos.z);
     if (_d.lengthSq() < 1e-6) _d.set(0, 0, 1);
     _d.normalize();
     const hitPos = _v2.copy(cp).addScaledVector(_d, victim.radius * 0.7);
@@ -145,7 +154,12 @@ export class Combat {
     victim.knock.copy(pushDir).multiplyScalar(knock / (victim.mass || 1));
     if (!isPlayerVictim) {
       g.onPlayerHit?.(victim, dmg, crit, h);
-      victim.poise -= (h.poise ?? 10) * (crit ? 1.5 : 1);
+      // (真劍: a counter -- a crit off a parry or a perfect dodge -- bites deep into his posture; any other crit
+      // only as a crit; and a flurry's many ticks wear it only a little each: its closing blow is what tells.
+      // A boss's posture only: the lesser demons keep theirs as on any difficulty)
+      const duel = victim.isBoss ? g.rules?.duel : null;
+      const pm = duel && att.team === 'player' ? (counter ? duel.posture.counter : duel.posture.hit * (crit ? 1.5 : 1)) * (h.every ? duel.posture.tick : 1) : crit ? 1.5 : 1;
+      victim.poise -= (h.poise ?? 10) * pm;
       g.hud?.damageNumber(hitPos, dmg, crit ? 'crit' : 'normal');
     } else {
       if (g._dmgLog) g._dmgLog[att.curMove || att.curAttack || 'proj'] = (g._dmgLog[att.curMove || att.curAttack || 'proj'] || 0) + dmg;

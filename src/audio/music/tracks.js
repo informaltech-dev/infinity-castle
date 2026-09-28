@@ -146,6 +146,75 @@ function bossStep(tr, s, t, two) {
   if (p === 0 && (last || (two && (bar & 3) === 3))) b.riser(t, 16 * sd, 0.45 + 0.25 * I);
 }
 
+// ------------------------------------------------------------------ Kokushibo (moon)
+// Slower and heavier than Akaza's theme: a lone biwa ostinato over the drone, a flute that keeps coming back
+// (his brother's flute), dissonant choir. The second state doubles the drums and brings in shamisen and brass.
+
+const MOON_ROOTS = {
+  A: [0, 0, -1, -1, 1, 1, -2, -2],
+  B: [0, 0, 2, 2, -1, -1, -2, -1],
+};
+const MOON_SECTIONS = ['A', 'A', 'B', 'A'];
+const MOON2_SECTIONS = ['A', 'B', 'A', 'B'];
+const MOON_OSTINATO = [7, 5, 6, 5, 7, 5, 4, 3];
+const MOON_RIFF = [5, 5, 7, 5, 6, 5, 4, 5, 5, 5, 7, 5, 8, 7, 6, 5];
+const MOON_FLUTE = [
+  [[0, 10, 10, -1], [10, 9, 6, 0], [16, 8, 14, -0.8], [32, 7, 8, 0], [40, 5, 22, -1]],
+  [[0, 8, 12, -1.2], [12, 9, 4, 0], [16, 10, 10, -0.5], [28, 8, 6, 0], [34, 7, 26, -1]],
+];
+
+function moonStep(tr, s, t, two) {
+  const b = tr.band;
+  const I = tr.I;
+  const sd = tr.stepDur;
+  const bar = s >> 4;
+  const p = s & 15;
+  const ph = bar & 7;
+  const sec = (two ? MOON2_SECTIONS : MOON_SECTIONS)[(bar >> 3) & 3];
+  const r = MOON_ROOTS[sec][ph];
+  const root2 = 38 + semi(MIYAKO, r);
+  const root3 = root2 + 12;
+
+  if (p === 0 && ph === 0) {
+    b.gong(t, two ? 0.5 : 0.42, 0.6);
+    b.sub(t, 1.0);
+    b.drone(t, [38, 45], 8 * 16 * sd + 1, 0.5, { cut: 340, atk: 1.5, rel: 2 });
+  }
+  // taiko: a few heavy strokes, doubled in the second state
+  if (two) {
+    if (p === 0 || p === 6 || p === 10) b.drum(t, 'taikoBig', p === 0 ? 1 : 0.8);
+    if (p === 3 || p === 12) b.drum(t, 'taikoBig', 0.6);
+    if ((p & 1) === 1) b.drum(t, 'taikoMid', 0.28);
+    if (p === 4 || p === 12) b.drum(t, 'ka', 0.9);
+    if ((p & 1) === 0) b.drum(t, 'shime', (p & 3) === 0 ? 0.6 : 0.4);
+    if ((p & 3) === 2) b.kane(t, 0.35);
+  } else {
+    if (p === 0) b.drum(t, 'taikoBig', 1);
+    if (p === 10) b.drum(t, 'taikoBig', 0.65);
+    if (p === 6 && (bar & 1) === 1) b.drum(t, 'taikoMid', 0.45);
+    if (sec === 'B' && (p & 3) === 0) b.drum(t, 'shime', 0.35 + 0.2 * I);
+    if (ph === 7 && p >= 8 && (p & 1) === 0) b.drum(t, 'taikoMid', 0.3 + (p - 8) * 0.06);
+  }
+  // the ostinato: eighths on the biwa (sixteenths once he has drawn the long blade)
+  if (!two && (p & 1) === 0) b.biwa(t, M3(r + MOON_OSTINATO[p >> 1]), (p & 7) === 0 ? 0.8 : 0.5, 2 * sd);
+  if (two) {
+    b.shami(t, M3(r + MOON_RIFF[p] + 5), (p & 3) === 0 ? 0.9 : 0.5, 2 * sd);
+    if ((p & 1) === 0) b.biwa(t, M3(r + MOON_OSTINATO[p >> 1]), (p & 7) === 0 ? 0.75 : 0.45, 2 * sd);
+    if (p === 0 || p === 6) b.brass(t, [root2, root2 + 7, root3], p === 0 ? 0.34 : 0.14, p === 0 ? 0.85 : 0.6, 0.9);
+  }
+  // a strummed chord every other bar
+  if (p === 0 && (two || (bar & 1) === 0)) b.strum(t, [root2, root2 + 7, root3], 0.9, 0.018, 12 * sd);
+  // choir: a cold cluster (the minor second) in the first state, open fifths in the second
+  if (p === 0 && (bar & 1) === 0) {
+    const notes = two ? [root3, root3 + 7, root3 + 12] : [root3, root3 + 1, root3 + 7];
+    b.choir(t, notes, 2 * 16 * sd + 0.3, two ? 0.55 : 0.3 + 0.15 * I, two ? 'a' : 'u');
+  }
+  // the flute
+  if (p === 0 && ((!two && sec === 'A' && ph === 0) || (sec === 'B' && ph === 4))) flutePhrase(tr, t, tr.pick(MOON_FLUTE), M3, two ? 0.5 : 0.6);
+  if (p === 0 && (ph === 7 || (two && (bar & 3) === 3))) b.riser(t, 16 * sd, 0.4 + 0.25 * I);
+  if (!two && p === 8 && tr.r() < 0.05) b.creak(t, 0.3);
+}
+
 // ------------------------------------------------------------------ victory
 
 const VIC_MEL = [
@@ -267,6 +336,32 @@ export const TRACKS = {
       shami: 0.46 + 0.1 * I,
     }),
     step: (tr, s, t) => bossStep(tr, s, t, true),
+  },
+
+  moon: {
+    level: 0.8,
+    bpm: 120,
+    family: 'moon',
+    ambience: 'hall',
+    buses: {
+      biwa: [0.9, 0.4], shami: [0.45, 0.2], drum: [1.0, 0.25], perc: [0.4, 0.2], brass: [0.38, 0.25],
+      choir: [0.4, 0.5], drone: [0.38, 0.35], flute: [0.55, 0.62], fx: [0.5, 0.45],
+    },
+    mix: (I) => ({ perc: 0.3 + 0.3 * I, choir: 0.3 + 0.2 * I, drum: 0.85 + 0.15 * I }),
+    step: (tr, s, t) => moonStep(tr, s, t, false),
+  },
+
+  moon2: {
+    level: 0.66,
+    bpm: 120,
+    family: 'moon',
+    ambience: 'hall',
+    buses: {
+      biwa: [0.85, 0.35], shami: [0.5, 0.18], drum: [1.0, 0.2], perc: [0.5, 0.15], brass: [0.48, 0.22],
+      choir: [0.44, 0.45], drone: [0.36, 0.3], flute: [0.5, 0.55], fx: [0.6, 0.4],
+    },
+    mix: (I) => ({ perc: 0.45 + 0.25 * I, choir: 0.36 + 0.14 * I, brass: 0.44 + 0.14 * I, drum: 0.9 + 0.1 * I, shami: 0.46 + 0.1 * I }),
+    step: (tr, s, t) => moonStep(tr, s, t, true),
   },
 
   victory: {

@@ -82,6 +82,9 @@ export class HudAdapter {
     h.setLetterbox?.(false);
     h.hidePrompt?.();
     h.setObjective?.('');
+    h.peril?.(0, 0, false);
+    this._peril = null;
+    this._execOn = false;
   }
 
   project(pos) {
@@ -109,6 +112,27 @@ export class HudAdapter {
     if (this._prompt && this.hud?.promptC?.on) this.prompt(...this._prompt);
   }
   letterbox(on) { this.hud?.setLetterbox?.(on); }
+
+  /** 危 over `actor`'s head for a moment (a blow no guard stops is coming). */
+  peril(actor) {
+    this._peril = { actor, until: this.game.realTime + 0.8 };
+    this._perilShown = false;
+  }
+
+  _updatePeril() {
+    const pr = this._peril;
+    if (!pr) return;
+    const a = pr.actor;
+    if (this.game.realTime > pr.until || !a.alive) {
+      this._peril = null;
+      this.hud?.peril?.(0, 0, false);
+      return;
+    }
+    a.head(_v);
+    _v.y += 0.5;
+    const s = this.project(_v);
+    this.hud?.peril?.(s.x, s.y, s.on);
+  }
   bossIntro(o) { this.hud?.bossIntro?.(o); }
   objective(t) { this.hud?.setObjective?.(t); }
   setVisible(v) { this.hud?.setVisible?.(v); }
@@ -136,7 +160,18 @@ export class HudAdapter {
       stamina: p.stamina, maxStamina: p.maxStamina,
       breath: p.breath, maxBreath: p.maxBreath,
       conc: p.conc, maxConc: p.maxConc,
+      rally: p.rally,
     });
+    // 真劍: a broken posture within reach -- the execution
+    const ex = p.control && p.execTarget?.();
+    if (ex && !this._execOn) {
+      this._execOn = true;
+      this.prompt('處決', '左鍵');
+    } else if (!ex && this._execOn) {
+      this._execOn = false;
+      if (this._prompt?.[0] === '處決') this.hidePrompt();
+    }
+    this._updatePeril();
     const skills = p.skills.map((s, i) => ({
       key: s.key, form: s.form, name: s.name, cost: s.cost,
       ready: p.skillCd[i] <= 0 && p.breath >= s.cost,
@@ -154,7 +189,7 @@ export class HudAdapter {
     h.setCombo?.(g.combo.count >= 2 ? g.combo.count : 0);
     const boss = g.boss;
     if (boss && boss.state !== 'intro' && !boss.removed && boss.hp > 0 && boss.alive) {
-      h.setBoss?.({ title: '上弦之參', name: '猗窩座', hp: boss.hp, maxHp: boss.maxHp, phaseMarks: [0.6, 0.25] });
+      h.setBoss?.({ ...boss.hudInfo, hp: boss.hp, maxHp: boss.maxHp, post: 1 - boss.poise / boss.maxPoise, broken: boss.state === 'stagger' });
     } else if (!boss || boss.removed || !boss.alive) h.setBoss?.(null);
     // lock-on
     const lock = p.lockTarget;

@@ -17,7 +17,7 @@ import { DEFAULT_SETTINGS, loadSettings, saveSettings, sanitizeSettings } from '
 import { LoadingScreen, TitleScreen, MenuScreen, PauseScreen, ResultScreen } from './screens-main.js';
 import { SelectScreen, ControlsScreen, SettingsScreen } from './screens-options.js';
 import { HUD } from './hud.js';
-import { CHAR_BY_ID } from './data.js';
+import { CHAR_BY_ID, MODES } from './data.js';
 
 const MENU_SCREENS = ['title', 'menu', 'select', 'controls', 'settings', 'pause', 'result'];
 const IGNORED_KEYS = new Set(['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'NumLock', 'ScrollLock', 'OS', 'Fn', 'FnLock', 'Hyper', 'Super', 'ContextMenu', 'Dead', 'Unidentified', 'Process', 'AltGraph']);
@@ -89,6 +89,8 @@ export class UI {
     this.root = root || document.body;
     this.cb = callbacks || {};
     this.settings = loadSettings();
+    /** Settings tried for this visit only (a URL's &diff=): shown and played, never saved; choosing one ends it. */
+    this.visit = {};
 
     this.el = h('div', { class: 'ic-ui', lang: 'zh-Hant' });
     installTextures(this.el);
@@ -181,7 +183,20 @@ export class UI {
   }
 
   getSettings() {
-    return { ...this.settings };
+    return { ...this.settings, ...this.visit };
+  }
+
+  /** The value in play for a setting: this visit's, else the saved one. */
+  shown(key) {
+    return Object.hasOwn(this.visit, key) ? this.visit[key] : this.settings[key];
+  }
+
+  /** Try a setting for this visit only (ignored unless it is a valid value). */
+  setForVisit(key, value) {
+    if (sanitizeSettings({ ...this.settings, [key]: value })[key] !== value) return false;
+    this.visit[key] = value;
+    this._call('onSettingsChange', this.getSettings());
+    return true;
   }
 
   showLoading(progress01, text) {
@@ -215,7 +230,7 @@ export class UI {
   showCharacterSelect(mode) {
     this._stamp++;
     this._leaveRun();
-    this._open('select', mode === 'boss' ? 'boss' : 'story');
+    this._open('select', MODES[mode] ? mode : 'story');
   }
 
   showHUD(characterId) {
@@ -356,7 +371,7 @@ export class UI {
 
   _menuSelect(id) {
     this._sound('uiSelect');
-    if (id === 'story' || id === 'boss') this.showCharacterSelect(id);
+    if (MODES[id]) this.showCharacterSelect(id);
     else if (id === 'controls' || id === 'settings') this._openSub(id);
   }
 
@@ -439,17 +454,19 @@ export class UI {
   }
 
   _setSetting(key, value) {
+    delete this.visit[key];
     this.settings = sanitizeSettings({ ...this.settings, [key]: value });
     saveSettings(this.settings);
     this.touch.setSize(this.settings.touchButtonSize);
-    this._call('onSettingsChange', { ...this.settings });
+    this._call('onSettingsChange', this.getSettings());
   }
 
   _resetSettings() {
+    this.visit = {};
     this.settings = { ...DEFAULT_SETTINGS };
     saveSettings(this.settings);
     this.touch.setSize(this.settings.touchButtonSize);
-    this._call('onSettingsChange', { ...this.settings });
+    this._call('onSettingsChange', this.getSettings());
   }
 }
 

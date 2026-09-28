@@ -1,7 +1,7 @@
 // HUD transient elements: callouts, banners, subtitles, prompts, toasts, lock-on, enemy bars,
 // damage numbers and the boss title card. All pooled; per-frame setters only touch the DOM on change.
 import { h, clamp, restartClass } from './dom.js';
-import { keyCap, mouseIcon, touchIcon, compassSVG } from './icons.js';
+import { keyCap, mouseIcon, touchIcon, compassSVG, moonSVG } from './icons.js';
 
 const EASE_BRUSH = 'cubic-bezier(.77,0,.18,1)';
 const EASE_OUT = 'cubic-bezier(.16,1,.3,1)';
@@ -57,7 +57,7 @@ export class Callouts {
     this.cur = (this.cur + 1) % this.nodes.length;
     const n = this.nodes[this.cur];
     resetNode(n);
-    const st = ['water', 'fire', 'demon', 'calm', 'serpent'].includes(style) ? style : 'water';
+    const st = ['water', 'fire', 'demon', 'calm', 'serpent', 'moon'].includes(style) ? style : 'water';
     n.el.className = `hd-co is-${st} is-${side === 'left' ? 'left' : 'right'}`;
     n.school.textContent = school;
     n.form.textContent = form;
@@ -462,6 +462,7 @@ export class BossIntro {
       <div class="bi-band"></div>
       <div class="bi-slash"></div>
       <div class="bi-compass">${compassSVG()}</div>
+      <div class="bi-compass bi-moon">${moonSVG()}</div>
       <div class="bi-card">
         <div class="bi-title"><i></i><span></span><i></i></div>
         <div class="bi-name ic-cal"></div>
@@ -475,8 +476,9 @@ export class BossIntro {
     this.t = 0;
   }
   play(o = {}) {
-    const { title = '', name = '', subtitle = '' } = o || {};
+    const { title = '', name = '', subtitle = '', theme = '' } = o || {};
     if (this.hudRoot) this.hudRoot.classList.add('is-intro');
+    this.el.classList.toggle('is-moon', theme === 'moon');
     this.titleEl.textContent = title;
     this.nameEl.textContent = name;
     this.subEl.textContent = subtitle;

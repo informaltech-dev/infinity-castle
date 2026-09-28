@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { Player } from '../actors/player.js';
 import { Enemy } from '../actors/enemy.js';
-import { Boss } from '../actors/boss.js';
-import { buildTanjiro, buildGiyu, buildRengoku, buildObanai, buildAkaza, buildDemon } from '../actors/characters.js';
+import { Akaza } from '../actors/boss.js';
+import { Kokushibo, kokushiboTier } from '../actors/kokushibo.js';
+import { buildTanjiro, buildGiyu, buildRengoku, buildObanai, buildAkaza, buildKokushibo, buildDemon } from '../actors/characters.js';
 import { CHAR_FX } from './moves.js';
 import { LAYER_FX } from '../render/pipeline.js';
 
@@ -16,21 +17,25 @@ const LINES = {
   tanjiro: {
     intro: ['竈門炭治郎', '這裡就是……無限城。鬼的氣味好濃！'],
     boss: ['竈門炭治郎', '猗窩座——！這次我一定要斬下你的頸！'],
+    kokushibo: ['竈門炭治郎', '好可怕的氣味……連空氣都在發抖。但我不會退縮！'],
     victory: ['竈門炭治郎', '……安息吧。'],
   },
   giyu: {
     intro: ['富岡義勇', '……鬼舞辻的巢穴。不能在這裡停下腳步。'],
     boss: ['富岡義勇', '上弦之參……我會在這裡斬了你。'],
+    kokushibo: ['富岡義勇', '上弦之壹……就算賭上這條命，也要在這裡斬了你。'],
     victory: ['富岡義勇', '……結束了。'],
   },
   rengoku: {
     intro: ['煉獄杏壽郎', '唔姆！這就是無限城嗎！鬼的巢穴，就由我一口氣燒盡！'],
     boss: ['煉獄杏壽郎', '猗窩座！我不會成為鬼。我要履行我的職責！'],
+    kokushibo: ['煉獄杏壽郎', '上弦之壹！好驚人的壓迫感！但我的心，依然在燃燒！'],
     victory: ['煉獄杏壽郎', '……燃燒你的心吧。向前邁進！'],
   },
   obanai: {
     intro: ['伊黑小芭內', '……令人作嘔的地方。鬼一隻也別想逃。'],
     boss: ['伊黑小芭內', '上弦之參……你的頸，由我來取。'],
+    kokushibo: ['伊黑小芭內', '上弦之壹……就算是你，我也會取下你的頸。'],
     victory: ['伊黑小芭內', '……哼。不過如此。'],
   },
 };
@@ -41,6 +46,14 @@ const AKAZA_GREETS = {
   giyu: '好強的鬥氣……你是柱吧。成為鬼吧！',
   rengoku: '杏壽郎！又見面了。這一次，你一定要成為鬼！',
   obanai: '蛇一般的劍氣……你也是柱吧。成為鬼吧！',
+};
+
+/** What Kokushibo says to each of them. (Tanjiro wears the hanafuda earrings his brother wore.) */
+const KOKUSHIBO_GREETS = {
+  tanjiro: '那副耳飾……為何會在你身上……',
+  giyu: '水之呼吸……鍛鍊得不錯。可惜，在月光之下，不過是一圈漣漪。',
+  rengoku: '炎之呼吸……燒了數百年的火焰。讓我看看，它還能燒到什麼地步。',
+  obanai: '蛇之呼吸……自水分出的一支。區區旁支，也想觸及明月嗎。',
 };
 
 const BUILDERS = { tanjiro: buildTanjiro, giyu: buildGiyu, rengoku: buildRengoku, obanai: buildObanai };
@@ -128,7 +141,8 @@ export class Director {
     this.charId = isPlayable(charId) ? charId : 'tanjiro';
     g.cameraRig.lock = null;
     g.cameraRig.stopCine();
-    if (mode === 'boss') this.run(this.bossOnly());
+    if (mode === 'boss') this.run(this.bossOnly('akaza'));
+    else if (mode === 'kokushibo') this.run(this.bossOnly('kokushibo'));
     else this.run(this.story());
   }
 
@@ -215,13 +229,14 @@ export class Director {
     yield* this.bossFight();
   }
 
-  *bossOnly() {
+  *bossOnly(which) {
     const g = this.game;
     g.world.buildArena();
-    g._lightingArena();
+    if (which === 'kokushibo') g._lightingMoon();
+    else g._lightingArena();
     this.spawnPlayer(new THREE.Vector3(0, 0, -8), 0);
     g.player.conc = 40;
-    yield* this.bossFight();
+    yield* which === 'kokushibo' ? this.kokushiboFight() : this.bossFight();
   }
 
   *introFall(p) {
@@ -336,7 +351,7 @@ export class Director {
     const g = this.game;
     const p = g.player;
     const model = buildAkaza(g.T);
-    const boss = new Boss(g, model);
+    const boss = new Akaza(g, model);
     boss.pos.set(0, 0, 8);
     boss.yaw = Math.PI;
     g.scene.add(model.root);
@@ -398,6 +413,34 @@ export class Director {
   *finisher(boss) {
     const g = this.game;
     const p = g.player;
+    const { yaw } = yield* this._decapitate(boss);
+    g.cameraRig.play([
+      { t: 0, pos: [2.5, 1.4, -1.5], look: [0, 1.4, 1.5], fov: 40 },
+      { t: 2.5, pos: [3.4, 1.8, -2.8], look: [0, 1.2, 1.0], fov: 38, e: 'inOut' },
+      { t: 6.5, pos: [4.6, 2.6, -4.6], look: [0, 1.0, 0], fov: 42, e: 'inOut' },
+    ], { anchor: boss.pos.clone(), relYaw: yaw, hold: true });
+    yield 0.25;
+    g.fx.screen.impact(0.1, 0x050305, 0xfff4e8);
+    g.slowmo(0.3, 1.2);
+    yield 2.2;
+    g.hud.subtitle('猗窩座', '……還不夠……我還能……', 2.4);
+    yield 2.6;
+    g.hud.subtitle('猗窩座', '……戀雪。', 3.0);
+    g.audio?.play('biwa', { note: 5, volume: 0.6 });
+    yield 3.2;
+    g.hud.subtitle(this.lines.victory[0], this.lines.victory[1], 2.4);
+    p.anim.play(p.clips.victory, { fade: 0.3, hold: true });
+    p.setTrail(null);
+    yield 2.8;
+    g.fx.screen.desatTarget = 0;
+    g.hud.letterbox(false);
+    g.gameOver(true);
+  }
+
+  /** The prompt, the dash through him, the head. Returns the direction of the cut and its yaw. */
+  *_decapitate(boss) {
+    const g = this.game;
+    const p = g.player;
     g.hud.objective('');
     p.interruptUlt();
     p.control = false;
@@ -418,7 +461,7 @@ export class Director {
     g.slowTarget = 1;
     g.slowT = 0;
     g.timeScale = 1;
-    // teleport-dash through Akaza
+    // teleport-dash through him
     const dir = new THREE.Vector3(boss.pos.x - p.pos.x, 0, boss.pos.z - p.pos.z).normalize();
     g.fx.effects.afterimage(p.model, { color: this.fxs.after, life: 0.5, alpha: 0.5 });
     p.pos.copy(boss.pos).addScaledVector(dir, 2.2);
@@ -441,21 +484,117 @@ export class Director {
       s: dir.clone(),
       radius: 1.2, width: 0.6, arc: Math.PI * 1.2, style: this.fxs.style, life: 0.6, wipe: 0.05,
     });
-    const yaw = Math.atan2(dir.x, dir.z);
+    return { dir, yaw: Math.atan2(dir.x, dir.z) };
+  }
+
+  // ---------------------------------------------------------------- Kokushibo
+  *kokushiboFight() {
+    const g = this.game;
+    const p = g.player;
+    // one player for now; the party tier and seed are what a shared fight would hand every machine
+    const q = new URLSearchParams(location.search);
+    const tier = kokushiboTier(1, q.get('tier'));
+    const seed = Number(q.get('seed')) || (Date.now() & 0x7fffffff) || 1;
+    const model = buildKokushibo(g.T);
+    const boss = new Kokushibo(g, model, tier, seed);
+    boss.pos.set(0, 0, 8);
+    boss.yaw = Math.PI;
+    g.scene.add(model.root);
+    boss.shadow = this._shadow(g);
+    g.enemies.push(boss);
+    g.boss = boss;
+    this.bossDown = null;
+    boss.anim.play(boss.clips.taunt, { fade: 0, hold: true });
+    boss.setState('intro');
+    // intro: from behind the player across the whole floor, then a slow push in to his eyes
+    p.interruptUlt();
+    p.control = false;
+    p.setState('cine');
+    g.hud.letterbox(true);
+    g.fx.screen.exposure = 1;
+    g.audio?.playMusic(null, 0.8);
+    g.audio?.play('biwa', { note: 0, volume: 0.8 });
     g.cameraRig.play([
-      { t: 0, pos: [2.5, 1.4, -1.5], look: [0, 1.4, 1.5], fov: 40 },
-      { t: 2.5, pos: [3.4, 1.8, -2.8], look: [0, 1.2, 1.0], fov: 38, e: 'inOut' },
-      { t: 6.5, pos: [4.6, 2.6, -4.6], look: [0, 1.0, 0], fov: 42, e: 'inOut' },
+      { t: 0, pos: [1.4, 1.5, -11.5], look: [0, 1.5, 8], fov: 48 },
+      { t: 2.6, pos: [0.9, 1.7, 3.2], look: [0, 1.7, 8], fov: 40, e: 'inOut' },
+      { t: 4.2, pos: [0.3, 1.77, 6.5], look: [0, 1.73, 8], fov: 26, e: 'inOut' },
+    ], { hold: true });
+    yield 1.4;
+    g.audio?.play('biwa', { note: 3, volume: 0.7 });
+    yield 1.3;
+    g.audio?.playMusic('moon', 0.3);
+    boss.eyeFlash();
+    g.hud.bossIntro({ title: '上弦之壹', name: '黑死牟', subtitle: '月之呼吸', theme: 'moon' });
+    g.audio?.play('moonRead');
+    g.fx.screen.flash(0xc8a0ff, 0.35, 4);
+    yield 3.2;
+    g.hud.subtitle('黑死牟', KOKUSHIBO_GREETS[this.charId], 3.2);
+    boss.anim.stop(0.4);
+    yield 2.8;
+    g.hud.subtitle(this.lines.kokushibo[0], this.lines.kokushibo[1], 2.6);
+    g.cameraRig.play([
+      { t: 0, pos: [1.6, 1.9, -12], look: [0, 1.2, 0], fov: 50 },
+      { t: 2.4, pos: [0.4, 2.1, -13.2], look: [0, 1.3, 0], fov: 52, e: 'inOut' },
+    ], { onEnd: () => {} });
+    yield 2.44;
+    g.hud.letterbox(false);
+    g.cameraRig.stopCine();
+    g.cameraRig.yaw = Math.PI;
+    g.cameraRig.pitch = 0.2;
+    p.control = true;
+    p.setState('move');
+    boss.setState('idle');
+    boss.cooldown = 1.0;
+    p.lockTarget = boss;
+    g.cameraRig.lock = boss;
+    g.hud.objective('擊敗上弦之壹・黑死牟');
+    g.input.requestLock();
+    yield () => this.bossDown || !p.alive;
+    if (!p.alive) return;
+    yield* this.kokushiboFinisher(boss);
+  }
+
+  /** The manga's end of him: the head comes off, grows back monstrous, he sees himself, and crumbles. */
+  *kokushiboFinisher(boss) {
+    const g = this.game;
+    const p = g.player;
+    g.hud.subtitle('黑死牟', '……我……會輸……？', 2);
+    const { yaw } = yield* this._decapitate(boss);
+    g.cameraRig.play([
+      { t: 0, pos: [2.5, 1.5, -1.5], look: [0, 1.5, 1.5], fov: 40 },
+      { t: 3, pos: [3.2, 1.9, -2.6], look: [0, 1.4, 1.0], fov: 38, e: 'inOut' },
     ], { anchor: boss.pos.clone(), relYaw: yaw, hold: true });
     yield 0.25;
     g.fx.screen.impact(0.1, 0x050305, 0xfff4e8);
     g.slowmo(0.3, 1.2);
-    yield 2.2;
-    g.hud.subtitle('猗窩座', '……還不夠……我還能……', 2.4);
+    yield 1.8;
+    // he does not fall
+    g.hud.subtitle('黑死牟', '……不。我不會在這裡倒下……！', 2.2);
+    yield 1.0;
+    boss.regrow();
+    g.cameraRig.play([
+      { t: 0, pos: [2.6, 1.6, -2.2], look: [0, 1.6, 0.6], fov: 38 },
+      { t: 4.5, pos: [1.6, 1.9, -3.0], look: [0, 1.8, 0.4], fov: 32, e: 'inOut' },
+    ], { anchor: boss.pos.clone(), relYaw: yaw, hold: true });
+    yield 2.4;
+    g.hud.subtitle('黑死牟', '……映在刀身上的……那是……什麼……？', 2.8);
+    yield 3.0;
+    g.hud.subtitle('黑死牟', '這醜陋的樣子……就是我……？', 2.6);
+    g.fx.screen.desatTarget = 0.6;
     yield 2.6;
-    g.hud.subtitle('猗窩座', '……戀雪。', 3.0);
+    boss.crumble();
     g.audio?.play('biwa', { note: 5, volume: 0.6 });
-    yield 3.2;
+    yield 2.0;
+    g.hud.subtitle('黑死牟', '……我究竟……是為了什麼……', 3.0);
+    yield 3.4;
+    // what is left on the boards
+    const at = (boss.flute?.position ?? boss.pos).clone();
+    g.cameraRig.play([
+      { t: 0, pos: [at.x + 0.75, 0.62, at.z - 0.55], look: [at.x, 0.02, at.z], fov: 32 },
+      { t: 4, pos: [at.x + 0.5, 0.42, at.z - 0.36], look: [at.x, 0.02, at.z], fov: 28, e: 'inOut' },
+    ], { hold: true });
+    g.hud.subtitle('', '散去的灰燼之中，只留下一支笛子。', 3.2);
+    yield 3.6;
     g.hud.subtitle(this.lines.victory[0], this.lines.victory[1], 2.4);
     p.anim.play(p.clips.victory, { fade: 0.3, hold: true });
     p.setTrail(null);

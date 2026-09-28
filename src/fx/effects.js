@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { LAYER_FX } from '../render/pipeline.js';
 
 // Style ids shared by trails / arcs / dragons
-export const STYLE = { STEEL: 0, WATER: 1, FIRE: 2, CALM: 3, DEMON: 4, COMPASS: 5, SERPENT: 6 };
+export const STYLE = { STEEL: 0, WATER: 1, FIRE: 2, CALM: 3, DEMON: 4, COMPASS: 5, SERPENT: 6, MOON: 7 };
 export const styleId = (s) => (typeof s === 'number' ? s : STYLE[(s || 'steel').toUpperCase()] ?? 0);
 /** Ink-painted styles (dark outlines) are drawn with normal blending; the glowing ones add light. */
 const inked = (sid) => sid === STYLE.WATER || sid === STYLE.SERPENT;
@@ -66,6 +66,14 @@ vec4 styleColor(int style, float u, float v, float t, float alpha) {
     float edge = 1.0 - smoothstep(0.97, 1.0, v + (n - 0.5) * 0.12);
     float tail = 1.0 - smoothstep(0.5 + n * 0.35, 1.0, u);
     c = vec4(col * 1.2, edge * tail * alpha);
+  } else if (style == 7) {
+    // moon: a violet body under a pale gold cutting edge, flecked like moonlight on water
+    float n = fbm(vec2(u * 6.0 - t * 5.0, v * 3.0 + t * 0.5));
+    float band = v + (n - 0.5) * 0.3;
+    vec3 col = mix(vec3(0.32, 0.1, 0.62), vec3(0.72, 0.5, 1.0), smoothstep(0.2, 0.7, band));
+    col = mix(col, vec3(1.0, 0.93, 0.7), smoothstep(0.78, 0.95, band));
+    float a = smoothstep(0.0, 0.18, v) * (1.0 - smoothstep(0.93, 1.0, v)) * (1.0 - smoothstep(0.35, 1.0, u + n * 0.25));
+    c = vec4(col * 1.55, a * alpha);
   } else if (style == 5) {
     vec3 col = vec3(0.5, 0.92, 1.0);
     float a = (1.0 - smoothstep(0.7, 1.0, u)) * smoothstep(0.0, 0.2, v) * (1.0 - smoothstep(0.8, 1.0, v));
@@ -452,9 +460,11 @@ export class Effects {
     this.time += dt;
     for (let i = this.list.length - 1; i >= 0; i--) {
       const e = this.list[i];
-      e.age += dt;
+      // (an effect an actor owns keeps that actor's clock: see BossBase.own)
+      const edt = e.clock ? dt * e.clock.rate : dt;
+      e.age += edt;
       const t = Math.min(1, e.age / e.life);
-      e.update?.(t, dt, e);
+      e.update?.(t, edt, e);
       if (e.age >= e.life || e.dead) {
         this.scene.remove(e.obj);
         e.obj.traverse((o) => {

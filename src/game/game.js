@@ -12,6 +12,7 @@ import { HudAdapter } from './hud.js';
 import { buildTanjiro, buildGiyu, buildRengoku, buildObanai } from '../actors/characters.js';
 import { createAnimator } from '../actors/animsets.js';
 import { clamp } from '../core/math.js';
+import { rulesFor, isDifficulty } from './rules.js';
 
 const DEFAULT_SETTINGS = {
   masterVolume: 0.8, sfxVolume: 0.9, musicVolume: 0.6, mouseSensitivity: 1.0, invertY: false,
@@ -177,6 +178,13 @@ export class Game {
     this.toTitle();
     // debug shortcut: ?play=tanjiro|giyu|rengoku|obanai&mode=story|boss
     const q = new URLSearchParams(location.search);
+    // (&diff= tries a difficulty for this visit only: the settings screen shows it, the saved setting is left alone,
+    // and choosing a difficulty there ends it)
+    const diff = q.get('diff');
+    if (isDifficulty(diff)) {
+      if (this.ui) this.ui.setForVisit('difficulty', diff);
+      else this.settings.difficulty = diff;
+    }
     if (q.get('play')) this.startGame(q.get('mode') || 'story', q.get('play'));
     if (q.get('bot')) import('./bot.js').then(({ Bot }) => (this._liveBot = new Bot(this)));
   }
@@ -207,6 +215,20 @@ export class Game {
     });
   }
 
+  /** Kokushibo's arena: the same floor under cold moonlight. */
+  _lightingMoon() {
+    setPreset({
+      lightDir: new THREE.Vector3(-0.3, 0.85, -0.45),
+      lightColor: 0xd8d4ff,
+      ambTop: 0x7c74a8,
+      ambBottom: 0x33284a,
+      rimColor: 0xc8a8ff,
+      fogColor: 0x0a0816,
+      fogRange: [30, 160],
+      voidY: -3,
+    });
+  }
+
   applySettings(s) {
     this.settings = { ...this.settings, ...s };
     const st = this.settings;
@@ -216,6 +238,11 @@ export class Game {
     this.cameraRig.shakeScale = st.cameraShake;
     this.hud.showNumbers = st.damageNumbers !== false;
     this.resize();
+  }
+
+  /** The difficulty's rules beyond damage (rules.js): how readable the bosses are, and the 真劍 ruleset. */
+  get rules() {
+    return rulesFor(this.settings.difficulty);
   }
 
   get stepHz() {
@@ -461,7 +488,11 @@ export class Game {
     this.combo.count++;
     this.combo.timer = 2.4;
     this.stats.maxCombo = Math.max(this.stats.maxCombo, this.combo.count);
-    if (p) p.gain(1.6 + dmg * 0.035, 2.2);
+    const D = this.rules.duel;
+    if (p && D) {
+      p.gain((1.6 + dmg * 0.035) * D.conc.onHit, D.breath.onHit);
+      p.regain(dmg);
+    } else if (p) p.gain(1.6 + dmg * 0.035, 2.2);
     void victim; void crit; void h;
   }
   onPlayerDamaged(dmg) {
@@ -477,6 +508,11 @@ export class Game {
     this.director.onBossDefeated(boss);
   }
   onBossPhase(n) {
+    // Kokushibo's second state: the moonlight goes violet
+    if (this.boss?.hudInfo?.theme === 'moon') {
+      if (n >= 2) setPreset({ rimColor: 0xe0b0ff, lightColor: 0xe6dcff, ambTop: 0x7a6aa8, fogColor: 0x0c0618 });
+      return;
+    }
     // the arena's light turns colder as Akaza unleashes his technique
     if (n >= 2) setPreset({ rimColor: 0x7fe6ff, lightColor: n >= 3 ? 0xd8e8ff : 0xe8e0ff, fogColor: n >= 3 ? 0x080a14 : 0x0a0912 });
   }
@@ -591,7 +627,8 @@ export class Game {
     if (!this.world) return;
     this.world.update(realDt, this._audioUnlocked ? this.audio : null);
     if (this.state !== 'paused') this._motes(realDt);
-    this.fx?.update(realDt, realDt, this.camera.position);
+    // (paused, the fight's effects hold still with it -- its timers and ground marks among them)
+    this.fx?.update(this.state === 'paused' ? 0 : realDt, realDt, this.camera.position);
     if (this.state === 'paused') return;
     if (this.screen === 'select' && this.previews) {
       const m = this.previews[this._previewId];

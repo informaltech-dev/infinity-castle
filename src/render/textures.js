@@ -7,7 +7,7 @@ import { paper, noise } from './tex/data.js';
 import { woodFloor, woodDark, pillarRed, shoji, fusuma1, fusuma2, fusuma3, roofTiles, plaster, tatami, lantern } from './tex/env.js';
 import {
   checkerTanjiro, giyuSolid, giyuKikko, uniformBlack, legWraps, akazaSkin, akazaTop, akazaPants,
-  demonSkin, demonRags, hairTanjiro, hairGiyu, hairAkaza, rengokuHaori, obanaiStripes,
+  demonSkin, demonRags, hairTanjiro, hairGiyu, hairAkaza, rengokuHaori, obanaiStripes, kokushiboKimono, kokushiboHakama,
 } from './tex/fabric.js';
 import { FACE_MAKERS } from './tex/faces.js';
 import { crack, compass, waveCurl, splash, flame, flameTiger, smoke, shadow } from './tex/fx.js';
@@ -42,6 +42,8 @@ const SPECS = [
   { name: 'akazaSkin', make: akazaSkin, tile: true },
   { name: 'akazaTop', make: akazaTop, tile: true },
   { name: 'akazaPants', make: akazaPants, tile: true },
+  { name: 'kokushiboKimono', make: kokushiboKimono, tile: true },
+  { name: 'kokushiboHakama', make: kokushiboHakama, tile: true },
   { name: 'demonSkin', make: demonSkin, tile: true },
   { name: 'demonRags', make: demonRags, tile: true },
   { name: 'hairTanjiro', make: hairTanjiro },

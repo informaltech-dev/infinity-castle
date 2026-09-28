@@ -18,7 +18,7 @@ export function setUltStyle(el, style) {
 const q = (el, s) => el.querySelector(s);
 const tx = (v01) => `translateX(${((v01 - 1) * 100).toFixed(2)}%)`;
 
-const BOSS_END = `<svg viewBox="0 0 48 40" aria-hidden="true"><path class="be-tail" d="M2 20c8-1.6 14-1.6 20 0-6 1.6-12 1.6-20 0z"/><path class="be-dia" d="M30 3l15 17-15 17-15-17z"/><path class="be-dia2" d="M30 10.5l8.6 9.5L30 29.5 21.4 20z"/><g class="be-flake"><path d="M30 13.5v13M24.4 16.8l11.2 6.4M24.4 23.2l11.2-6.4"/></g></svg>`;
+const BOSS_END = `<svg viewBox="0 0 48 40" aria-hidden="true"><path class="be-tail" d="M2 20c8-1.6 14-1.6 20 0-6 1.6-12 1.6-20 0z"/><path class="be-dia" d="M30 3l15 17-15 17-15-17z"/><path class="be-dia2" d="M30 10.5l8.6 9.5L30 29.5 21.4 20z"/><g class="be-flake"><path d="M30 13.5v13M24.4 16.8l11.2 6.4M24.4 23.2l11.2-6.4"/></g><path class="be-moon" d="M33.2 14.2A6.4 6.4 0 1 0 33.2 25.8A7.2 7.2 0 0 1 33.2 14.2Z"/></svg>`;
 
 export class HUD {
   constructor(ui, parent) {
@@ -58,8 +58,9 @@ export class HUD {
   }
 
   _resetCaches() {
-    this._pc = { hp01: -1, hpI: null, mhpI: null, low: null, st01: -1, stLow: null, b01: -1, segs: -1, c01: -1, cFull: null, init: false };
-    this._bc = { hp01: -1, title: null, name: null, marks: '', init: false };
+    // (r01 -2: not yet drawn -- the first update always sets the rally segment, hidden or shown)
+    this._pc = { hp01: -1, hpI: null, mhpI: null, low: null, st01: -1, stLow: null, b01: -1, segs: -1, c01: -1, cFull: null, r01: -2, init: false };
+    this._bc = { hp01: -1, title: null, name: null, marks: '', post: -1, high: null, broken: null, init: false };
     this._uc = { key: null, name: null, c01: -1, ready: null, init: false };
   }
 
@@ -70,7 +71,7 @@ export class HUD {
       <div class="hd-crest"><div class="hd-crest-pat"></div>${enso({ r: 43, w: 8, seed: 31, start: -110, sweep: 338 }, 'hd-crest-ring')}<span class="hd-crest-g ic-cal"></span></div>
       <div class="hd-pinfo">
         <div class="hd-pname"><span class="hd-pname-t ic-cal"></span><span class="hd-pname-s"></span></div>
-        <div class="hd-hp"><div class="hd-hp-in"><div class="hd-hp-trail"></div><div class="hd-hp-fill"></div><div class="hd-hp-flash"></div></div><span class="hd-hp-num"><b></b><i>／</i><em></em></span></div>
+        <div class="hd-hp"><div class="hd-hp-in"><div class="hd-hp-trail"></div><div class="hd-hp-rally"></div><div class="hd-hp-fill"></div><div class="hd-hp-flash"></div></div><span class="hd-hp-num"><b></b><i>／</i><em></em></span></div>
         <div class="hd-stam"><div class="hd-stam-fill"></div></div>
         <div class="hd-breath"><span class="hd-blabel">${ICON.drop}<span>呼吸</span></span><div class="hd-segs"></div></div>
         <div class="hd-conc"><span class="hd-clabel">全集中</span><div class="hd-conc-bar"><div class="hd-conc-fill"></div></div></div>
@@ -83,6 +84,7 @@ export class HUD {
     this.hpFill = q(p, '.hd-hp-fill');
     this.hpTrail = q(p, '.hd-hp-trail');
     this.hpFlash = q(p, '.hd-hp-flash');
+    this.hpRally = q(p, '.hd-hp-rally');
     this.hpNum = q(p, '.hd-hp-num b');
     this.hpMax = q(p, '.hd-hp-num em');
     this.stFill = q(p, '.hd-stam-fill');
@@ -163,8 +165,11 @@ export class HUD {
         <span class="bs-end is-l">${BOSS_END}</span>
         <div class="bs-bar"><div class="bs-in"><div class="bs-trail"></div><div class="bs-fill"></div><div class="bs-sheen"></div></div><div class="bs-marks"></div></div>
         <span class="bs-end is-r">${BOSS_END}</span>
-      </div>`;
+      </div>
+      <div class="bs-post"><div class="bs-post-fill"></div></div>`;
     this.bossEl = b;
+    this.bsPost = q(b, '.bs-post');
+    this.bsPostFill = q(b, '.bs-post-fill');
     this.bsTitle = q(b, '.bs-title');
     this.bsName = q(b, '.bs-nm');
     this.bsFill = q(b, '.bs-fill');
@@ -231,6 +236,15 @@ export class HUD {
         c.low = low;
         this.player.classList.toggle('is-low', low);
       }
+    }
+    // 真劍: the part of a wound that cutting back can still win back
+    const rally = clamp(Number(p.rally) || 0, 0, mhp - hp);
+    const r01 = rally > 0.5 ? (hp + rally) / mhp : -1;
+    if (Math.abs(r01 - c.r01) > 0.0004) {
+      // (shown by its class: its shimmer runs only while it is up)
+      this.hpRally.classList.toggle('is-on', r01 >= 0);
+      if (r01 >= 0) this.hpRally.style.transform = tx(r01);
+      c.r01 = r01;
     }
     const hpI = Math.ceil(hp);
     if (hpI !== c.hpI) {
@@ -486,6 +500,7 @@ export class HUD {
         });
       });
     }
+    this.bossEl.classList.toggle('is-moon', b.theme === 'moon');
     const title = String(b.title || '');
     if (title !== c.title) {
       c.title = title;
@@ -510,6 +525,49 @@ export class HUD {
     }
     this._bossLatest = { hp: Number(b.hp) || 0, maxHp: Math.max(1, Number(b.maxHp) || 1) };
     if (c.init) this._applyBoss(this._bossLatest);
+    // posture: fills from the middle out as it is worn down; broken, it flares
+    const post = clamp(Number(b.post) || 0, 0, 1);
+    const broken = !!b.broken;
+    if (broken !== c.broken) {
+      c.broken = broken;
+      this.bsPost.classList.toggle('is-broken', broken);
+      if (broken) this.bsPost.animate([{ filter: 'brightness(3)' }, { filter: 'brightness(1)' }], { duration: 500 });
+    }
+    const shown = broken ? 1 : post;
+    if (Math.abs(shown - c.post) > 0.002) {
+      c.post = shown;
+      this.bsPostFill.style.transform = `scaleX(${shown.toFixed(4)})`;
+      const high = shown > 0.72 && !broken;
+      if (high !== c.high) {
+        c.high = high;
+        this.bsPost.classList.toggle('is-high', high);
+      }
+    }
+  }
+
+  /** 危: a blow no guard stops, flashed over the one about to throw it (screen position). */
+  peril(x, y, on) {
+    const el = this.perilEl || (this.perilEl = this._makePeril());
+    if (!on) {
+      if (this._perilOn) {
+        this._perilOn = false;
+        el.classList.remove('is-on');
+      }
+      return;
+    }
+    el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    if (!this._perilOn) {
+      this._perilOn = true;
+      el.classList.remove('is-on');
+      void el.offsetWidth;
+      el.classList.add('is-on');
+    }
+  }
+
+  _makePeril() {
+    const el = h('div', { class: 'hd-peril' }, h('span', { class: 'ic-cal', text: '危' }));
+    this.el.append(el);
+    return el;
   }
 
   _applyBoss(b) {

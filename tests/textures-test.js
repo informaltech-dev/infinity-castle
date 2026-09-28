@@ -8,7 +8,7 @@ const params = new URLSearchParams(location.search);
 const SECTIONS = [
   ['sec-data', 'Data', (n) => n === 'paper' || n === 'noise'],
   ['sec-env', 'Environment', (n) => ['woodFloor', 'woodDark', 'pillarRed', 'shoji', 'fusuma1', 'fusuma2', 'fusuma3', 'roofTiles', 'plaster', 'tatami', 'lantern'].includes(n)],
-  ['sec-char', 'Characters', (n) => !n.startsWith('face_') && ['checkerTanjiro', 'giyuSolid', 'giyuKikko', 'rengokuHaori', 'obanaiStripes', 'uniformBlack', 'legWraps', 'akazaSkin', 'akazaTop', 'akazaPants', 'demonSkin', 'demonRags', 'hairTanjiro', 'hairGiyu', 'hairAkaza'].includes(n)],
+  ['sec-char', 'Characters', (n) => !n.startsWith('face_') && ['checkerTanjiro', 'giyuSolid', 'giyuKikko', 'rengokuHaori', 'obanaiStripes', 'uniformBlack', 'legWraps', 'akazaSkin', 'akazaTop', 'akazaPants', 'kokushiboKimono', 'kokushiboHakama', 'demonSkin', 'demonRags', 'hairTanjiro', 'hairGiyu', 'hairAkaza'].includes(n)],
   ['sec-face', 'Face decals (canvas space, transparent)', (n) => n.startsWith('face_')],
   ['sec-fx', 'Effects', (n) => ['crack', 'compass', 'waveCurl', 'splash', 'flame', 'flameTiger', 'smoke', 'shadow'].includes(n)],
 ];
@@ -41,9 +41,9 @@ console.log(`[textures] generated ${names.length} in ${genMs.toFixed(1)} ms`);
 // Three.js face viewer (also used to time the GPU upload of every texture)
 // ---------------------------------------------------------------------------
 const R = 1;
-const SKIN = { tanjiro: '#f6d6c2', giyu: '#f4d5c3', akaza: '#f2d9cf', rengoku: '#f6d8c4', obanai: '#f3d7c6', demon_a: '#8f9b86', demon_b: '#9aa08e' };
+const SKIN = { tanjiro: '#f6d6c2', giyu: '#f4d5c3', akaza: '#f2d9cf', rengoku: '#f6d8c4', obanai: '#f3d7c6', kokushibo: '#eedad2', demon_a: '#8f9b86', demon_b: '#9aa08e' };
 // texture name, or [root, tip] colours for a plain gradient when the library has no hair texture for them
-const HAIR = { tanjiro: 'hairTanjiro', giyu: 'hairGiyu', akaza: 'hairAkaza', rengoku: ['#f2c230', '#d2381c'], obanai: 'hairGiyu', demon_a: 'hairGiyu', demon_b: 'hairGiyu' };
+const HAIR = { tanjiro: 'hairTanjiro', giyu: 'hairGiyu', akaza: 'hairAkaza', rengoku: ['#f2c230', '#d2381c'], obanai: 'hairGiyu', kokushibo: ['#141018', '#3a2248'], demon_a: 'hairGiyu', demon_b: 'hairGiyu' };
 function hairTexture(h) {
   if (typeof h === 'string') return textures[h];
   const c = document.createElement('canvas');

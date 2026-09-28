@@ -1069,6 +1069,117 @@ function faceDemonB() {
   return c;
 }
 
+// ---------------------------------------------------------------------------
+// Kokushibo (Upper Moon One): six eyes set on lines out from the bridge of the nose (the upper pair tilted
+// up and out, the lower pair down and out), crimson sclerae and gold irises. The middle pair carry 上弦 and
+// 壹, the other four a black bar. Flame-shaped marks on his left forehead and down his right jaw.
+// ---------------------------------------------------------------------------
+/** Eye frame turned on the head surface by `tilt` radians (outer corner up), undoing the canvas squash. */
+function tiltFrame(u, f, side, k, tilt) {
+  const c = Math.cos(tilt), s = Math.sin(tilt);
+  return frame(u * S, f * S, side * EW * k * c, -EW * k * 1.4 * s, (side * EH * k * s) / 1.4, EH * k * c);
+}
+
+const KOKUSHIBO = {
+  sclera: '#bf1a24', scleraShade: '#5a060e',
+  iris: { a: 0, b: 0.06, rx: 0.5, ry: 0.9, cols: ['#8a5202', '#e9b01c', '#ffe468'], refl: '#fff3b0', ring: '#3a2202', pupil: '#1a0a02', pk: 0.2, shadow: '#6a3804', shadowA: 0.55,
+    hl: [{ x: -0.32, y: -0.34, rx: 0.16, ry: 0.12 }] },
+  lash: { col: '#1c0508', w0: 3, w1: 7.4, wing: [0.14, 0.02, 0] },
+  crease: { col: '#4a0c12', w: 2.4, off: 9, from: 0.15, to: 0.95 },
+  lower: { col: '#3a0a10', w: 2.2, from: 0.4, to: 1 },
+};
+
+// [u, f, size, tilt] for the viewer-left eye of each pair (the right one mirrors it); index 1 is the middle pair
+const KOKUSHIBO_EYES = [
+  [0.352, 0.462, 0.76, 0.46],
+  [EYE_U[0], EYE_F, 1, 0.1],
+  [0.298, 0.738, 0.72, -0.4],
+];
+
+function flameMark(ctx, ctrl, w, col) {
+  inkLine(ctx, PP(ctrl), w, col, { taperA: 0.12, taperB: 0.85, pow: 0.7 });
+}
+
+function kokushiboMarks(ctx) {
+  const RED = '#a8121e', DEEP = '#6a0812';
+  // his left forehead (viewer right): tongues licking up from above the upper eye to the hairline
+  for (const [col, k] of [[DEEP, 1.35], [RED, 1]]) {
+    flameMark(ctx, [[0.6, 0.41], [0.62, 0.375], [0.635, 0.345], [0.645, 0.3]], 7.5 * k, col);
+    flameMark(ctx, [[0.62, 0.415], [0.655, 0.39], [0.68, 0.36], [0.705, 0.335]], 6 * k, col);
+    flameMark(ctx, [[0.585, 0.412], [0.588, 0.38], [0.592, 0.35]], 4.4 * k, col);
+  }
+  // his right jaw (viewer left), running down under it toward the neck
+  for (const [col, k] of [[DEEP, 1.35], [RED, 1]]) {
+    flameMark(ctx, [[0.375, 0.845], [0.35, 0.875], [0.325, 0.915], [0.305, 0.975]], 7.5 * k, col);
+    flameMark(ctx, [[0.36, 0.84], [0.33, 0.855], [0.3, 0.87], [0.268, 0.892]], 5.6 * k, col);
+    flameMark(ctx, [[0.39, 0.865], [0.378, 0.905], [0.366, 0.96]], 4.6 * k, col);
+  }
+}
+
+/** Upright characters inside an iris (canvas space: the iris centre and its vertical radius in px). */
+function irisGlyphs(ctx, eye, cx, cy, ry, text) {
+  ctx.save();
+  ctx.clip(eye);
+  ctx.fillStyle = css('#120604');
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const n = text.length;
+  const px = Math.min(ry * 1.7 / n, ry * 1.05);
+  ctx.font = `900 ${px.toFixed(1)}px "Noto Serif TC", "Noto Serif CJK TC", "Songti TC", "PMingLiU", serif`;
+  for (let i = 0; i < n; i++) ctx.fillText(text[i], cx, cy + (i - (n - 1) / 2) * px * 0.98);
+  ctx.restore();
+}
+
+function kokushiboEyes(ctx, spec) {
+  const I = spec.iris || KOKUSHIBO.iris;
+  KOKUSHIBO_EYES.forEach(([u, f, k, tilt], pair) => {
+    for (const side of [-1, 1]) {
+      const F = tiltFrame(side < 0 ? u : 1 - u, f, side, k, tilt);
+      const E = pair === 1 ? spec : { ...spec, iris: { ...I, pk: 0.14 }, crease: null };
+      const r = drawEye(ctx, F, { ...KOKUSHIBO, ...E, iris: { ...KOKUSHIBO.iris, ...E.iris } });
+      const c0 = F(I.a, I.b);
+      const ryPx = I.ry * Math.hypot(F.bx[0], F.bx[1]);
+      if (pair === 1) irisGlyphs(ctx, r.eye, c0[0], c0[1], ryPx, side < 0 ? '上弦' : '壹');
+      else {
+        // the black bar through the iris, along the eye
+        ctx.save();
+        ctx.clip(r.eye);
+        const a = F(I.a - I.rx * 1.2, I.b), b = F(I.a + I.rx * 1.2, I.b);
+        inkLine(ctx, [a, b], ryPx * 0.34, '#0e0404', { taperA: 0.05, taperB: 0.05 });
+        ctx.restore();
+      }
+    }
+  });
+}
+
+function faceKokushibo(expr) {
+  const { c, ctx } = canvas2d(S, S);
+  kokushiboMarks(ctx);
+  const LINE = '#3a1418';
+  if (expr === 'neutral') {
+    kokushiboEyes(ctx, {
+      lid: { inner: [-1, 0.14], c1: [-0.62, -0.62], c2: [0.46, -0.86], outer: [1.04, -0.1] },
+      low: { c1: [-0.45, 0.78], c2: [0.55, 0.7] },
+    });
+    smallNose(ctx, '#7a3a44');
+    // a straight, faintly downturned line
+    inkLine(ctx, PP([[0.462, 0.814], [0.482, 0.809], [0.5, 0.808], [0.518, 0.809], [0.538, 0.814]]), 3.2, LINE, { taperA: 0.25, taperB: 0.25 });
+  } else {
+    kokushiboEyes(ctx, {
+      iris: { ...KOKUSHIBO.iris, rx: 0.42, ry: 0.78, b: 0.04 },
+      lid: { inner: [-1, 0.02], c1: [-0.6, -0.5], c2: [0.46, -0.8], outer: [1.06, -0.2] },
+      low: { c1: [-0.45, 0.64], c2: [0.55, 0.58] },
+      lash: { ...KOKUSHIBO.lash, w0: 4.2, w1: 8 },
+    });
+    smallNose(ctx, '#7a3a44');
+    openMouth(ctx, PP([[0.43, 0.8], [0.465, 0.793], [0.5, 0.79], [0.535, 0.793], [0.57, 0.8], [0.556, 0.826], [0.5, 0.842], [0.444, 0.826]]), {
+      inside: '#3a0610', upperTeeth: 8, lowerTeeth: 7, lw: 3,
+      fangs: [[0.452, 10, 18], [0.548, 10, 18]], lowerFangs: [[0.47, 8, 11], [0.53, 8, 11]],
+    });
+  }
+  return c;
+}
+
 export const FACE_MAKERS = {
   face_tanjiro_neutral: () => faceTanjiro('neutral'),
   face_tanjiro_fierce: () => faceTanjiro('fierce'),
@@ -1084,6 +1195,8 @@ export const FACE_MAKERS = {
   face_obanai_neutral: () => faceObanai('neutral'),
   face_obanai_fierce: () => faceObanai('fierce'),
   face_obanai_hurt: () => faceObanai('hurt'),
+  face_kokushibo_neutral: () => faceKokushibo('neutral'),
+  face_kokushibo_fierce: () => faceKokushibo('fierce'),
   face_demon_a: () => faceDemonA(),
   face_demon_b: () => faceDemonB(),
 };

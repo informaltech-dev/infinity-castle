@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { ease as EASE, clamp, lerp } from '../src/core/math.js';
 import { buildAkaza, buildDemon } from '../src/actors/characters.js';
-import { Boss } from '../src/actors/boss.js';
+import { Akaza } from '../src/actors/boss.js';
 import { Enemy } from '../src/actors/enemy.js';
 
 export const FPS = 60;
@@ -159,7 +159,7 @@ class Scene {
   akaza(pos = [0, 0, 8], yaw = Math.PI, o = {}) {
     const g = this.g;
     const model = buildAkaza(g.T);
-    const b = new Boss(g, model);
+    const b = new Akaza(g, model);
     b.pos.copy(vec(pos));
     b.yaw = yaw;
     g.scene.add(model.root);

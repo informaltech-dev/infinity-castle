@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Rig } from './rig.js';
+import { Rig, J } from './rig.js';
 import { toonMaterial } from '../render/materials.js';
 import { limb, shell, box, sphere, cone, merge, smoothSeams, katanaBlade, flameTsuba, hexTsuba } from '../render/geo.js';
 import { mulberry32 } from '../core/math.js';
@@ -142,14 +142,15 @@ function buildSword(rig, T, style) {
     rim: 0.6,
     spec: 1.2,
     emissive: style.bladeGlow ?? 0x000000,
+    dissolve: style.dissolve,
   });
-  const edgeMat = toonMaterial({ color: style.edge ?? 0xdfe8f0, unlit: true });
+  const edgeMat = toonMaterial({ color: style.edge ?? 0xdfe8f0, unlit: true, dissolve: style.dissolve });
   const edge = katanaBlade(0.9, 0.012, 0.0095, 0.035);
   edge.translate(0, 0, -0.012);
   if (style.wave) waveBlade(edge, style.wave, 3, 0.9);
   edge.translate(0, 0.135, 0);
-  const guardMat = toonMaterial({ color: style.guard, rim: 0.5, spec: 0.6 });
-  const hiltMat = toonMaterial({ color: style.hilt, shade: 0x777777 });
+  const guardMat = toonMaterial({ color: style.guard, rim: 0.5, spec: 0.6, dissolve: style.dissolve });
+  const hiltMat = toonMaterial({ color: style.hilt, shade: 0x777777, dissolve: style.dissolve });
   const tsuba = style.flame ? flameTsuba(0.052, 0.012) : hexTsuba(0.046, 0.012);
   tsuba.translate(0, 0.118, 0);
   const hilt = new THREE.CylinderGeometry(0.017, 0.019, 0.25, 8);
@@ -180,10 +181,11 @@ function buildSword(rig, T, style) {
   return { group: g, grip, base, mid, tip, offhand, bladeMat };
 }
 
-function scabbard(rig, T, color = 0x16131a, ring = 0xb08a3e) {
+/** `extra`: more material options (a demon's scabbard crumbles with him: { dissolve: true }). */
+function scabbard(rig, T, color = 0x16131a, ring = 0xb08a3e, extra = {}) {
   const s = rig.socket('saya', 'hips', [0.15, 0.02, 0.06], [1.95, 0.25, -0.2]);
-  const m = toonMaterial({ color, rim: 0.4 });
-  const mr = toonMaterial({ color: ring });
+  const m = toonMaterial({ color, rim: 0.4, ...extra });
+  const mr = toonMaterial({ color: ring, ...extra });
   const body = new THREE.CylinderGeometry(0.02, 0.024, 0.95, 8);
   body.translate(0, -0.47, 0);
   body.scale(1, 1, 1.4);
@@ -748,6 +750,334 @@ export function buildAkaza(T) {
   for (const m of [skin, skinTorso, skinFace, top, pants, rope, nails]) rig.materials.add(m);
   rig.build();
   return finalize(rig, { id: 'akaza', head, sword: null, faces, T });
+}
+
+// ---------------------------------------------------------------------------
+// Kokushibo (Upper Moon One)
+// ---------------------------------------------------------------------------
+/**
+ * Eyes on both flats of a blade built along +Y (flats face ±X): almond sclerae along the blade, gold irises,
+ * slit pupils. `at`: [y, z] points; `k` scales them to the blade's width; `half`: half the blade thickness.
+ */
+function bladeEyes(at, k, half) {
+  const out = { sclera: [], iris: [], pupil: [] };
+  const disc = (rAcross, rAlong, x, y, z, side) => {
+    const g = new THREE.CircleGeometry(1, 14);
+    g.scale(rAcross, rAlong, 1);
+    g.rotateY((side * Math.PI) / 2);
+    g.translate(x, y, z);
+    return g;
+  };
+  for (const [y, z] of at) {
+    for (const side of [1, -1]) {
+      out.sclera.push(disc(0.0095 * k, 0.0145 * k, side * (half + 0.0008), y, z, side));
+      out.iris.push(disc(0.0062 * k, 0.0072 * k, side * (half + 0.0014), y, z, side));
+      out.pupil.push(disc(0.0014 * k, 0.0056 * k, side * (half + 0.002), y, z, side));
+    }
+  }
+  return out;
+}
+
+/**
+ * Kyokotsu Kamusari: a dark violet katana with eyes down its flats, and (hidden until the second state) the
+ * form it grows into: a blade over twice as long with three curved blades branching off it, eyes all along.
+ */
+function buildMoonSword(rig) {
+  const sword = buildSword(rig, null, { blade: 0x2e2238, bladeShade: 0x1c1226, guard: 0x5a1e30, hilt: 0x2a0c16, edge: 0xe6d6ff, flame: false, bladeGlow: 0x0a0414, dissolve: true });
+  const eyeMats = [0xb81822, 0xf0b820, 0x120404].map((c) => toonMaterial({ color: c, unlit: true, dissolve: true }));
+  const addEyes = (group, eyes) => {
+    ['sclera', 'iris', 'pupil'].forEach((kind, i) => {
+      const m = new THREE.Mesh(merge(eyes[kind]), eyeMats[i]);
+      m.frustumCulled = false;
+      group.add(m);
+    });
+  };
+  // (the katana's own blade and edge are the first two meshes buildSword adds)
+  const shortParts = sword.group.children.slice(0, 2);
+  addEyes(sword.group, bladeEyes([0.3, 0.46, 0.62, 0.78, 0.92].map((y) => [y, 0.004]), 1, 0.0045));
+  shortParts.push(...sword.group.children.slice(-3));
+  sword.shortParts = shortParts;
+
+  // --- the second state
+  const long = new THREE.Group();
+  long.name = 'swordLong';
+  const LEN = 2.6;
+  // (a faint violet glow of its own, so the grown blade still reads from across the floor)
+  const bladeMat = toonMaterial({ color: 0x3a2848, shade: 0x1e1228, rim: 0.9, spec: 1.2, emissive: 0x2c0e4a, dissolve: true });
+  const edgeMat = toonMaterial({ color: 0xf2e6ff, unlit: true, dissolve: true });
+  const blades = [], edges = [], eyes = { sclera: [], iris: [], pupil: [] };
+  const mainB = katanaBlade(LEN, 0.086, 0.018, 0.16);
+  const mainE = katanaBlade(LEN, 0.026, 0.0185, 0.16);
+  mainE.translate(0, 0, -0.034);
+  blades.push(mainB);
+  edges.push(mainE);
+  const mainEyes = bladeEyes([0.3, 0.56, 0.82, 1.08, 1.34, 1.6, 1.86, 2.12, 2.34].map((y) => [y, 0.008 + 0.16 * (y / LEN) ** 2]), 2.2, 0.0092);
+  for (const k in mainEyes) eyes[k].push(...mainEyes[k]);
+  // branches: [height on the main blade, length, lean toward the spine (+) or the edge (-)]
+  const _mb = new THREE.Matrix4();
+  for (const [y, len, lean] of [[0.95, 0.72, 0.6], [1.55, 0.82, -0.54], [2.1, 0.56, 0.5]]) {
+    const b = katanaBlade(len, 0.064, 0.015, lean > 0 ? -0.08 : 0.08);
+    const e = katanaBlade(len, 0.02, 0.0155, lean > 0 ? -0.08 : 0.08);
+    e.translate(0, 0, lean > 0 ? 0.026 : -0.026);
+    const be = bladeEyes([[len * 0.36, 0], [len * 0.64, 0]], 1.7, 0.0076);
+    // the branch leaves the main blade's spine/edge and sweeps up toward its tip
+    _mb.makeRotationX(lean).setPosition(0, y, 0.16 * (y / LEN) ** 2 + (lean > 0 ? 0.03 : -0.03));
+    for (const g of [b, e, ...be.sclera, ...be.iris, ...be.pupil]) g.applyMatrix4(_mb);
+    blades.push(b);
+    edges.push(e);
+    for (const k in be) eyes[k].push(...be[k]);
+  }
+  const mk = (geos, m) => {
+    const mesh = new THREE.Mesh(merge(geos), m);
+    mesh.frustumCulled = false;
+    long.add(mesh);
+  };
+  mk(blades, bladeMat);
+  mk(edges, edgeMat);
+  addEyes(long, eyes);
+  for (const o of long.children) o.position.y += 0.135;
+  const base = new THREE.Object3D();
+  base.position.set(0, 0.3, 0);
+  const mid = new THREE.Object3D();
+  mid.position.set(0, 1.45, 0.05);
+  const tip = new THREE.Object3D();
+  tip.position.set(0, LEN + 0.12, 0.16);
+  long.add(base, mid, tip);
+  long.visible = false;
+  sword.grip.add(long);
+  for (const m of [bladeMat, edgeMat, ...eyeMats]) rig.materials.add(m);
+  sword.long = { group: long, base, mid, tip, bladeMat, len: LEN };
+  return sword;
+}
+
+/**
+ * Hidden until the end: the blades that burst out of his body when his head grows back, and the head it grows
+ * back as (horned, the fierce face). Returned as { blades: [mesh], head: Group } for Kokushibo's death scene.
+ */
+function buildMonstrousForm(rig, T, skinMat, head) {
+  const bladeMat = toonMaterial({ color: 0x2a1f33, shade: 0x140c1c, rim: 0.8, spec: 1, emissive: 0x16081e, dissolve: true, dissolveColor: 0xb890ff });
+  rig.materials.add(bladeMat);
+  const blades = [];
+  const sprout = (joint, pos, dir, len, w = 0.05) => {
+    const g = katanaBlade(len, w, 0.012, len * 0.12);
+    // katanaBlade grows along +Y: turn it to `dir`
+    _q.setFromUnitVectors(up, dir.clone().normalize());
+    _m.makeRotationFromQuaternion(_q);
+    g.applyMatrix4(_m);
+    const mesh = new THREE.Mesh(g, bladeMat);
+    mesh.position.set(...pos);
+    mesh.scale.setScalar(0.001);
+    mesh.visible = false;
+    mesh.frustumCulled = false;
+    rig.j(joint).add(mesh);
+    blades.push(mesh);
+  };
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  // his back and shoulders, like wings of swords
+  sprout('chest', [0.08, 0.2, -0.12], V(0.6, 0.7, -0.6), 0.95, 0.07);
+  sprout('chest', [-0.08, 0.2, -0.12], V(-0.6, 0.7, -0.6), 0.95, 0.07);
+  sprout('chest', [0.12, 0.08, -0.1], V(1, 0.15, -0.5), 0.75, 0.06);
+  sprout('chest', [-0.12, 0.08, -0.1], V(-1, 0.15, -0.5), 0.75, 0.06);
+  sprout('chest', [0, 0.14, -0.14], V(0, 1, -0.35), 0.7, 0.06);
+  sprout('spine', [0.1, 0.05, -0.1], V(0.8, -0.1, -0.7), 0.6);
+  sprout('spine', [-0.1, 0.05, -0.1], V(-0.8, -0.1, -0.7), 0.6);
+  for (const s of [1, -1]) {
+    const side = s > 0 ? 'L' : 'R';
+    sprout('upperArm' + side, [s * 0.05, -0.08, -0.02], V(s, 0.3, -0.4), 0.5, 0.045);
+    sprout('foreArm' + side, [s * 0.04, -0.1, 0], V(s, -0.2, -0.3), 0.42, 0.04);
+    sprout('thigh' + side, [s * 0.08, -0.12, -0.04], V(s, -0.1, -0.5), 0.46, 0.045);
+  }
+  // the head he grows back: the fierce face, horns splitting out of the skull
+  const R = rig.d.headR;
+  const c = head.headCenter;
+  const g = new THREE.Group();
+  g.name = 'monsterHead';
+  const hg = new THREE.SphereGeometry(R, 22, 16);
+  deformHead(hg, R);
+  hg.translate(c.x, c.y, c.z);
+  const skull = new THREE.Mesh(hg, skinMat);
+  const fg = new THREE.SphereGeometry(R * 1.015, 32, 20, Math.PI / 2 - 1.05, 2.1, 0.55, 1.5);
+  deformHead(fg, R * 1.015);
+  fg.translate(c.x, c.y, c.z);
+  const faceMat = toonMaterial({ color: 0xffffff, map: T?.face_kokushibo_fierce || undefined, alphaTest: 0.04, transparent: true, mapBias: -1.3, shade: 0xe6d8dc, rim: 0, paint: 0, dissolve: true });
+  const face = new THREE.Mesh(fg, faceMat);
+  face.renderOrder = 1;
+  const horns = [];
+  for (const [x, y, z, dx, dy, dz, r, l] of [
+    [0.05, 0.19, 0.02, 0.4, 1, 0.1, 0.022, 0.2], [-0.05, 0.19, 0.02, -0.4, 1, 0.1, 0.022, 0.2],
+    [0.09, 0.14, -0.02, 1, 0.7, -0.2, 0.02, 0.17], [-0.09, 0.14, -0.02, -1, 0.7, -0.2, 0.02, 0.17],
+    [0, 0.2, -0.06, 0, 1, -0.6, 0.02, 0.18], [0.1, 0.06, 0.02, 1, -0.2, 0.3, 0.014, 0.1], [-0.1, 0.06, 0.02, -1, -0.2, 0.3, 0.014, 0.1],
+  ]) horns.push(spike(V(x, y, z), V(dx, dy, dz), r, l, 6));
+  const hornMesh = new THREE.Mesh(merge(horns), bladeMat);
+  const hair = new THREE.Mesh(spikyHair(c, R, { seed: 61, count: 26, len: [0.12, 0.24], rad: [0.035, 0.05], root: 0x131016, tip: 0x3a2248, sweep: V(0, 0.6, -0.7), outward: 0.9, frontCut: 0.3, coverage: 1.3, capTilt: -0.78, capTheta: 1.64 }), head.hairMat);
+  g.add(skull, face, hornMesh, hair);
+  g.traverse((o) => (o.frustumCulled = false));
+  g.position.copy(rig.restPos[J.head]);
+  g.visible = false;
+  rig.j('neck').add(g);
+  rig.materials.add(faceMat);
+  return { blades, head: g };
+}
+
+export function buildKokushibo(T) {
+  const rig = new Rig({ hipY: 1.02, spine: 0.115, chest: 0.2, neck: 0.24, upperArm: 0.31, foreArm: 0.28, thigh: 0.47, shin: 0.46, shoulderX: 0.195, hipX: 0.1, headR: 0.118 });
+  const d = rig.d;
+  const DIS = { dissolve: true, dissolveColor: 0xb890ff };
+  const skin = toonMaterial({ color: 0xeedad2, shade: 0xa88a9e, rim: 0.3, ...DIS });
+  const kimono = mat(T, 'kokushiboKimono', 0x5c2c80, { shade: 0x5a4a78, rim: 0.45, repeat: [2, 2], side: THREE.DoubleSide, ...DIS });
+  const hakama = mat(T, 'kokushiboHakama', 0x18161d, { shade: 0x4a4560, rim: 0.5, repeat: [2, 1.4], side: THREE.DoubleSide, ...DIS });
+  const collarMat = toonMaterial({ color: 0x16121c, shade: 0x40384e, rim: 0.4, ...DIS });
+  const obiMat = toonMaterial({ color: 0xece6da, shade: 0x9c95a8, ...DIS });
+  const tabiMat = toonMaterial({ color: 0xf0ece4, shade: 0xa6a0b0, ...DIS });
+  const strapMat = toonMaterial({ color: 0x6a3692, shade: 0x4a3a66, ...DIS });
+  const soleMat = toonMaterial({ color: 0x3a2a24, shade: 0x5a4a5a, ...DIS });
+
+  // torso: kosode, crossed at the collar, tucked into the hakama under a white obi
+  const pelvis = sphere(0.17, 14, 10);
+  pelvis.scale(1.02, 0.78, 0.82);
+  rig.add('hips', pelvis, hakama);
+  const abdomen = new THREE.CylinderGeometry(0.14, 0.155, 0.17, 12);
+  abdomen.scale(1, 1, 0.78);
+  abdomen.translate(0, 0.07, 0);
+  rig.add('spine', abdomen, kimono);
+  rig.add('chest', torso(0.145, 0.195, 0.25, 0.7), kimono);
+  const yoke = new THREE.SphereGeometry(0.2, 14, 6, 0, Math.PI * 2, 0, 0.9);
+  yoke.scale(1.04, 0.55, 0.8);
+  yoke.translate(0, 0.22, -0.01);
+  rig.add('chest', yoke, kimono);
+  // the crossed collar: two dark bands meeting in a V over the chest (left over right)
+  for (const s of [1, -1]) {
+    const band = box(0.036, 0.23, 0.016);
+    band.rotateZ(-s * 0.32);
+    band.translate(s * 0.025, 0.145, 0.13 + (s > 0 ? 0.005 : 0));
+    rig.add('chest', band, collarMat);
+  }
+  const neckBand = new THREE.CylinderGeometry(0.062, 0.078, 0.05, 12, 1, true);
+  neckBand.translate(0, 0.25, 0.004);
+  rig.add('chest', neckBand, collarMat);
+  // obi and the hakama's waistband
+  const obi = new THREE.CylinderGeometry(0.162, 0.166, 0.07, 14, 1, true);
+  obi.scale(1, 1, 0.8);
+  obi.translate(0, 0.02, 0);
+  rig.add('spine', obi, obiMat);
+  const knot = box(0.05, 0.03, 0.016, 0.05, 0.015, 0.134);
+  rig.add('spine', knot, obiMat);
+  const waist = new THREE.CylinderGeometry(0.168, 0.178, 0.09, 14, 1, true);
+  waist.scale(1, 1, 0.82);
+  waist.translate(0, -0.035, 0);
+  rig.add('spine', waist, hakama);
+
+  // arms: wide kosode sleeves hanging from the shoulder, pale hands
+  for (const s of ['L', 'R']) {
+    rig.add('upperArm' + s, limb(0.058, 0.05, d.upperArm), kimono);
+    const sl = shell(0.08, 0.13, 0.36, 0, Math.PI * 2, 10, 2);
+    sl.translate(0, 0.02, -0.01);
+    rig.add('upperArm' + s, sl, kimono);
+    rig.add('foreArm' + s, limb(0.05, 0.04, d.foreArm - 0.03), kimono);
+    const cuff = shell(0.1, 0.105, 0.2, 0, Math.PI * 2, 10, 1);
+    cuff.translate(0, -0.05, 0);
+    rig.add('foreArm' + s, cuff, kimono);
+    const hand = sphere(0.045, 10, 8);
+    hand.scale(0.85, 1.15, 1.0);
+    hand.translate(0, -0.045, 0.008);
+    rig.add('hand' + s, hand, skin);
+    const thumb = limb(0.015, 0.012, 0.036, 6, 2);
+    thumb.rotateZ(s === 'L' ? -0.9 : 0.9);
+    thumb.translate(s === 'L' ? -0.03 : 0.03, -0.02, 0.02);
+    rig.add('hand' + s, thumb, skin);
+  }
+  // legs: umanori hakama, very wide and long, over white tabi and zori with purple straps
+  for (const s of ['L', 'R']) {
+    const x = s === 'L' ? 1 : -1;
+    rig.add('thigh' + s, limb(0.1, 0.088, d.thigh - 0.02, 12), hakama);
+    const upper = shell(0.13, 0.17, d.thigh + 0.1, 0, Math.PI * 2, 14, 2);
+    upper.translate(x * 0.012, 0.04, 0);
+    rig.add('thigh' + s, upper, hakama);
+    const lower = shell(0.16, 0.19, d.shin - 0.02, 0, Math.PI * 2, 14, 2);
+    lower.translate(0, 0.03, 0);
+    rig.add('shin' + s, lower, hakama);
+    rig.add('shin' + s, limb(0.058, 0.045, d.shin - 0.02, 10), tabiMat);
+    const foot = box(0.088, 0.05, 0.21, 0, -0.035, 0.048);
+    rig.add('foot' + s, foot, tabiMat);
+    const sole = box(0.098, 0.022, 0.24, 0, -0.068, 0.048);
+    rig.add('foot' + s, sole, soleMat);
+    const strap = box(0.1, 0.012, 0.02, 0, -0.03, 0.1);
+    strap.rotateX(0.3);
+    rig.add('foot' + s, strap, strapMat);
+  }
+
+  // hair: black going violet at the ends, a heavy middle-parted fringe, long locks down past the jaw,
+  // everything swept up into a high, bushy ponytail
+  const hairOpts = {
+    seed: 71,
+    count: 34,
+    len: [0.1, 0.17],
+    rad: [0.035, 0.05],
+    root: 0x131016,
+    tip: 0x3a2248,
+    sweep: new THREE.Vector3(0, 0.3, -0.95),
+    outward: 0.55,
+    frontCut: 0.3,
+    crown: 0.8,
+    coverage: 1.3,
+    // a clean hairline: the fringe parts in the middle and falls to either side of the upper eyes
+    capTilt: -0.78,
+    capTheta: 1.64,
+    bangs: [
+      { u: 0.1, polar: 0.34, len: 0.11, rad: 0.04, dx: 0.4 },
+      { u: -0.1, polar: 0.34, len: 0.11, rad: 0.04, dx: -0.4 },
+      { u: 0.28, polar: 0.52, len: 0.12, rad: 0.034, dx: 0.3 },
+      { u: -0.28, polar: 0.52, len: 0.12, rad: 0.034, dx: -0.3 },
+      { u: 0.62, len: 0.2, rad: 0.036, dx: 0.08 },
+      { u: -0.62, len: 0.2, rad: 0.036, dx: -0.08 },
+      { u: 0.95, len: 0.26, rad: 0.036 },
+      { u: -0.95, len: 0.26, rad: 0.036 },
+      { u: 1.2, len: 0.24, rad: 0.033 },
+      { u: -1.2, len: 0.24, rad: 0.033 },
+    ],
+  };
+  const faces = { neutral: 'face_kokushibo_neutral', fierce: 'face_kokushibo_fierce', hurt: 'face_kokushibo_fierce' };
+  const head = buildHead(rig, T, { skinMat: skin, hair: hairOpts, faces, hairShade: 0x6a5a80 });
+  for (const m of [head.faceMat, head.hairMat]) {
+    m.defines.USE_DISSOLVE = '';
+    m.uniforms.uDissolveColor.value.set(0xb890ff);
+    m.needsUpdate = true;
+  }
+  // high ponytail: tied on the crown, a bushy mass of locks hanging to the middle of his back
+  const pony = rig.spring('ponytail', 'head', [0, 0.215, -0.07], 0.6, { rest: [0.5, 0, 0], stiffness: 0.08, damping: 0.86, gravity: 0.05, maxAngle: 1.2 });
+  const pg = [];
+  const core = limb(0.075, 0.03, 0.56, 8, 3);
+  gradientColors(core, 0x131016, 0x2e1c3c, (i, p) => -p.getY(i) / 0.6);
+  pg.push(core);
+  const prnd = mulberry32(88);
+  for (let i = 0; i < 16; i++) {
+    const a = i * 2.39996;
+    const y = -0.06 - (i / 16) * 0.42;
+    const sp = spike(new THREE.Vector3(Math.cos(a) * 0.04, y, Math.sin(a) * 0.04), new THREE.Vector3(Math.cos(a) * 0.55, -1, Math.sin(a) * 0.55), 0.03 + prnd() * 0.012, 0.2 + prnd() * 0.12);
+    gradientColors(sp, 0x151219, 0x3a2248);
+    pg.push(sp);
+  }
+  // the lock flicking up out of the tie
+  const flick = spike(new THREE.Vector3(0, 0.01, 0), new THREE.Vector3(0, 1, -0.5), 0.04, 0.12);
+  gradientColors(flick, 0x131016, 0x2e1c3c);
+  pg.push(flick);
+  const pMesh = new THREE.Mesh(merge(pg), head.hairMat);
+  pMesh.frustumCulled = false;
+  pony.add(pMesh);
+  rig.meshes.push(pMesh);
+  const tie = new THREE.CylinderGeometry(0.032, 0.032, 0.03, 8);
+  tie.rotateX(0.5);
+  tie.translate(0, 0.215, -0.07);
+  rig.add('head', tie, collarMat);
+
+  const sword = buildMoonSword(rig);
+  scabbard(rig, T, 0x16121c, 0x5a2a6a, { dissolve: true, dissolveColor: 0xb890ff });
+  const monster = buildMonstrousForm(rig, T, skin, head);
+  for (const m of [skin, kimono, hakama, collarMat, obiMat, tabiMat, strapMat, soleMat]) rig.materials.add(m);
+  rig.build();
+  const model = finalize(rig, { id: 'kokushibo', head, sword, faces, T });
+  model.monster = monster;
+  return model;
 }
 
 export function buildDemon(T, variant = 'grunt', seed = 1) {

@@ -3,6 +3,7 @@ import { Animator, compileClip, compilePose } from './anim.js';
 import {
   SWORD_STANCE, SWORD_RUN, SWORD_SPRINT, SWORD_GUARD, SWORD_CLIPS,
   AKAZA_STANCE, AKAZA_RUN, AKAZA_CLIPS,
+  KOKUSHIBO_STANCE, KOKUSHIBO_RUN, KOKUSHIBO_CLIPS,
   DEMON_STANCE, DEMON_RUN, DEMON_CLIPS,
 } from './poses.js';
 
@@ -22,9 +23,14 @@ function compileSet(key, stance, clips) {
 export function createAnimator(model) {
   const id = model.id;
   let anim, clips;
-  if (SWORDSMEN.has(id)) {
-    anim = new Animator(model.rig, { stance: SWORD_STANCE, run: SWORD_RUN, sprint: SWORD_SPRINT, guard: SWORD_GUARD });
-    clips = compileSet('sword', SWORD_STANCE, SWORD_CLIPS);
+  if (SWORDSMEN.has(id) || id === 'kokushibo') {
+    if (id === 'kokushibo') {
+      anim = new Animator(model.rig, { stance: KOKUSHIBO_STANCE, run: KOKUSHIBO_RUN, sprint: KOKUSHIBO_RUN });
+      clips = compileSet('kokushibo', KOKUSHIBO_STANCE, KOKUSHIBO_CLIPS);
+    } else {
+      anim = new Animator(model.rig, { stance: SWORD_STANCE, run: SWORD_RUN, sprint: SWORD_SPRINT, guard: SWORD_GUARD });
+      clips = compileSet('sword', SWORD_STANCE, SWORD_CLIPS);
+    }
     const grip = model.sword.grip;
     anim.sword = {
       pivot: new THREE.Vector3(-0.03, 0.12, 0.06),
